@@ -21,6 +21,18 @@ const NBE_STATUS_COLORS = {
   RECORDED: 'purple'
 };
 
+function resolveAnnex1Status(row) {
+  const stored = row?.reportStatus;
+  if (stored && stored !== '-' && String(stored).trim() !== '') {
+    return String(stored).trim();
+  }
+  const current = row?.overallStatus || row?.status;
+  if (current && current !== '-' && String(current).trim() !== '') {
+    return String(current).trim();
+  }
+  return '';
+}
+
 function printCellValue(col, row, index) {
   if (col.key === 'index') {
     return index + 1;
@@ -31,7 +43,28 @@ function printCellValue(col, row, index) {
   if (col.key === 'complaintId') {
     return formatUniqueId(row);
   }
+  if (col.key === 'reportStatus') {
+    return resolveAnnex1Status(row) || '-';
+  }
+  if (col.key === 'daysOpen') {
+    const days = row.daysOpen;
+    if (days === 0 || days === '0') {
+      return '0 Days';
+    }
+    if (days === null || days === undefined || days === '' || days === '-') {
+      return '-';
+    }
+    return `${days} Days`;
+  }
   return row[col.dataIndex] || '-';
+}
+
+function parseDaysOpenValue(value) {
+  if (value === null || value === undefined || value === '' || value === '-') {
+    return null;
+  }
+  const parsed = Number.parseInt(String(value).replace(/days?/i, '').trim(), 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
 // nbe_compliance_reports is keyed by ticket number so that stored report values
@@ -45,7 +78,8 @@ const NBE_EDITABLE_FIELDS = new Set([
   'staffHandling',
   'reasonForNonResolution',
   'additionalComments',
-  'reportStatus'
+  'reportStatus',
+  'daysOpen'
 ]);
 
 function nbeStatusColor(statusValue) {
@@ -201,8 +235,7 @@ function NBEReports() {
     { header: 'Mobile', accessor: (row) => phoneOnly(row.mobile) },
     { header: 'Email', key: 'email' },
     { header: 'Issues Raised', key: 'issuesRaised' },
-    { header: 'Status', type: 'status', accessor: (row) => row },
-    { header: 'NBE Report Status', key: 'reportStatus', type: 'label' },
+    { header: 'Status', accessor: (row) => resolveAnnex1Status(row), type: 'label' },
     { header: 'No. of Days Issue Takes', accessor: (row) => (row.daysOpen === 0 || row.daysOpen ? `${row.daysOpen} Days` : '-') },
     { header: 'Name of Staff Handling', key: 'staffHandling' }
   ];
@@ -316,7 +349,10 @@ function NBEReports() {
 
   const handleEditInlineRow = (record) => {
     setEditingKey(getRecordKey(record));
-    setEditingRowData({ ...record });
+    setEditingRowData({
+      ...record,
+      reportStatus: resolveAnnex1Status(record)
+    });
   };
 
   const handleCancelInlineRow = () => {
@@ -338,6 +374,7 @@ function NBEReports() {
         processInstanceId: record.processInstanceId || null,
         staffHandling: editingRowData.staffHandling ?? '',
         reportStatus: editingRowData.reportStatus ?? '',
+        daysOpen: parseDaysOpenValue(editingRowData.daysOpen),
         reasonForNonResolution: editingRowData.reasonForNonResolution ?? '',
         additionalComments: editingRowData.additionalComments ?? ''
       });
@@ -401,6 +438,20 @@ function NBEReports() {
         </Select>
       );
     }
+    if (type === 'number') {
+      const numeric = val === '-' || val === undefined || val === null ? '' : val;
+      return (
+        <Input
+          type="number"
+          min={0}
+          value={numeric}
+          placeholder="Days"
+          onChange={(e) => handleFieldChange(dataIndex, e.target.value)}
+          size="small"
+          style={{ width: '100%', minWidth: '90px' }}
+        />
+      );
+    }
     return (
       <Input
         value={val === '-' ? '' : val}
@@ -414,6 +465,15 @@ function NBEReports() {
 
   const renderNbeDisplayCell = (record, dataIndex) => {
     const cellValue = record[dataIndex];
+    if (dataIndex === 'daysOpen') {
+      if (cellValue === 0 || cellValue === '0') {
+        return '0 Days';
+      }
+      if (cellValue === null || cellValue === undefined || cellValue === '' || cellValue === '-') {
+        return <span style={{ color: '#94a3b8' }}>-</span>;
+      }
+      return `${cellValue} Days`;
+    }
     if (!cellValue || cellValue === '-') {
       return <span style={{ color: '#94a3b8' }}>-</span>;
     }
@@ -422,15 +482,13 @@ function NBEReports() {
       return <Tag color={nbeStatusColor(overall)}>{overall}</Tag>;
     }
     if (dataIndex === 'reportStatus') {
-      return cellValue
-        ? <Tag color={nbeStatusColor(cellValue)}>{cellValue}</Tag>
+      const displayed = resolveAnnex1Status(record);
+      return displayed
+        ? <Tag color={nbeStatusColor(displayed)}>{displayed}</Tag>
         : <span style={{ color: '#94a3b8' }}>-</span>;
     }
     if (dataIndex === 'lodgedDate') {
       return cellValue ? moment(cellValue).format('DD/MM/YY') : '-';
-    }
-    if (dataIndex === 'daysOpen') {
-      return `${cellValue} Days`;
     }
     return <span style={{ color: '#1e293b', fontSize: '13px' }}>{cellValue}</span>;
   };
@@ -506,9 +564,8 @@ function NBEReports() {
     { title: 'Mobile', dataIndex: 'mobile', key: 'mobile', render: (_, r) => renderNbeDataCell({ ...r, mobile: phoneOnly(r.mobile) }, 'mobile') },
     { title: 'Email', dataIndex: 'email', key: 'email', render: (_, r) => renderNbeDataCell(r, 'email') },
     { title: 'Issues Raised', dataIndex: 'issuesRaised', key: 'issuesRaised', ellipsis: true, render: (_, r) => renderNbeDataCell(r, 'issuesRaised') },
-    { title: 'Status', dataIndex: 'status', key: 'status', render: (_, r) => renderNbeDataCell(r, 'overallStatus') },
-    { title: 'NBE Report Status', dataIndex: 'reportStatus', key: 'reportStatus', render: (_, r) => renderNbeDataCell(r, 'reportStatus', 'select', ['', 'RECORDED', 'ESCALATED', 'ON_TRACK', 'RESOLVED', 'CLOSED', 'DECLINED', 'Referred to NBE']) },
-    { title: 'No. of Days Issue Takes', dataIndex: 'daysOpen', key: 'daysOpen', render: (_, r) => renderNbeDataCell(r, 'daysOpen') },
+    { title: 'Status', dataIndex: 'reportStatus', key: 'reportStatus', render: (_, r) => renderNbeDataCell(r, 'reportStatus', 'select', ['', 'RECORDED', 'ESCALATED', 'ON_TRACK', 'RESOLVED', 'CLOSED', 'DECLINED', 'Referred to NBE']) },
+    { title: 'No. of Days Issue Takes', dataIndex: 'daysOpen', key: 'daysOpen', render: (_, r) => renderNbeDataCell(r, 'daysOpen', 'number') },
     { title: 'Name of Staff Handling', dataIndex: 'staffHandling', key: 'staffHandling', render: (_, r) => renderNbeDataCell(r, 'staffHandling') }
   ];
 
@@ -520,7 +577,7 @@ function NBEReports() {
     { title: 'Unique ID No', dataIndex: 'complaintId', key: 'complaintId', render: (val, record) => <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{formatUniqueId(record || val)}</span> },
     { title: 'Staff Handling Complaint', dataIndex: 'staffHandling', key: 'staffHandling', render: (_, r) => renderNbeDataCell(r, 'staffHandling') },
     { title: 'Complaint Details', dataIndex: 'issuesRaised', key: 'issuesRaised', ellipsis: true, render: (_, r) => renderNbeDataCell(r, 'issuesRaised') },
-    { title: 'Number of Days Open', dataIndex: 'daysOpen', key: 'daysOpen', render: (_, r) => renderNbeDataCell(r, 'daysOpen') },
+    { title: 'Number of Days Open', dataIndex: 'daysOpen', key: 'daysOpen', render: (_, r) => renderNbeDataCell(r, 'daysOpen', 'number') },
     { title: 'Reason for Non-Resolution', dataIndex: 'reasonForNonResolution', key: 'reasonForNonResolution', render: (_, r) => renderNbeDataCell(r, 'reasonForNonResolution') },
     { title: 'Additional Comments', dataIndex: 'additionalComments', key: 'additionalComments', render: (_, r) => renderNbeDataCell(r, 'additionalComments') }
   ];

@@ -157,6 +157,7 @@ function BranchStaffDashboard() {
   const isManager = userRole.includes('MANAGER') || userRole.includes('DIRECTOR') || userRole.includes('LEADER') ||
     userRole === 'ROLE_BRANCH_MANAGER' || userRole === 'ROLE_CONTACT_CENTER_TEAM_LEADER' ||
     userRole === 'ROLE_CONTACT_CENTER_SENIOR_MANAGER' || userRole === 'ROLE_DIGITAL_MARKETING_SENIOR_MANAGER' ||
+    userRole === 'ROLE_CUSTOMER_EXPERIENCE_PARTNERSHIP' ||
     userRole === 'ROLE_CUSTOMER_SERVICE_MANAGER' || userRole === 'ROLE_CHIEF_EXPERIENCE_OFFICER';
 
   const isContactCenterUser = userRole.includes('CONTACT_CENTER') ||
@@ -166,7 +167,7 @@ function BranchStaffDashboard() {
     userRole === 'ROLE_CONTACT_CENTER_AGENT' ||
     userRole === 'ROLE_CONTACT_CENTER_TEAM_LEADER' ||
     userRole === 'ROLE_CONTACT_CENTER_SENIOR_MANAGER' ||
-    userRole === 'ROLE_BRANCH_STAFF';
+    userRole === 'ROLE_CUSTOMER_EXPERIENCE_PARTNERSHIP';
 
   useEffect(() => {
     loadComplaintsData();

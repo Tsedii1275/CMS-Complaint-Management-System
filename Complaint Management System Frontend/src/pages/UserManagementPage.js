@@ -17,13 +17,13 @@ const ROLE_OPTIONS = [
   { label: 'Branch Manager', value: 'ROLE_BRANCH_MANAGER' },
   { label: 'Contact Center Senior Manager', value: 'ROLE_CONTACT_CENTER_SENIOR_MANAGER' },
   { label: 'Digital Marketing Senior Manager', value: 'ROLE_DIGITAL_MARKETING_SENIOR_MANAGER' },
+  { label: 'Customer Experience Partnership', value: 'ROLE_CUSTOMER_EXPERIENCE_PARTNERSHIP' },
   { label: 'Customer Service Manager', value: 'ROLE_CUSTOMER_SERVICE_MANAGER' },
   { label: 'Operation Audit Investigation Team', value: 'ROLE_AUDIT_INVESTIGATION_TEAM' },
   { label: 'Operational Audit Senior Manager', value: 'ROLE_OPERATIONAL_AUDIT_SENIOR_MANAGER' },
   { label: 'Operational Audit Director', value: 'ROLE_OPERATIONAL_AUDIT_DIRECTOR' },
   { label: 'Committee Secretary', value: 'ROLE_COMMITTEE_SECRETARY' },
   { label: 'Chief Committee', value: 'ROLE_CHIEF_COMMITTEE' },
-  { label: 'Branch Staff', value: 'ROLE_BRANCH_STAFF' },
   { label: 'Contact Center Agent', value: 'ROLE_CONTACT_CENTER_AGENT' },
   { label: 'Digital Marketing Officer', value: 'ROLE_DIGITAL_MARKETING_OFFICER' },
   { label: 'Work Unit Specialist', value: 'ROLE_DEPARTMENT_WORKUNIT' },
@@ -32,7 +32,8 @@ const ROLE_OPTIONS = [
 
 const RETIRED_ROLE_LABELS = {
   ROLE_SERVICE_QUALITY_DIRECTOR: 'Service Quality Director',
-  ROLE_SERVICE_QUALITY: 'Service Quality'
+  ROLE_SERVICE_QUALITY: 'Service Quality',
+  ROLE_BRANCH_STAFF: 'Branch Staff'
 };
 
 function roleLabel(role) {

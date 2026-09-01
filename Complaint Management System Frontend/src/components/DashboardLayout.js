@@ -118,6 +118,7 @@ function SidebarMenu({ collapsed, userRole, user, onNavigate }) {
     role.startsWith('ROLE_BRANCH_MANAGER') ||
     role.startsWith('ROLE_CONTACT_CENTER') ||
     role.startsWith('ROLE_DIGITAL_MARKETING') ||
+    role === 'ROLE_CUSTOMER_EXPERIENCE_PARTNERSHIP' ||
     role.startsWith('ROLE_CUSTOMER_SERVICE') ||
     role.startsWith('ROLE_CUSTOMER_CARE')
   ) {

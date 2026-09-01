@@ -99,11 +99,7 @@ public class AuditController {
             String branch = user.getBranch();
             String department = user.getDepartment();
 
-            if ("ROLE_BRANCH_STAFF".equals(role) && branch != null && !branch.isBlank()) {
-                return metrics.stream()
-                        .filter(m -> m.getBranch() == null || branch.equalsIgnoreCase(m.getBranch()))
-                        .collect(Collectors.toList());
-            } else if ("ROLE_DEPARTMENT_WORKUNIT".equals(role)) {
+            if ("ROLE_DEPARTMENT_WORKUNIT".equals(role)) {
                 return metrics.stream()
                         .filter(m -> {
                             boolean matchBranch = branch == null || branch.isBlank()

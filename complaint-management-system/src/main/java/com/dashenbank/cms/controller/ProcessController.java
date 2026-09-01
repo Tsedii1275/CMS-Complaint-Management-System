@@ -83,7 +83,6 @@ public class ProcessController {
     private static final String KEY_PROCESS_INSTANCE_ID = "processInstanceId";
     private static final String KEY_SYSTEM = "system";
     private static final String KEY_MESSAGE = "message";
-    private static final String ROLE_BRANCH_STAFF = "ROLE_BRANCH_STAFF";
     private static final String ROLE_DEPARTMENT_WORKUNIT = "ROLE_DEPARTMENT_WORKUNIT";
     private static final String KEY_FORM_TASK_43 = "FormTask_43";
     private static final String KEY_FORM_TASK_48 = "FormTask_48";
@@ -701,7 +700,7 @@ public class ProcessController {
             return Set.of(KEY_FORM_TASK_48);
         }
         return switch (role) {
-            case ROLE_BRANCH_STAFF, "ROLE_CONTACT_CENTER_AGENT", "ROLE_CONTACT_CENTER_SENIOR_MANAGER" ->
+            case "ROLE_CONTACT_CENTER_AGENT", "ROLE_CONTACT_CENTER_SENIOR_MANAGER" ->
                 Set.of("FormTask_16", "FormTask_24", "FormTask_20", "FormTask_67", "FormTask_12");
             case "ROLE_CUSTOMER_CARE_OFFICER", "ROLE_CUSTOMER_CARE_SENIOR_MANAGER", "ROLE_CUSTOMER_CARE_TEAM_LEADER",
                     "ROLE_SERVICE_QUALITY_DIRECTOR" ->
@@ -803,7 +802,7 @@ public class ProcessController {
                     }
                     if (key == null) {
                         return "SecondaryResolutionReview".equals(t.getCategory()) &&
-                                (ROLE_BRANCH_STAFF.equals(role) || ROLE_DEPARTMENT_WORKUNIT.equals(role));
+                                ROLE_DEPARTMENT_WORKUNIT.equals(role);
                     }
                     return allowedKeys.contains(key);
                 })
@@ -819,15 +818,7 @@ public class ProcessController {
 
         String uBranch = currentUser.getBranch();
         String uDept = currentUser.getDepartment();
-        if (ROLE_BRANCH_STAFF.equals(role) && uBranch != null && !uBranch.isBlank()) {
-            return tasks.stream()
-                    .filter(t -> {
-                        Map<String, Object> vars = taskVarsCache.getOrDefault(t.getId(), Map.of());
-                        String tBranch = (String) vars.get(KEY_BRANCH);
-                        return tBranch == null || uBranch.equalsIgnoreCase(tBranch);
-                    })
-                    .toList();
-        } else if (ROLE_DEPARTMENT_WORKUNIT.equals(role)) {
+        if (ROLE_DEPARTMENT_WORKUNIT.equals(role)) {
             return tasks.stream()
                     .filter(t -> {
                         Map<String, Object> vars = taskVarsCache.getOrDefault(t.getId(), Map.of());

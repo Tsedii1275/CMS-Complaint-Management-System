@@ -111,6 +111,9 @@ public class NbeComplianceReportService {
         applyIfPresent(target::setProcessInstanceId, incoming.getProcessInstanceId());
         applyIfPresent(target::setReportStatus, incoming.getReportStatus());
         applyIfPresent(target::setStaffHandling, incoming.getStaffHandling());
+        if (incoming.getDaysOpen() != null) {
+            target.setDaysOpen(incoming.getDaysOpen());
+        }
         applyIfPresent(target::setReasonForNonResolution, incoming.getReasonForNonResolution());
         applyIfPresent(target::setAdditionalComments, incoming.getAdditionalComments());
 
@@ -231,6 +234,9 @@ public class NbeComplianceReportService {
         overlayString(row, "reasonForNonResolution", stored.getReasonForNonResolution());
         overlayString(row, "additionalComments", stored.getAdditionalComments());
         overlayString(row, "reportStatus", stored.getReportStatus());
+        if (stored.getDaysOpen() != null) {
+            row.put("daysOpen", stored.getDaysOpen());
+        }
         row.put("nbeReportId", stored.getId());
         row.put("nbeReportUpdatedAt", stored.getUpdatedAt());
         row.put("nbeReportUpdatedBy", stored.getUpdatedBy());

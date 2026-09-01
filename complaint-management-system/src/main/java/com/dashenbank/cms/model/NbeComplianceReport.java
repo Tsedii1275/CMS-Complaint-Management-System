@@ -46,6 +46,9 @@ public class NbeComplianceReport {
     @Column(name = "staff_handling", length = 255)
     private String staffHandling;
 
+    @Column(name = "days_open")
+    private Integer daysOpen;
+
     @Column(name = "reason_for_non_resolution", columnDefinition = "TEXT")
     private String reasonForNonResolution;
 

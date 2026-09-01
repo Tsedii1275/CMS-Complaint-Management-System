@@ -1,6 +1,5 @@
 export const ROLE_ROUTES = {
   // Shared Operational Dashboard Roles
-  'ROLE_BRANCH_STAFF': '/branch-staff',
   'ROLE_CONTACT_CENTER_AGENT': '/branch-staff',
   'ROLE_CONTACT_CENTER_TEAM_LEADER': '/branch-staff',
   'ROLE_CONTACT_CENTER_SENIOR_MANAGER': '/branch-staff',
@@ -9,6 +8,7 @@ export const ROLE_ROUTES = {
   'ROLE_CUSTOMER_CARE_TEAM_LEADER': '/branch-staff',
   'ROLE_DIGITAL_MARKETING_OFFICER': '/branch-staff',
   'ROLE_DIGITAL_MARKETING_SENIOR_MANAGER': '/branch-staff',
+  'ROLE_CUSTOMER_EXPERIENCE_PARTNERSHIP': '/branch-staff',
   'ROLE_CHIEF_EXPERIENCE_OFFICER': '/executive',
   'ROLE_BRANCH_MANAGER': '/branch-staff',
   'ROLE_CUSTOMER_SERVICE_MANAGER': '/branch-staff',
@@ -33,6 +33,9 @@ export const getRouteForRole = (role) => {
   const key = typeof role === 'string' ? role.toUpperCase() : '';
   if (key === 'ROLE_CONTACT_CENTER_MANAGER') {
     return ROLE_ROUTES.ROLE_CONTACT_CENTER_SENIOR_MANAGER;
+  }
+  if (key === 'ROLE_BRANCH_STAFF') {
+    return ROLE_ROUTES.ROLE_CONTACT_CENTER_AGENT;
   }
   return ROLE_ROUTES[role] || ROLE_ROUTES[key] || '/staff-login';
 };
@@ -69,6 +72,7 @@ export function canAccessPath(pathname, role) {
       || r.startsWith('ROLE_BRANCH_MANAGER')
       || r.startsWith('ROLE_CONTACT_CENTER')
       || r.startsWith('ROLE_DIGITAL_MARKETING')
+      || r === 'ROLE_CUSTOMER_EXPERIENCE_PARTNERSHIP'
       || r.startsWith('ROLE_CUSTOMER_SERVICE')
       || r.startsWith('ROLE_CUSTOMER_CARE');
   }

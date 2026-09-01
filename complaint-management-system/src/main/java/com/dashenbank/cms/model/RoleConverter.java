@@ -41,6 +41,9 @@ public class RoleConverter implements AttributeConverter<Role, String> {
         if ("ROLE_SERVICE_QUALITY".equals(normalized)) {
             return Role.ROLE_CUSTOMER_CARE_OFFICER;
         }
+        if ("ROLE_BRANCH_STAFF".equals(normalized)) {
+            return Role.ROLE_CONTACT_CENTER_AGENT;
+        }
         String legacy = dbData.trim().toUpperCase(Locale.ROOT);
         if (legacy.contains("CMD") || legacy.contains("CC_OFFICER") || legacy.contains("CUSTOMER_CARE")) {
             return Role.ROLE_CUSTOMER_CARE_OFFICER;
@@ -51,8 +54,8 @@ public class RoleConverter implements AttributeConverter<Role, String> {
         if (legacy.contains("AUDIT") && (legacy.contains("TEAM") || legacy.contains("OFFICER"))) {
             return Role.ROLE_AUDIT_INVESTIGATION_TEAM;
         }
-        log.warn("Unknown or legacy role '{}' found in database. Mapping safely to ROLE_BRANCH_STAFF.", dbData);
-        return Role.ROLE_BRANCH_STAFF;
+        log.warn("Unknown or legacy role '{}' found in database. Mapping safely to ROLE_CONTACT_CENTER_AGENT.", dbData);
+        return Role.ROLE_CONTACT_CENTER_AGENT;
     }
 
     private static String normalizeRoleToken(String dbData) {
@@ -67,7 +70,7 @@ public class RoleConverter implements AttributeConverter<Role, String> {
 
     /**
      * Former ROLE_CONTACT_CENTER_MANAGER and display-name variants must never
-     * fall through to Branch Staff after the enum constant was removed.
+     * fall through to Contact Center Agent after the enum constant was removed.
      */
     private static boolean isLegacyContactCenterManager(String original, String normalized) {
         if ("ROLE_CONTACT_CENTER_MANAGER".equals(normalized)) {
