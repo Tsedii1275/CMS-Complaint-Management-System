@@ -1,0 +1,1749 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CMS Data Architecture & Dictionary</title>
+</head>
+<body style="padding: 40px; max-width: 900px; margin: 0 auto; color: #333; font-family: Arial, sans-serif;">
+  <h1 style="font-family: Arial, sans-serif; color: #012169; border-bottom: 2px solid #012169; padding-bottom: 8px; margin-top: 32px; margin-bottom: 16px;">Complaint Management System (CMS) Data Architecture & Data Dictionary</h1>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h2 style="font-family: Arial, sans-serif; color: #012169; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-top: 24px; margin-bottom: 12px;">Executive Summary</h2>
+<br/>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">The <strong>Complaint Management System (CMS)</strong> serves as a critical customer retention and operational risk-mitigation tool. This document details the end-to-end data architecture and logical relational design that underpins the system’s workflow. By formalizing core data models, SLA metrics pipelines, audit-trail compliance schemas, and integrations with Core Banking and Customer Relationship Management (CRM) databases, this schema ensures secure, high-performance, and verifiable operation.</p>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h2 style="font-family: Arial, sans-serif; color: #012169; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-top: 24px; margin-bottom: 12px;">1. Conceptual Data Model</h2>
+<br/>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">The conceptual data model represents the high-level business concepts, workflows, and logical entities in the CMS. Each entity performs a distinct role in tracking, validating, and resolving customer complaints.</p>
+<br/>
+<h3 style="font-family: Arial, sans-serif; color: #1565c0; margin-top: 20px; margin-bottom: 8px;">Business Entities & Descriptions</h3>
+<br/>
+<table style="border-collapse: collapse; width: 100%; margin-bottom: 20px; font-family: Arial, sans-serif;">
+  <tr>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Entity Name</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Conceptual Purpose</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Customer</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Represents the core consumer or business client lodging the grievance. Holds credentials, segments, risk scores, and account links.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Complaint</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">The central case entity containing the core ticket number, creation metadata, current lifecycle state, and core descriptions.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Complaint Category</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Classification hierarchy (e.g., Financial, ATM, Internet Banking) used for routing and grouping.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Complaint Priority</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">System urgency levels (Critical, High, Medium, Low) set by CMD to drive SLA schedules.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>User</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">System users representing internal staff (CMD Screeners, Work Unit resolvers, Auditors, Committee Members).</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Role</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Security authorizations (e.g., <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">ROLE_CMD_OFFICER</code>, <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">ROLE_AUDIT_TEAM</code>) controlling feature and task access.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Department</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Corporate organizational units (e.g., Bole Branch, Card Services) mapped for Work Unit assignments.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>CMD Screening</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Historical screening details containing triage notes, routing decisions, and initial priority assignments.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Investigation</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Audit trail of compliance investigations, complete with compliance findings and evidentiary files.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Chief Committee Review</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Review records of committee decisions regarding contested or high-impact compliance cases.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Resolution</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Work Unit resolution log detailing technical actions taken, resolver details, and dates.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Customer Feedback</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Captures satisfaction or dissatisfaction and comments from customers after notification.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>SLA Configuration</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Predefined deadlines mapped by Category and Priority (total allowed minutes, threshold alarms).</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Complaint SLA Metrics</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">High-level compliance health tracking for process instance lifecycles (ON_TIME, OVERDUE, APPROACHING).</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Task Time Tracking</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Granular temporal logging at the user-task level to measure individual and team operational bottleneck periods.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Audit Log</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Chronological record of system operations, previous vs. new values, actors, and remarks.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Attachment</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Links uploaded files (evidence, recordings, audit files, committee briefs) to their parent contexts.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Notification</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Tracks outgoing client communications via SMS and Email, indicating execution statuses.</td>
+  </tr>
+</table>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h2 style="font-family: Arial, sans-serif; color: #012169; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-top: 24px; margin-bottom: 12px;">2. Logical Data Model</h2>
+<br/>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">The logical data model establishes the keys, references, and cardinalities bridging these entities.</p>
+<br/>
+<pre style="background: #f5f5f5; padding: 12px; border: 1px solid #ccc; font-family: monospace; border-radius: 4px; overflow-x: auto;">+-----------------------------------+
+|               Role                |
++-----------------------------------+
+| PK: role_id                       |
+| One-to-Many -&gt; Users              |
++-----------------------------------+
+                 |
+                 v (1:N)
++-----------------------------------+
+|               User                |
++-----------------------------------+
+| PK: user_id                       |
+| FK: role_id, department_id        |
++-----------------------------------+
+                 |
+                 +-------------------+
+                 |                   |
+                 v (1:N)             v (1:N)
++-------------------+ +-------------------+
+|  CMD Screening    | |   Investigation   |
++-------------------+ +-------------------+
+| PK: screening_id  | | PK: invest_id     |
+| FK: complaint_id  | | FK: complaint_id  |
+| FK: screener_id   | | FK: investigator_id|
++-------------------+ +-------------------+
+</pre>
+<br/>
+<h3 style="font-family: Arial, sans-serif; color: #1565c0; margin-top: 20px; margin-bottom: 8px;">Cardinality and Relationships</h3>
+<br/>
+<ul style="font-family: Arial, sans-serif; line-height: 1.5; margin-bottom: 16px;">
+  <li>Customer (1) → (Many) Complaints**: A customer can file multiple complaints over time; each complaint relates to exactly one customer profile.</li>
+  <li>Complaint (1) → (Many) Audit Logs**: A single complaint case will trigger multiple audit trail events (e.g., Case Registered, Screened, Escalated, Resolved, Closed).</li>
+  <li>Department (1) → (Many) Users**: Internal bank staff members are assigned to one bank branch or department.</li>
+  <li>Role (1) → (Many) Users**: Users are assigned a primary system authorization role.</li>
+  <li>Complaint (1) → (Many) Attachments**: A complaint can contain multiple attachments at different workflow stages (Evidence from Customer, Voice Call recording, Auditor's Report, Committee Brief).</li>
+  <li>Complaint (1) → (Many) Notifications**: A single complaint triggers multiple customer notifications (Acknowledge SMS, Acknowledge Email, Resolution SMS, Feedback requests).</li>
+  <li>Complaint (1) → (1) SLA Metrics**: Every complaint has exactly one active process SLA tracking record.</li>
+</ul>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h2 style="font-family: Arial, sans-serif; color: #012169; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-top: 24px; margin-bottom: 12px;">3. Detailed Data Dictionary</h2>
+<br/>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">Below is the database table schema defining data structures, nullability constraints, defaults, and realistic values.</p>
+<br/>
+<h3 style="font-family: Arial, sans-serif; color: #1565c0; margin-top: 20px; margin-bottom: 8px;">Table: <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">customers</code></h3>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">Stores customer profile records fetched from the Core Banking System.</p>
+<br/>
+<table style="border-collapse: collapse; width: 100%; margin-bottom: 20px; font-family: Arial, sans-serif;">
+  <tr>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Column Name</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Data Type</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Length</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Null</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Default</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Description</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Example Value</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">customer_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">SERIAL</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Unique surrogate key</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">10245</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">cif_number</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">20</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Customer Identification File number</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">CIF-987456</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">name</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">255</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Customer's full registered name</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">Kermit the Frog</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">email</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">255</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Primary contact email</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">kermit@muppets.com</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">phone_number</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">20</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Active mobile number</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">+251912345678</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">customer_type</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">50</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">'RETAIL'</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Customer classification</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">RETAIL</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">customer_segment</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">50</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Customer wealth tier</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">VIP_PREMIUM</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">is_vip</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BOOLEAN</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">FALSE</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">High-value customer designation flag</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">TRUE</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">risk_rating</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">20</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">'LOW'</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Compliance risk assessment tier</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">MEDIUM</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">customer_since</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">DATE</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Core banking registration date</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">2018-05-12</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">relationship_manager</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">255</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Assigned bank officer name</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">Fozzie Bear</code></td>
+  </tr>
+</table>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h3 style="font-family: Arial, sans-serif; color: #1565c0; margin-top: 20px; margin-bottom: 8px;">Table: <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaints</code></h3>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">Central container for registered grievance tickets.</p>
+<br/>
+<table style="border-collapse: collapse; width: 100%; margin-bottom: 20px; font-family: Arial, sans-serif;">
+  <tr>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Column Name</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Data Type</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Length</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Null</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Default</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Description</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Example Value</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaint_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">SERIAL</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Primary surrogate key</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">34892</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">ticket_number</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">50</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Public unique reference identifier</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">CM-20260711-A8F2</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">customer_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">customers</code> table</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">10245</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">account_number</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">30</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Core account under complaint</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">1234567890123</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">account_status</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">20</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Account status at registration</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">ACTIVE</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">home_branch</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">100</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Primary account registry branch</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">Bole Branch</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">channel</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">30</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">'web'</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Ingestion channel (branch, phone, social_media)</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">phone</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">description</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TEXT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Customer's raw complaint text</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">Poor behavior from teller.</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">category_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaint_categories</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">2</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">priority_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaint_priorities</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">1</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">process_instance_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">100</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Flowable workflow instance UID</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">d522e796-7ac0-11f1-b306</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">created_at</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TIMESTAMP</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">CURRENT_TIMESTAMP</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Initial registration date</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">2026-07-11 08:30:00</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">resolved_at</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TIMESTAMP</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Final task completion date</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">2026-07-11 14:15:00</code></td>
+  </tr>
+</table>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h3 style="font-family: Arial, sans-serif; color: #1565c0; margin-top: 20px; margin-bottom: 8px;">Table: <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaint_categories</code></h3>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">Maps complaint classification hierarchies.</p>
+<br/>
+<table style="border-collapse: collapse; width: 100%; margin-bottom: 20px; font-family: Arial, sans-serif;">
+  <tr>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Column Name</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Data Type</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Length</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Null</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Default</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Description</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Example Value</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">category_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">SERIAL</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Primary key</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">2</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">code</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">50</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">System identifier</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">atm</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">name</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">100</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">UI display label</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">ATM - Card Services</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">description</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">255</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Detailed classification scope</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">ATM cash dispensing errors</code></td>
+  </tr>
+</table>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h3 style="font-family: Arial, sans-serif; color: #1565c0; margin-top: 20px; margin-bottom: 8px;">Table: <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaint_priorities</code></h3>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">Holds priority configurations.</p>
+<br/>
+<table style="border-collapse: collapse; width: 100%; margin-bottom: 20px; font-family: Arial, sans-serif;">
+  <tr>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Column Name</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Data Type</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Length</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Null</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Default</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Description</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Example Value</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">priority_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">SERIAL</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Primary key</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">1</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">code</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">10</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Target priority code</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">P1</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">name</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">50</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Label for P1-P4 scales</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">Critical</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">allowed_duration_hours</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">INT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Resolution SLA timeline window</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">24</code></td>
+  </tr>
+</table>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h3 style="font-family: Arial, sans-serif; color: #1565c0; margin-top: 20px; margin-bottom: 8px;">Table: <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">users</code></h3>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">System application users.</p>
+<br/>
+<table style="border-collapse: collapse; width: 100%; margin-bottom: 20px; font-family: Arial, sans-serif;">
+  <tr>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Column Name</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Data Type</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Length</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Null</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Default</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Description</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Example Value</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">user_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">SERIAL</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Primary key</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">101</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">username</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">50</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Unique system login name</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">tseday</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">password</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">255</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BCrypt hashed password credentials</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">$2a$10$X8m2...</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">email</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">255</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Corporate contact email</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">tseday@bank.com</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">role_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">roles</code> table</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">2</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">department_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">departments</code> table</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">4</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">status</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">20</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">'ACTIVE'</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Account state (ACTIVE, SUSPENDED)</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">ACTIVE</code></td>
+  </tr>
+</table>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h3 style="font-family: Arial, sans-serif; color: #1565c0; margin-top: 20px; margin-bottom: 8px;">Table: <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">roles</code></h3>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">Security permissions lookup.</p>
+<br/>
+<table style="border-collapse: collapse; width: 100%; margin-bottom: 20px; font-family: Arial, sans-serif;">
+  <tr>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Column Name</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Data Type</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Length</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Null</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Default</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Description</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Example Value</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">role_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">SERIAL</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Primary key</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">2</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">role_name</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">50</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Security authority name</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">ROLE_CMD_OFFICER</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">permissions</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TEXT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">JSON permissions array list</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">["CASE_READ","CASE_ASSIGN"]</code></td>
+  </tr>
+</table>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h3 style="font-family: Arial, sans-serif; color: #1565c0; margin-top: 20px; margin-bottom: 8px;">Table: <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">departments</code></h3>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">Organizational units mapping.</p>
+<br/>
+<table style="border-collapse: collapse; width: 100%; margin-bottom: 20px; font-family: Arial, sans-serif;">
+  <tr>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Column Name</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Data Type</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Length</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Null</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Default</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Description</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Example Value</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">department_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">SERIAL</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Primary key</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">4</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">department_name</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">100</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Department/Branch name identifier</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">Bole Branch</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">description</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">255</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Department role description</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">Retail retail branch Bole</code></td>
+  </tr>
+</table>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h3 style="font-family: Arial, sans-serif; color: #1565c0; margin-top: 20px; margin-bottom: 8px;">Table: <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">cmd_screenings</code></h3>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">Logs details from the CMD screening workflow task.</p>
+<br/>
+<table style="border-collapse: collapse; width: 100%; margin-bottom: 20px; font-family: Arial, sans-serif;">
+  <tr>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Column Name</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Data Type</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Length</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Null</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Default</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Description</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Example Value</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">screening_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">SERIAL</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Primary key</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">501</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaint_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaints</code> table</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">34892</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">screener_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">User reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">users</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">101</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">priority_assigned_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaint_priorities</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">1</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">requires_investigation</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BOOLEAN</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">FALSE</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Triage path selection flag</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">TRUE</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">screening_notes</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TEXT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Triage documentation notes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">High impact core system failure.</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">screened_at</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TIMESTAMP</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">CURRENT_TIMESTAMP</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Time triage task was completed</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">2026-07-11 09:10:00</code></td>
+  </tr>
+</table>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h3 style="font-family: Arial, sans-serif; color: #1565c0; margin-top: 20px; margin-bottom: 8px;">Table: <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">investigations</code></h3>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">Compliance and audit findings.</p>
+<br/>
+<table style="border-collapse: collapse; width: 100%; margin-bottom: 20px; font-family: Arial, sans-serif;">
+  <tr>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Column Name</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Data Type</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Length</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Null</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Default</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Description</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Example Value</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">investigation_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">SERIAL</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Primary key</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">901</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaint_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaints</code> table</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">34892</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">investigator_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">User reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">users</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">103</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">findings</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TEXT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Details of audit investigation findings</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">Teller logged out early.</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">justification</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TEXT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Compliance justification</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">Teller manual rules section 4.</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">investigated_at</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TIMESTAMP</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">CURRENT_TIMESTAMP</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Audit task completion time</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">2026-07-11 11:30:00</code></td>
+  </tr>
+</table>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h3 style="font-family: Arial, sans-serif; color: #1565c0; margin-top: 20px; margin-bottom: 8px;">Table: <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">committee_reviews</code></h3>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">Decisions of the Chief Committee.</p>
+<br/>
+<table style="border-collapse: collapse; width: 100%; margin-bottom: 20px; font-family: Arial, sans-serif;">
+  <tr>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Column Name</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Data Type</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Length</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Null</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Default</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Description</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Example Value</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">review_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">SERIAL</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Primary key</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">1201</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaint_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaints</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">34892</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">reviewer_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">User reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">users</code> (Committee)</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">106</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">decision</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">30</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">DECISION (APPROVED, REJECTED)</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">APPROVED</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">explanation</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TEXT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Legal/Management justification notes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">Approve disciplinary action.</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">reviewed_at</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TIMESTAMP</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">CURRENT_TIMESTAMP</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Review task execution time</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">2026-07-11 13:00:00</code></td>
+  </tr>
+</table>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h3 style="font-family: Arial, sans-serif; color: #1565c0; margin-top: 20px; margin-bottom: 8px;">Table: <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">resolutions</code></h3>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">Departmental / Work Unit resolutions.</p>
+<br/>
+<table style="border-collapse: collapse; width: 100%; margin-bottom: 20px; font-family: Arial, sans-serif;">
+  <tr>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Column Name</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Data Type</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Length</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Null</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Default</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Description</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Example Value</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">resolution_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">SERIAL</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Primary key</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">4002</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaint_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaints</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">34892</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">resolver_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">User reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">users</code> (Work Unit)</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">104</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">resolution_notes</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TEXT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Remediation notes and resolution detail</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">Account credited $+500$</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">resolved_at</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TIMESTAMP</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">CURRENT_TIMESTAMP</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Task resolution time</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">2026-07-11 14:15:00</code></td>
+  </tr>
+</table>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h3 style="font-family: Arial, sans-serif; color: #1565c0; margin-top: 20px; margin-bottom: 8px;">Table: <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">customer_feedbacks</code></h3>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">Captures post-resolution feedback.</p>
+<br/>
+<table style="border-collapse: collapse; width: 100%; margin-bottom: 20px; font-family: Arial, sans-serif;">
+  <tr>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Column Name</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Data Type</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Length</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Null</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Default</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Description</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Example Value</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">feedback_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">SERIAL</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Primary key</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">8821</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaint_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaints</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">34892</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">satisfied</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BOOLEAN</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Satisfaction flag</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">FALSE</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">comments</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TEXT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Customer's feedback remarks</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">Still did not receive credit.</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">feedback_at</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TIMESTAMP</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">CURRENT_TIMESTAMP</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Form submission time</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">2026-07-11 15:30:00</code></td>
+  </tr>
+</table>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h3 style="font-family: Arial, sans-serif; color: #1565c0; margin-top: 20px; margin-bottom: 8px;">Table: <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">sla_configurations</code></h3>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">Resolution timelines configurations.</p>
+<br/>
+<table style="border-collapse: collapse; width: 100%; margin-bottom: 20px; font-family: Arial, sans-serif;">
+  <tr>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Column Name</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Data Type</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Length</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Null</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Default</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Description</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Example Value</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">sla_config_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">SERIAL</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Primary key</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">12</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">category_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaint_categories</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">2</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">priority_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaint_priorities</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">1</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">total_sla_duration_minutes</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">INT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Maximum time allowed</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">1440</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">escalation_threshold_percent</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">INT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">80</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Approaching warning trigger %</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">85</code></td>
+  </tr>
+</table>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h3 style="font-family: Arial, sans-serif; color: #1565c0; margin-top: 20px; margin-bottom: 8px;">Table: <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaint_sla_metrics</code></h3>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">Case-level SLA statistics.</p>
+<br/>
+<table style="border-collapse: collapse; width: 100%; margin-bottom: 20px; font-family: Arial, sans-serif;">
+  <tr>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Column Name</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Data Type</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Length</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Null</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Default</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Description</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Example Value</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">sla_metric_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">SERIAL</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Primary key</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">7732</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaint_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaints</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">34892</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">start_time</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TIMESTAMP</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">CURRENT_TIMESTAMP</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Lifecycle timer start time</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">2026-07-11 08:30:00</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">end_time</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TIMESTAMP</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Case resolution/termination time</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">2026-07-11 14:15:00</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">actual_duration_minutes</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">INT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Computed resolution time</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">345</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">total_allowed_minutes</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">INT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Allowed time from <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">sla_configurations</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">1440</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">sla_status</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">30</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">'ON_TIME'</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Status (ON_TIME, APPROACHING, OVERDUE)</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">ON_TIME</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">breached</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BOOLEAN</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">FALSE</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">SLA breached indicator</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">FALSE</code></td>
+  </tr>
+</table>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h3 style="font-family: Arial, sans-serif; color: #1565c0; margin-top: 20px; margin-bottom: 8px;">Table: <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">task_time_trackings</code></h3>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">Granular tracking for user-level tasks.</p>
+<br/>
+<table style="border-collapse: collapse; width: 100%; margin-bottom: 20px; font-family: Arial, sans-serif;">
+  <tr>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Column Name</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Data Type</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Length</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Null</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Default</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Description</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Example Value</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">tracking_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">SERIAL</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Primary key</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">88219</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaint_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaints</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">34892</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">task_name</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">100</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BPMN task name label</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">Audit Investigation</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">assignee_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">User reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">users</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">103</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">start_time</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TIMESTAMP</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">CURRENT_TIMESTAMP</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Task activation/claim time</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">2026-07-11 09:10:00</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">end_time</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TIMESTAMP</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Task completion time</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">2026-07-11 11:30:00</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">duration_minutes</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">INT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Active processing duration</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">140</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">is_overdue</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BOOLEAN</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">FALSE</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Indicator if task SLA breached</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">FALSE</code></td>
+  </tr>
+</table>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h3 style="font-family: Arial, sans-serif; color: #1565c0; margin-top: 20px; margin-bottom: 8px;">Table: <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">attachments</code></h3>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">Manages evidentiary assets.</p>
+<br/>
+<table style="border-collapse: collapse; width: 100%; margin-bottom: 20px; font-family: Arial, sans-serif;">
+  <tr>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Column Name</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Data Type</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Length</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Null</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Default</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Description</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Example Value</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">attachment_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">SERIAL</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Primary key</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">9942</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaint_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaints</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">34892</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">uploader_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">User reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">users</code> (null if cust)</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">103</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">file_name</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">255</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Original uploaded filename</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">audit_evidence.pdf</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">file_url</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">500</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Storage path URL</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">/uploads/audit_evidence.pdf</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">file_type</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">100</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">MIME file type</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">application/pdf</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">file_size_bytes</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">File size metric</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">1048576</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">context_type</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">50</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Stage (CUSTOMER, SCREENING, AUDIT)</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">AUDIT</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">uploaded_at</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TIMESTAMP</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">CURRENT_TIMESTAMP</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Upload timestamp</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">2026-07-11 09:30:00</code></td>
+  </tr>
+</table>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h3 style="font-family: Arial, sans-serif; color: #1565c0; margin-top: 20px; margin-bottom: 8px;">Table: <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">notifications</code></h3>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">Communication logs.</p>
+<br/>
+<table style="border-collapse: collapse; width: 100%; margin-bottom: 20px; font-family: Arial, sans-serif;">
+  <tr>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Column Name</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Data Type</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Length</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Null</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Default</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Description</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Example Value</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">notification_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">SERIAL</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Primary key</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">66432</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaint_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaints</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">34892</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">recipient_contact</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">255</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">target address (email or phone)</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">kermit@muppets.com</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">type</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">10</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Channel type (EMAIL, SMS)</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">EMAIL</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">content</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TEXT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Handoff notification text</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">Complaint ticket CM-20260711...</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">sent_status</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">20</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">'PENDING'</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Delivery state (SENT, FAILED, PENDING)</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">SENT</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">sent_at</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TIMESTAMP</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Dispatch completion time</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">2026-07-11 08:30:05</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">failure_reason</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">255</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Messaging server error log</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">Connection timeout</code></td>
+  </tr>
+</table>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h2 style="font-family: Arial, sans-serif; color: #012169; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-top: 24px; margin-bottom: 12px;">4. Database Relationship Diagram</h2>
+<br/>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">The following Entity-Relationship Diagram (ERD) defines relationships, foreign keys, and cardinalities between tables.</p>
+<br/>
+<pre style="background: #f5f5f5; padding: 12px; border: 1px solid #ccc; font-family: monospace; border-radius: 4px; overflow-x: auto;">erDiagram
+    customers ||--o{ complaints : "has"
+    complaint_categories ||--o{ complaints : "classifies"
+    complaint_priorities ||--o{ complaints : "prioritizes"
+    departments ||--o{ users : "employs"
+    roles ||--o{ users : "authorizes"
+    
+    complaints ||--o{ cmd_screenings : "screened-by"
+    complaints ||--o{ investigations : "investigated-by"
+    complaints ||--o{ committee_reviews : "reviewed-by"
+    complaints ||--o{ resolutions : "resolved-by"
+    complaints ||--o{ customer_feedbacks : "reviewed-by-client"
+    complaints ||--o{ attachments : "retains"
+    complaints ||--o{ notifications : "dispatches"
+    complaints ||--|| complaint_sla_metrics : "measures"
+    complaints ||--o{ task_time_trackings : "tracks"
+    complaints ||--o{ audit_logs : "records"
+    
+    users ||--o{ cmd_screenings : "screens"
+    users ||--o{ investigations : "investigates"
+    users ||--o{ committee_reviews : "reviews"
+    users ||--o{ resolutions : "resolves"
+    users ||--o{ task_time_trackings : "completes"
+    users ||--o{ audit_logs : "acts"
+</pre>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h2 style="font-family: Arial, sans-serif; color: #012169; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-top: 24px; margin-bottom: 12px;">5. Audit Log Structure</h2>
+<br/>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">Auditable tracking is required for security reviews and process analysis. The <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">audit_logs</code> table logs details on case state changes, modifications, and system access.</p>
+<br/>
+<h3 style="font-family: Arial, sans-serif; color: #1565c0; margin-top: 20px; margin-bottom: 8px;">Table: <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">audit_logs</code></h3>
+<br/>
+<table style="border-collapse: collapse; width: 100%; margin-bottom: 20px; font-family: Arial, sans-serif;">
+  <tr>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Column Name</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Data Type</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Length</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Null</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Default</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Description</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Example Value</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">audit_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">SERIAL</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Primary surrogate key</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">775432</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaint_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reference to target case</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">34892</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">action_type</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">100</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Action (CASE_REGISTERED, STATE_CHANGE)</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">STATE_CHANGE</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">actor_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BIGINT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">User reference to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">users</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">101</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">actor_role</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">50</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">User's role at time of action</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">ROLE_CMD_OFFICER</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">previous_value</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TEXT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Pre-state values (JSON/text)</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">{"status": "PENDING_SCREENING"}</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">new_value</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TEXT</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Post-state values (JSON/text)</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">{"status": "PENDING_INVESTIGATION"}</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">process_instance_id</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">100</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BPMN workflow instance tracker</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">d522e796-7ac0-11f1-b306</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">task_name</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">100</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Stage name at time of event</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">CMD Screening</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">remarks</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">255</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Yes</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Free-text operational comments</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">Escalating to Audit: requires review.</code></td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">timestamp</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">TIMESTAMP</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">-</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">No</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">CURRENT_TIMESTAMP</code></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Action completion timestamp</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">2026-07-11 09:10:00</code></td>
+  </tr>
+</table>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h2 style="font-family: Arial, sans-serif; color: #012169; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-top: 24px; margin-bottom: 12px;">6. SLA Data Structure</h2>
+<br/>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">SLA management uses a configuration table and two runtime metrics tables to monitor resolution compliance.</p>
+<br/>
+<h3 style="font-family: Arial, sans-serif; color: #1565c0; margin-top: 20px; margin-bottom: 8px;">Logical Schema</h3>
+<br/>
+<pre style="background: #f5f5f5; padding: 12px; border: 1px solid #ccc; font-family: monospace; border-radius: 4px; overflow-x: auto;">[sla_configurations]
+  - sla_config_id (PK)
+  - category_id (FK)
+  - priority_id (FK)
+  - total_sla_duration_minutes
+  - escalation_threshold_percent
+        |
+        +-- (Used to validate &amp; alert on)
+        |
+        v
+[complaint_sla_metrics]
+  - sla_metric_id (PK)
+  - complaint_id (FK)
+  - start_time
+  - end_time
+  - actual_duration_minutes
+  - sla_status (ON_TIME, APPROACHING, OVERDUE)
+</pre>
+<br/>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">1.  <strong><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">sla_configurations</code></strong>: Defines the target SLA durations and warning thresholds for each category and priority combination.</p>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">2.  <strong><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaint_sla_metrics</code></strong>: Tracks overall resolution compliance for each complaint.</p>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">3.  <strong><code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">task_time_trackings</code></strong>: Records fine-grained timing for individual tasks within the workflow, highlighting where delays occur.</p>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h2 style="font-family: Arial, sans-serif; color: #012169; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-top: 24px; margin-bottom: 12px;">7. Security and User Management</h2>
+<br/>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">The security schema implements Role-Based Access Control (RBAC) to ensure that users can access and edit only those cases aligned with their authorizations.</p>
+<br/>
+<pre style="background: #f5f5f5; padding: 12px; border: 1px solid #ccc; font-family: monospace; border-radius: 4px; overflow-x: auto;">+------------------+          +------------------+          +------------------+
+|   departments    |          |      users       |          |      roles       |
++------------------+          +------------------+          +------------------+
+| department_id PK |&lt;--(1:N)--| user_id PK       |--(N:1)---&gt;| role_id PK       |
+| department_name  |          | role_id FK       |          | role_name        |
+| description      |          | department_id FK |          | permissions      |
++------------------+          +------------------+          +------------------+
+</pre>
+<br/>
+<ul style="font-family: Arial, sans-serif; line-height: 1.5; margin-bottom: 16px;">
+  <li>Users**: Connects identity to system credentials, corporate roles, and operational departments.</li>
+  <li>Roles**: Contains the primary permission controls mapped to system endpoints and frontend layouts.</li>
+  <li>Departments**: Maps team members to structural groups, supporting task routing for Work Units.</li>
+</ul>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h2 style="font-family: Arial, sans-serif; color: #012169; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-top: 24px; margin-bottom: 12px;">8. Core Banking & CRM Integration Data Requirements</h2>
+<br/>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">The Complaint Management System relies on integrations with the Core Banking System and the Customer Relationship Management (CRM) database. This data is critical for validating complaints, routing tasks, and prioritizing high-impact accounts.</p>
+<br/>
+<pre style="background: #f5f5f5; padding: 12px; border: 1px solid #ccc; font-family: monospace; border-radius: 4px; overflow-x: auto;">   Core Banking System                    CRM Database
++-----------------------+       +-------------------------------+
+| - CIF Number          |       | - Customer Type (Corp/Retail) |
+| - Account Number      |       | - Customer Segment            |
+| - Account Status      |======&gt;| - VIP Indicator               |
+| - Home Branch         |       | - Relationship Manager        |
+| - Contact Info        |       | - Customer Since              |
++-----------------------+       +-------------------------------+
+            ||                                  ||
+            +=================++================+
+                              ||
+                              v
+                  [ Complaint System Triage ]
+</pre>
+<br/>
+<h3 style="font-family: Arial, sans-serif; color: #1565c0; margin-top: 20px; margin-bottom: 8px;">Integration Attributes & Business Rationale</h3>
+<br/>
+<table style="border-collapse: collapse; width: 100%; margin-bottom: 20px; font-family: Arial, sans-serif;">
+  <tr>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">System Origin</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Attribute</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Data Type</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2; font-weight: bold;">Business Value & Routing Rationale</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Core Banking</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>CIF Number</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Establishes a unique, immutable client profile reference across all banking channels and account relationships.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Core Banking</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Account Number</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Validates that the transaction or facility referenced in the complaint exists, preventing invalid ticket submissions.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Core Banking</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Account Status</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Used to identify restricted, inactive, or closed accounts. Helps guide CMD screening decisions and identify potential fraud.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Core Banking</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Home Branch</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Pinpoints the primary branch of account registration, supporting automatic routing for branch-level resolutions.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>CRM</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Customer Type</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Distinguishes between Corporate (high financial exposure) and Retail customers, routing cases to specialized support teams.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>CRM</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Customer Segment</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Identifies high-value customers (e.g., Premium, Mass) to help determine the appropriate priority level.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>CRM</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>VIP Indicator</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">BOOLEAN</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Triggers automated P1 priority assignment, routes cases to senior representatives, and applies stricter SLA tracking.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>CRM</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Customer Since</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">DATE</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Identifies long-term customers, allowing the system to flag loyalty status and prioritize resolution.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>CRM</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>Relationship Mgr</strong></td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">VARCHAR</td>
+    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Identifies the relationship manager for corporate accounts, supporting automatic CC alerts and routing of resolution drafts.</td>
+  </tr>
+</table>
+<br/>
+<hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
+<br/>
+<h2 style="font-family: Arial, sans-serif; color: #012169; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-top: 24px; margin-bottom: 12px;">9. Recommendations and Best Practices</h2>
+<br/>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">1.  <strong>Implement DB Partitioning on Audit Tables</strong>: The <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">audit_logs</code> and <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">task_time_trackings</code> tables grow rapidly. Partitioning them by calendar month or year improves query performance and simplifies archiving.</p>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">2.  <strong>Define Indexes on Foreign Keys</strong>: Add indexes to foreign keys (<code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">complaint_id</code>, <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">customer_id</code>, <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">process_instance_id</code>) to speed up dashboard queries and joint operations under high workloads.</p>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">3.  <strong>Enforce Strict base64 Sanitation</strong>: File uploads are converted to base64 strings during frontend uploads. The backend must enforce file size limits and scan files before saving them to disk.</p>
+<p style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin-bottom: 16px;">4.  <strong>Use Asynchronous SLA Calculations</strong>: Calculate SLA deadlines asynchronously inside Spring Boot, or configure cron processes for status checks (like changing status from <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">ON_TIME</code> to <code style="background: #f5f5f5; padding: 2px 4px; font-family: monospace; border-radius: 3px;">APPROACHING</code>). This keeps active process execution fast and lightweight.</p>
+<br/>
+
+</body>
+</html>

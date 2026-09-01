@@ -1,0 +1,37 @@
+version: '3.9'
+
+services:
+  mysql:
+    image: mysql:8
+    container_name: cms-mysql
+    restart: always
+
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: cms_db
+      MYSQL_USER: cms_user
+      MYSQL_PASSWORD: cms_pass
+
+    ports:
+      - "3306:3306"
+
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: cms-phpmyadmin
+    restart: always
+
+    ports:
+      - "8081:80"
+
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+
+    depends_on:
+      - mysql
+
+volumes:
+  mysql_data:

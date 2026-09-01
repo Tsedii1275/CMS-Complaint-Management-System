@@ -1,0 +1,32 @@
+# Nested git (old backend-only history backup, if present)
+**/.git.bak/
+**/.git.local-backup/
+
+# Maven / Java
+**/target/
+**/.mvn/wrapper/maven-wrapper.jar
+
+# Node / React
+**/node_modules/
+**/build/
+**/.cache/
+**/.eslintcache
+**/coverage/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# Logs and local dumps
+*.log
+uploads/
+
+# Local secrets — copy from application.properties.example
+complaint-management-system/src/main/resources/application.properties
+.env
+.env.local
+.env.*.local

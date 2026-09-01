@@ -1,0 +1,47 @@
+spring.application.name=complaint-management-system
+spring.datasource.url=jdbc:mysql://localhost:3306/cms_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+spring.datasource.username=cms_user
+spring.datasource.password=cms_pass
+spring.datasource.driverClassName=com.mysql.cj.jdbc.Driver
+
+spring.jpa.hibernate.ddl-auto=none
+spring.jpa.show-sql=true
+
+# Flyway Database Migration Configuration
+spring.flyway.enabled=true
+spring.flyway.baseline-on-migrate=true
+spring.flyway.baseline-version=1.0
+spring.flyway.locations=classpath:db/migration
+
+spring.flowable.database-schema-update=true
+flowable.database-schema-update=true
+flowable.check-process-definitions=true
+
+# SMTP — set via environment or local application.properties (not committed)
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=${SPRING_MAIL_USERNAME:your-smtp-user@example.com}
+spring.mail.password=${SPRING_MAIL_PASSWORD:your-smtp-app-password}
+
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+spring.mail.properties.mail.smtp.starttls.required=true
+spring.mail.properties.mail.smtp.connectiontimeout=5000
+spring.mail.properties.mail.smtp.timeout=5000
+spring.mail.properties.mail.smtp.writetimeout=5000
+
+# Twilio SMS settings
+twilio.account-sid=${TWILIO_ACCOUNT_SID:AC_YOUR_TWILIO_ACCOUNT_SID}
+twilio.auth-token=${TWILIO_AUTH_TOKEN:YOUR_TWILIO_AUTH_TOKEN}
+twilio.from-phone=${TWILIO_FROM_PHONE:+16592125018}
+
+# File Upload configuration
+spring.servlet.multipart.max-file-size=50MB
+spring.servlet.multipart.max-request-size=50MB
+
+# Bootstrap Admin Configuration
+app.admin.initial-password=${INITIAL_ADMIN_PASSWORD:ChangeMeOnFirstLogin!}
+
+# JWT (override in local application.properties)
+app.jwtSecret=${APP_JWT_SECRET:change-this-to-a-long-random-secret}
+app.jwtExpirationMs=86400000
