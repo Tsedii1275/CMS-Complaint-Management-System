@@ -158,7 +158,12 @@ class ApiService {
 
   // Authentication
   async login(username, password) {
-    return this.post('/api/auth/login', { username, password });
+    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    return this.handleResponse(response);
   }
 
   async updatePassword(currentPassword, newPassword, confirmPassword) {

@@ -21,8 +21,9 @@ const Login = () => {
     setError('');
 
     try {
-      const username = values.username.toLowerCase();
-      const response = await ApiService.login(username, values.password);
+      const username = (values.username || '').trim().toLowerCase();
+      const password = (values.password || '').trim();
+      const response = await ApiService.login(username, password);
       
       // response should have { token, username, role, fullName, district, branch, department }
       const userData = {

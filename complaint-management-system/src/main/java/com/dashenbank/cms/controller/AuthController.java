@@ -42,8 +42,9 @@ public class AuthController {
     public ResponseEntity<?> authenticateUser(@RequestBody Map<String, String> loginRequest) {
         try {
             String rawUsername = loginRequest.get(KEY_USERNAME);
-            String password = loginRequest.get("password");
+            String rawPassword = loginRequest.get("password");
             String username = rawUsername != null ? rawUsername.trim() : "";
+            String password = rawPassword != null ? rawPassword.trim() : "";
 
             var userOpt = userRepository.findByUsernameIgnoreCase(username);
             String targetUsername = userOpt.isPresent() ? userOpt.get().getUsername() : username;
@@ -75,7 +76,10 @@ public class AuthController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.warn("Authentication failed for user: {}", loginRequest.get(KEY_USERNAME), e);
+            log.warn("Authentication failed for user: {} (password length={})",
+                    loginRequest.get(KEY_USERNAME),
+                    loginRequest.get("password") == null ? -1 : loginRequest.get("password").length(),
+                    e);
             return ResponseEntity.status(401).body(Map.of("error", "Invalid username or password"));
         }
     }
