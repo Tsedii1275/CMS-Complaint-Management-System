@@ -178,6 +178,8 @@ public class ProcessController {
     private ComplainantRelatedInformationService complainantRelatedInformationService;
     @Autowired
     private NbeComplianceReportService nbeComplianceReportService;
+    @Autowired
+    private com.dashenbank.cms.config.AppHttpProperties appHttpProperties;
     private final NotificationDelegate notificationDelegate;
 
     @SuppressWarnings("java:S107")
@@ -648,11 +650,12 @@ public class ProcessController {
                                 "የተፈታበት ቀን:%n%s%n%n" +
                                 "የእርስዎ ተሞክሮ ለእኛ አስፈላጊ ነው።%n%n" +
                                 "እባክዎን ከታች ያለውን ሊንክ በመጠቀም በአገልግሎታችን ላይ ያለዎትን እርካታ ይመዝኑ:%n%n" +
-                                "http://localhost:3000/customer-feedback?token=%s%n%n" +
+                                "%s%n%n" +
                                 "አገልግሎታችንን እንድናሻሽል ስለረዱን እናመሰግናለን።%n%n" +
                                 "ዳሽን ባንክ%n" +
                                 "የደንበኞች አገልግሎት ቡድን",
-                        name, subDate, ticket, resSummary, resDate, UUID.randomUUID().toString());
+                        name, subDate, ticket, resSummary, resDate,
+                        appHttpProperties.pageUrl("/customer-feedback?token=" + UUID.randomUUID()));
             } else {
                 subject = "Complaint Resolution Update";
                 emailMessage = String.format(
@@ -663,11 +666,12 @@ public class ProcessController {
                                 "Your experience matters to us.%n%n" +
                                 "Please take a moment to rate your satisfaction with our service using the link below:%n%n"
                                 +
-                                "http://localhost:3000/customer-feedback?token=%s%n%n" +
+                                "%s%n%n" +
                                 "Thank you for helping us improve our services.%n%n" +
                                 "Dashen Bank%n" +
                                 "Customer Care Team",
-                        name, ticket, subDate, resSummary, resDate, UUID.randomUUID().toString());
+                        name, ticket, subDate, resSummary, resDate,
+                        appHttpProperties.pageUrl("/customer-feedback?token=" + UUID.randomUUID()));
             }
             if (email != null && !email.isBlank()) {
                 notificationService.sendEmail(email, subject, emailMessage);
@@ -2345,7 +2349,7 @@ public class ProcessController {
                 }
             }
 
-            String fileUrl = "http://localhost:8080/api/complaints/attachments/" + fileName;
+            String fileUrl = "/api/complaints/attachments/" + fileName;
             return ResponseEntity
                     .ok(Map.of("url", fileUrl, "fileName", originalFilename != null ? originalFilename : fileName));
         } catch (Exception e) {
@@ -2427,7 +2431,7 @@ public class ProcessController {
                 }
             }
 
-            String fileUrl = "http://localhost:8080/api/complaints/attachments/" + fileName;
+            String fileUrl = "/api/complaints/attachments/" + fileName;
             return ResponseEntity
                     .ok(Map.of("url", fileUrl, "fileName", originalFilename != null ? originalFilename : fileName));
         } catch (Exception e) {

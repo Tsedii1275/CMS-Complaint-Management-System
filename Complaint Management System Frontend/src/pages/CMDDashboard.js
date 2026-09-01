@@ -2264,7 +2264,7 @@ function CmdAuditInvestigationCard({ selectedTask }) {
                           <a
                             href={ApiService.getAttachmentUrl(
                               selectedTask.variables.auditAttachment ||
-                              `http://localhost:8080/api/complaints/attachments/${selectedTask.variables.auditAttachmentName}`
+                              `/api/complaints/attachments/${selectedTask.variables.auditAttachmentName}`
                             )}
                             download={selectedTask.variables.auditAttachmentName || 'audit_attachment'}
                             target="_blank"

@@ -1,5 +1,6 @@
 package com.dashenbank.cms.delegate;
 
+import com.dashenbank.cms.config.AppHttpProperties;
 import com.dashenbank.cms.repository.ComplaintSlaMetricsRepository;
 import com.dashenbank.cms.model.CustomerFeedback;
 import com.dashenbank.cms.repository.CustomerFeedbackRepository;
@@ -42,17 +43,20 @@ public class NotificationDelegate implements JavaDelegate, TaskListener {
     private final AuditService auditService;
     private final CustomerFeedbackRepository feedbackRepository;
     private final ComplaintSlaMetricsRepository slaMetricsRepository;
+    private final AppHttpProperties appHttpProperties;
 
     @Autowired
     public NotificationDelegate(
             NotificationService notificationService,
             AuditService auditService,
             CustomerFeedbackRepository feedbackRepository,
-            ComplaintSlaMetricsRepository slaMetricsRepository) {
+            ComplaintSlaMetricsRepository slaMetricsRepository,
+            AppHttpProperties appHttpProperties) {
         this.notificationService = notificationService;
         this.auditService = auditService;
         this.feedbackRepository = feedbackRepository;
         this.slaMetricsRepository = slaMetricsRepository;
+        this.appHttpProperties = appHttpProperties;
     }
 
     @Override
@@ -102,7 +106,7 @@ public class NotificationDelegate implements JavaDelegate, TaskListener {
                 customerMap.getOrDefault(VAR_PREFERRED_LANGUAGE, "english"));
 
         String token = createFeedbackRecord(ticketId, processInstanceId, preferredLanguage);
-        String feedbackLink = "http://localhost:3000/customer-feedback?token=" + token;
+        String feedbackLink = appHttpProperties.pageUrl("/customer-feedback?token=" + token);
 
         String subDate = extractSubmissionDate(processVars);
         String resDate = LocalDateTime.now(SYSTEM_ZONE).format(DATE_FMT);
@@ -164,7 +168,7 @@ public class NotificationDelegate implements JavaDelegate, TaskListener {
         String preferredLanguage = resolvePreferredLanguage(execution, customer);
 
         String token = createFeedbackRecord(ticketId, processInstanceId, preferredLanguage);
-        String feedbackLink = "http://localhost:3000/customer-feedback?token=" + token;
+        String feedbackLink = appHttpProperties.pageUrl("/customer-feedback?token=" + token);
 
         Map<String, Object> vars = execution.getVariables();
         String subDate = extractSubmissionDate(vars);

@@ -43,3 +43,9 @@ yarn-error.log*
 ### Logs ###
 *.log
 
+# TLS material — never commit
+*.pfx
+*.p12
+*.jks
+*.keystore
+

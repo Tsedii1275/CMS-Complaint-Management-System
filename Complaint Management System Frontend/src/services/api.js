@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ?? 'http://localhost:8080';
 
 const HTTP_ERROR_MESSAGES = {
   400: 'Invalid request parameters or payload.',
@@ -60,9 +60,13 @@ function withQuery(path, queryString) {
 class ApiService {
   getAttachmentUrl(url) {
     if (!url) return '';
-    // If it starts with localhost:8080, replace it with the configured API_BASE_URL
+    const base = API_BASE_URL || '';
     if (url.startsWith('http://localhost:8080')) {
-      return url.replace('http://localhost:8080', API_BASE_URL);
+      const relative = url.substring('http://localhost:8080'.length);
+      return base ? `${base}${relative}` : relative;
+    }
+    if (url.startsWith('/') && base) {
+      return `${base}${url}`;
     }
     return url;
   }
@@ -349,7 +353,7 @@ class ApiService {
       }
     }
 
-    const response = await fetch('http://localhost:8080/api/complaints/upload-audio', {
+    const response = await fetch(`${API_BASE_URL}/api/complaints/upload-audio`, {
       method: 'POST',
       headers: headers,
       body: formData

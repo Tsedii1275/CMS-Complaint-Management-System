@@ -1,0 +1,27 @@
+# Build context is the CMS root (docker-compose.yml directory).
+.git
+**/.git
+**/.git.local-backup
+**/.git.bak
+
+**/node_modules
+**/target
+**/build
+**/.cache
+**/.eslintcache
+**/coverage
+**/.idea
+**/.vscode
+**/*.iml
+**/.env.local
+**/.env.*.local
+
+# Host uploads and logs
+**/uploads
+**/*.log
+
+# Do not bake local secrets into the backend image
+complaint-management-system/src/main/resources/application.properties
+
+# Nested compose / IDE
+**/.mvn/wrapper/maven-wrapper.jar

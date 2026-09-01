@@ -4,16 +4,29 @@ Dashen Bank complaint workflow: Spring Boot + Flowable backend and React fronten
 
 ## Layout
 
-- `complaint-management-system` — Spring Boot backend (`pom.xml`, `src/`, Docker MySQL)
-- `Complaint Management System Frontend` — React (Create React App)
+- `complaint-management-system` — Spring Boot (`Dockerfile` in this folder)
+- `Complaint Management System Frontend` — React (`Dockerfile` and `nginx.conf` in this folder)
+- `docker-compose.yml` — the only Compose file (Nginx + Spring Boot + MySQL + phpMyAdmin)
 
-## Run
-
-MySQL:
+## Run the full stack (Docker)
 
 ```powershell
-cd complaint-management-system
-docker compose up -d
+cd D:\Complaint-projects\demo\CMS
+docker compose up -d --build
+```
+
+- Application: http://localhost
+- phpMyAdmin: http://localhost:8081
+
+Spring Boot port 8080 stays on the Compose network only.
+
+## Run on the host (developer mode)
+
+MySQL + phpMyAdmin from the same Compose file:
+
+```powershell
+cd D:\Complaint-projects\demo\CMS
+docker compose up -d mysql phpmyadmin
 ```
 
 Backend:

@@ -30,3 +30,9 @@ complaint-management-system/src/main/resources/application.properties
 .env
 .env.local
 .env.*.local
+
+# TLS material — never commit; terminate at F5/IIS/Nginx, not in this repo
+*.pfx
+*.p12
+*.jks
+*.keystore

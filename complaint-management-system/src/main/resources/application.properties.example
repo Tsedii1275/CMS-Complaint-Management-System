@@ -11,6 +11,7 @@ spring.jpa.show-sql=true
 spring.flyway.enabled=true
 spring.flyway.baseline-on-migrate=true
 spring.flyway.baseline-version=1.0
+spring.flyway.out-of-order=true
 spring.flyway.locations=classpath:db/migration
 
 spring.flowable.database-schema-update=true
@@ -30,11 +31,6 @@ spring.mail.properties.mail.smtp.connectiontimeout=5000
 spring.mail.properties.mail.smtp.timeout=5000
 spring.mail.properties.mail.smtp.writetimeout=5000
 
-# Twilio SMS settings
-twilio.account-sid=${TWILIO_ACCOUNT_SID:AC_YOUR_TWILIO_ACCOUNT_SID}
-twilio.auth-token=${TWILIO_AUTH_TOKEN:YOUR_TWILIO_AUTH_TOKEN}
-twilio.from-phone=${TWILIO_FROM_PHONE:+16592125018}
-
 # File Upload configuration
 spring.servlet.multipart.max-file-size=50MB
 spring.servlet.multipart.max-request-size=50MB
@@ -45,3 +41,9 @@ app.admin.initial-password=${INITIAL_ADMIN_PASSWORD:ChangeMeOnFirstLogin!}
 # JWT (override in local application.properties)
 app.jwtSecret=${APP_JWT_SECRET:change-this-to-a-long-random-secret}
 app.jwtExpirationMs=86400000
+
+# Browser-facing origin for email/SMS (React). Not a Spring SSL setting.
+# Profiles: application-dev.properties | application-uat.properties | application-prod.properties
+# SPRING_PROFILES_ACTIVE=dev|uat|prod
+app.public-base-url=${APP_PUBLIC_BASE_URL:http://localhost:3000}
+app.cors.allowed-origins=${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}

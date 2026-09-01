@@ -72,12 +72,14 @@ The React app is a separate project:
 
 ## 🐳 Docker Deployment
 
-The project includes a `docker-compose.yml` for easy containerized deployment. 
+Use the Compose file in the parent CMS folder (not this backend folder):
 
-```bash
-# Build and start the services
-docker-compose up --build
+```powershell
+cd D:\Complaint-projects\demo\CMS
+docker compose up -d --build
 ```
+
+The app is at http://localhost and phpMyAdmin at http://localhost:8081.
 
 ## 🧑‍💻 Usage & Workflow
 

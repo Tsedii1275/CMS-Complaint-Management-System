@@ -1,0 +1,8 @@
+node_modules/
+build/
+.cache/
+.eslintcache
+coverage/
+.env.local
+.env.*.local
+*.log
