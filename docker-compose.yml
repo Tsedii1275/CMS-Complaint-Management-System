@@ -1,35 +1,38 @@
 # Full CMS stack. From this directory:
+#   copy .env.example to .env and fill in secrets
 #   docker compose up -d --build
 # App: http://localhost
-# phpMyAdmin: http://localhost:8081
+# phpMyAdmin (lab only): docker compose --profile tools up -d
 #
 # Host mvnw + npm start (MySQL only):
-#   docker compose up -d mysql phpmyadmin
+#   docker compose up -d mysql
 
 name: cms
 
 services:
   mysql:
+    # Stay on 8.0 until a staged 8.4 LTS cutover (see Phase 2B report). Do not change this tag in production without backup.
     image: mysql:8.0
     container_name: cms-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: cms_db
-      MYSQL_USER: cms_user
-      MYSQL_PASSWORD: cms_pass
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-cms_db}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
     ports:
       - "3306:3306"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 20
       start_period: 20s
 
   phpmyadmin:
+    profiles: ["tools"]
     image: phpmyadmin/phpmyadmin
     container_name: cms-phpmyadmin
     restart: unless-stopped
@@ -52,9 +55,9 @@ services:
       mysql:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/cms_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-      SPRING_DATASOURCE_USERNAME: cms_user
-      SPRING_DATASOURCE_PASSWORD: cms_pass
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-cms_db}?sslMode=${MYSQL_SSL_MODE:-DISABLED}&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: "false"
       SPRING_FLYWAY_OUT_OF_ORDER: "true"
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
@@ -63,8 +66,9 @@ services:
       FILE_UPLOAD_DIR: /app/uploads
       SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
       SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
-      APP_JWT_SECRET: ${APP_JWT_SECRET:-change-this-to-a-long-random-secret}
-      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-Admin@Dashen2026!}
+      APP_JWT_SECRET: ${APP_JWT_SECRET}
+      APP_JWT_EXPIRATION_MS: "900000"
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD}
     volumes:
       - cms_uploads:/app/uploads
     expose:

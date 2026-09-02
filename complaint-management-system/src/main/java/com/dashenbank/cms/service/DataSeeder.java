@@ -31,7 +31,7 @@ public class DataSeeder implements CommandLineRunner {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${app.admin.initial-password:Admin@Dashen2026!}")
+    @Value("${app.admin.initial-password:#{null}}")
     private String configuredAdminPassword;
 
     public DataSeeder(DistrictRepository districtRepository,
@@ -54,38 +54,41 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void bootstrapAdministrator() {
+        var adminOpt = userRepository.findByUsernameIgnoreCase("admin");
+        if (adminOpt.isPresent()) {
+            log.info(">>> Bootstrap administrator account 'admin' already exists.");
+            return;
+        }
+
+        String initialPassword = resolveInitialAdminPassword();
+        User admin = User.builder()
+                .username("admin")
+                .email("admin@dashenbank.com")
+                .password(passwordEncoder.encode(initialPassword))
+                .role(Role.ROLE_ADMIN)
+                .fullName("System Administrator")
+                .department("System Administration")
+                .enabled(true)
+                .mustChangePassword(true)
+                .passwordChangedAt(java.time.LocalDateTime.now())
+                .passwordExpiryDate(java.time.LocalDateTime.now().plusDays(
+                        com.dashenbank.cms.security.SecurityPolicy.PASSWORD_EXPIRY_DAYS))
+                .build();
+
+        userRepository.save(admin);
+        log.info(">>> Bootstrap administrator account 'admin' created successfully.");
+    }
+
+    private String resolveInitialAdminPassword() {
         String envPassword = System.getenv("INITIAL_ADMIN_PASSWORD");
         String initialPassword = (envPassword != null && !envPassword.isBlank())
                 ? envPassword.trim()
-                : configuredAdminPassword;
-
-        var adminOpt = userRepository.findByUsernameIgnoreCase("admin");
-        if (adminOpt.isEmpty()) {
-            User admin = User.builder()
-                    .username("admin")
-                    .email("admin@dashenbank.com")
-                    .password(passwordEncoder.encode(initialPassword))
-                    .role(Role.ROLE_ADMIN)
-                    .fullName("System Administrator")
-                    .department("System Administration")
-                    .enabled(true)
-                    .mustChangePassword(true)
-                    .build();
-
-            userRepository.save(admin);
-            log.info(">>> Bootstrap administrator account 'admin' created successfully.");
-        } else {
-            User admin = adminOpt.get();
-            if (!passwordEncoder.matches(initialPassword, admin.getPassword())) {
-                admin.setPassword(passwordEncoder.encode(initialPassword));
-                admin.setRole(Role.ROLE_ADMIN);
-                admin.setEnabled(true);
-                userRepository.save(admin);
-                log.info(">>> Existing administrator 'admin' credentials synchronized with configured initial password.");
-            } else {
-                log.info(">>> Bootstrap administrator account 'admin' already exists with active credentials.");
-            }
+                : (configuredAdminPassword == null ? "" : configuredAdminPassword.trim());
+        if (initialPassword.isEmpty()) {
+            throw new IllegalStateException(
+                    "INITIAL_ADMIN_PASSWORD / app.admin.initial-password is required to create the bootstrap admin");
         }
+        return initialPassword;
     }
 
     private void seedHierarchyIfEmpty() {

@@ -1,9 +1,9 @@
-import React, { createContext, useState, useEffect, useContext, useMemo, useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
-const AuthContext = createContext();
+const AuthContext = React.createContext();
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
+  const context = React.useContext(AuthContext);
   if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
@@ -28,7 +28,6 @@ export const AuthProvider = ({ children }) => {
     return !!localStorage.getItem('user');
   });
 
-  // Check authentication on mount (sync check in case of external changes)
   useEffect(() => {
     const checkAuth = () => {
       const userStr = localStorage.getItem('user');
@@ -53,25 +52,32 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = useCallback((userData) => {
-    console.log('AuthContext - Logging in user:', userData);
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
     setIsAuthenticated(true);
   }, []);
 
+  const updateUser = useCallback((partial) => {
+    setUser((current) => {
+      const next = { ...(current ?? {}), ...partial };
+      localStorage.setItem('user', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const logout = useCallback(() => {
-    console.log('AuthContext - Logging out user');
     localStorage.removeItem('user');
     setUser(null);
     setIsAuthenticated(false);
   }, []);
 
-  const value = useMemo(() => ({
+  const value = React.useMemo(() => ({
     isAuthenticated,
     user,
     login,
-    logout
-  }), [isAuthenticated, user, login, logout]);
+    logout,
+    updateUser
+  }), [isAuthenticated, user, login, logout, updateUser]);
 
   return (
     <AuthContext.Provider value={value}>

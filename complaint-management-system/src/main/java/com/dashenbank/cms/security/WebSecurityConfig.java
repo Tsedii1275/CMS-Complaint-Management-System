@@ -10,7 +10,6 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -19,6 +18,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableMethodSecurity
@@ -27,12 +27,14 @@ public class WebSecurityConfig {
     private final UserDetailsServiceImpl userDetailsService;
     private final AuthEntryPointJwt unauthorizedHandler;
     private final AppHttpProperties appHttpProperties;
+    private final PasswordEncoder passwordEncoder;
 
     public WebSecurityConfig(UserDetailsServiceImpl userDetailsService, AuthEntryPointJwt unauthorizedHandler,
-            AppHttpProperties appHttpProperties) {
+            AppHttpProperties appHttpProperties, PasswordEncoder passwordEncoder) {
         this.userDetailsService = userDetailsService;
         this.unauthorizedHandler = unauthorizedHandler;
         this.appHttpProperties = appHttpProperties;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Bean
@@ -45,18 +47,13 @@ public class WebSecurityConfig {
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
         authProvider.setUserDetailsService(userDetailsService);
-        authProvider.setPasswordEncoder(passwordEncoder());
+        authProvider.setPasswordEncoder(passwordEncoder);
         return authProvider;
     }
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
         return authConfig.getAuthenticationManager();
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
     }
 
     @Bean
@@ -67,6 +64,8 @@ public class WebSecurityConfig {
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/favicon.ico").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/expired-password").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/api/auth/password").authenticated()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/complaints/start").permitAll()
@@ -77,6 +76,7 @@ public class WebSecurityConfig {
                         .requestMatchers("/api/customer-feedback/validate").permitAll()
                         .requestMatchers("/api/hierarchy").permitAll()
                         .requestMatchers("/api/complaints/staff-submit", "/api/complaints/fcr-resolve").authenticated()
+                        .requestMatchers("/api/users/password-status").authenticated()
                         .requestMatchers("/api/users/officers").hasAnyAuthority(
                                 "ROLE_CUSTOMER_CARE_OFFICER",
                                 "ROLE_CUSTOMER_CARE_TEAM_LEADER",
@@ -117,6 +117,7 @@ public class WebSecurityConfig {
         }
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
+        configuration.setExposedHeaders(List.of(JwtUtils.HEADER_NEW_ACCESS_TOKEN));
         configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

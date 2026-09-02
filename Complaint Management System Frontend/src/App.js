@@ -20,6 +20,7 @@ import UserManagementPage from './pages/UserManagementPage';
 import Unauthorized from './pages/Unauthorized';
 import { RequireAuth, RequireRole } from './components/RoleGuard';
 import { AuthProvider } from './contexts/AuthContext';
+import SessionIdleWatch from './components/SessionIdleWatch';
 import './index.css';
 
 function guarded(element) {
@@ -61,6 +62,7 @@ function App() {
     >
       <AuthProvider>
         <Router>
+          <SessionIdleWatch />
           <AppRoutes />
         </Router>
       </AuthProvider>

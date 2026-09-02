@@ -1,11 +1,19 @@
 package com.dashenbank.cms.controller;
 
 import com.dashenbank.cms.model.Role;
+import com.dashenbank.cms.model.SecurityAuditEvent;
 import com.dashenbank.cms.model.User;
 import com.dashenbank.cms.repository.UserRepository;
+import com.dashenbank.cms.security.ClientIp;
+import com.dashenbank.cms.security.SecurityPolicy;
+import com.dashenbank.cms.service.PasswordPolicyService;
+import com.dashenbank.cms.service.SecurityAuditService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,11 +36,30 @@ public class UserController {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final PasswordPolicyService passwordPolicyService;
+    private final SecurityAuditService securityAuditService;
 
     @Autowired
-    public UserController(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserController(UserRepository userRepository, PasswordEncoder passwordEncoder,
+            PasswordPolicyService passwordPolicyService, SecurityAuditService securityAuditService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.passwordPolicyService = passwordPolicyService;
+        this.securityAuditService = securityAuditService;
+    }
+
+    @GetMapping("/password-status")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> passwordStatus() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getName() == null) {
+            return ResponseEntity.status(401).build();
+        }
+        User user = userRepository.findByUsernameIgnoreCase(authentication.getName()).orElse(null);
+        if (user == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(passwordPolicyService.passwordStatus(user));
     }
 
     @GetMapping
@@ -71,6 +98,12 @@ public class UserController {
             return ResponseEntity.badRequest().body(Map.of(KEY_ERROR, "Username and password are required."));
         }
 
+        PasswordPolicyService.Validation validation = passwordPolicyService.validateNewPassword(null, password);
+        if (validation != PasswordPolicyService.Validation.VALID) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of(KEY_ERROR, SecurityPolicy.PASSWORD_REQUIREMENTS_MESSAGE));
+        }
+
         if (userRepository.findByUsernameIgnoreCase(username).isPresent()) {
             return ResponseEntity.badRequest().body(Map.of(KEY_ERROR, "Username already exists."));
         }
@@ -94,7 +127,9 @@ public class UserController {
                 .branch(branch)
                 .department(department)
                 .enabled(true)
+                .mustChangePassword(true)
                 .build();
+        passwordPolicyService.stampInitialPasswordMetadata(newUser);
 
         User saved = userRepository.save(newUser);
         saved.setPassword(null);
@@ -154,8 +189,8 @@ public class UserController {
 
     @PostMapping("/{id}/reset-password")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    @SuppressWarnings("java:S2068")
-    public ResponseEntity<Object> resetPassword(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+    public ResponseEntity<Object> resetPassword(@PathVariable Long id, @RequestBody Map<String, String> payload,
+            HttpServletRequest request) {
         Optional<User> userOpt = userRepository.findById(id);
         if (userOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -163,12 +198,25 @@ public class UserController {
 
         String newPassword = payload != null ? payload.get("newPassword") : null;
         if (newPassword == null || newPassword.isBlank()) {
-            newPassword = "123";
+            return ResponseEntity.badRequest()
+                    .body(Map.of(KEY_ERROR, SecurityPolicy.PASSWORD_REQUIREMENTS_MESSAGE));
         }
 
         User user = userOpt.get();
-        user.setPassword(passwordEncoder.encode(newPassword));
+        PasswordPolicyService.Validation validation = passwordPolicyService.validateNewPassword(user, newPassword);
+        if (validation == PasswordPolicyService.Validation.INVALID_POLICY) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of(KEY_ERROR, SecurityPolicy.PASSWORD_REQUIREMENTS_MESSAGE));
+        }
+        if (validation == PasswordPolicyService.Validation.HISTORY_REUSE) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of(KEY_ERROR, SecurityPolicy.PASSWORD_HISTORY_MESSAGE));
+        }
+
+        passwordPolicyService.assignPassword(user, newPassword);
+        user.setMustChangePassword(true);
         userRepository.save(user);
+        securityAuditService.log(user.getUsername(), SecurityAuditEvent.PASSWORD_RESET, ClientIp.from(request));
 
         return ResponseEntity.ok(Map.of(KEY_MESSAGE, "Password for user " + user.getUsername() + " successfully reset."));
     }

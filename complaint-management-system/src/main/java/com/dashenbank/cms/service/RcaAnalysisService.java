@@ -87,6 +87,23 @@ public class RcaAnalysisService {
         return response;
     }
 
+    public Map<String, Object> findNatureBlock(String nature) {
+        if (nature == null || nature.isBlank()) {
+            return null;
+        }
+        Map<String, Object> analysis = analyze(new RcaFilter());
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> natures = (List<Map<String, Object>>) analysis.get(KEY_NATURES);
+        if (natures == null || natures.isEmpty()) {
+            return null;
+        }
+        String wanted = nature.trim();
+        return natures.stream()
+                .filter(block -> wanted.equalsIgnoreCase(String.valueOf(block.get(KEY_NATURE))))
+                .findFirst()
+                .orElse(null);
+    }
+
     public String exportCsv(RcaFilter filter) {
         Map<String, Object> analysis = analyze(filter);
         @SuppressWarnings("unchecked")

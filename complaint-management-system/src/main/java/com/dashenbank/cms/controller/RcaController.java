@@ -8,6 +8,7 @@ import com.dashenbank.cms.repository.CapaActionRepository;
 import com.dashenbank.cms.repository.Rca5WhysRepository;
 import com.dashenbank.cms.repository.RcaAuditLogRepository;
 import com.dashenbank.cms.repository.RcaCaseRepository;
+import com.dashenbank.cms.service.CapaNatureAnalysisService;
 import com.dashenbank.cms.service.RcaAnalysisService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -63,6 +64,7 @@ public class RcaController {
     private final CapaActionRepository capaActionRepository;
     private final RcaAuditLogRepository rcaAuditLogRepository;
     private final RcaAnalysisService rcaAnalysisService;
+    private final CapaNatureAnalysisService capaNatureAnalysisService;
 
     @Autowired
     public RcaController(
@@ -70,12 +72,14 @@ public class RcaController {
             Rca5WhysRepository rca5WhysRepository,
             CapaActionRepository capaActionRepository,
             RcaAuditLogRepository rcaAuditLogRepository,
-            RcaAnalysisService rcaAnalysisService) {
+            RcaAnalysisService rcaAnalysisService,
+            CapaNatureAnalysisService capaNatureAnalysisService) {
         this.rcaCaseRepository = rcaCaseRepository;
         this.rca5WhysRepository = rca5WhysRepository;
         this.capaActionRepository = capaActionRepository;
         this.rcaAuditLogRepository = rcaAuditLogRepository;
         this.rcaAnalysisService = rcaAnalysisService;
+        this.capaNatureAnalysisService = capaNatureAnalysisService;
     }
 
     @GetMapping("/root-cause-analysis")
@@ -95,6 +99,16 @@ public class RcaController {
         headers.setContentDispositionFormData(CONTENT_DISPOSITION_ATTACHMENT,
                 excel ? "Root_Cause_Analysis.xls" : "Root_Cause_Analysis.csv");
         return new ResponseEntity<>(csv.getBytes(StandardCharsets.UTF_8), headers, HttpStatus.OK);
+    }
+
+    @GetMapping("/nature-capa")
+    public ResponseEntity<Map<String, Object>> getNatureCapa(@RequestParam String nature) {
+        return ResponseEntity.ok(capaNatureAnalysisService.getByNature(nature));
+    }
+
+    @PutMapping("/nature-capa")
+    public ResponseEntity<Map<String, Object>> saveNatureCapa(@RequestBody Map<String, Object> payload) {
+        return ResponseEntity.ok(capaNatureAnalysisService.save(payload, getCurrentUsername()));
     }
 
     public static class RcaQuery {

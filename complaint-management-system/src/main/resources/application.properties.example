@@ -1,7 +1,11 @@
 spring.application.name=complaint-management-system
-spring.datasource.url=jdbc:mysql://localhost:3306/cms_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-spring.datasource.username=cms_user
-spring.datasource.password=cms_pass
+
+# MySQL. sslMode=DISABLED for local servers without TLS.
+# Production: MYSQL_SSL_MODE=REQUIRED or VERIFY_IDENTITY.
+# Optional trust store (REQUIRED/VERIFY_*): MYSQL_SSL_TRUSTSTORE_URL, MYSQL_SSL_TRUSTSTORE_PASSWORD
+spring.datasource.url=jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:cms_db}?sslMode=${MYSQL_SSL_MODE:DISABLED}&serverTimezone=UTC&allowPublicKeyRetrieval=${MYSQL_ALLOW_PUBLIC_KEY_RETRIEVAL:true}
+spring.datasource.username=${SPRING_DATASOURCE_USERNAME}
+spring.datasource.password=${SPRING_DATASOURCE_PASSWORD}
 spring.datasource.driverClassName=com.mysql.cj.jdbc.Driver
 
 spring.jpa.hibernate.ddl-auto=none
@@ -35,12 +39,12 @@ spring.mail.properties.mail.smtp.writetimeout=5000
 spring.servlet.multipart.max-file-size=50MB
 spring.servlet.multipart.max-request-size=50MB
 
-# Bootstrap Admin Configuration
-app.admin.initial-password=${INITIAL_ADMIN_PASSWORD:ChangeMeOnFirstLogin!}
+# Bootstrap admin — set INITIAL_ADMIN_PASSWORD in the environment (no default)
+app.admin.initial-password=${INITIAL_ADMIN_PASSWORD}
 
-# JWT (override in local application.properties)
-app.jwtSecret=${APP_JWT_SECRET:change-this-to-a-long-random-secret}
-app.jwtExpirationMs=86400000
+# JWT — set APP_JWT_SECRET in the environment (min 32 bytes, no default)
+app.jwtSecret=${APP_JWT_SECRET}
+app.jwtExpirationMs=${APP_JWT_EXPIRATION_MS:900000}
 
 # Browser-facing origin for email/SMS (React). Not a Spring SSL setting.
 # Profiles: application-dev.properties | application-uat.properties | application-prod.properties

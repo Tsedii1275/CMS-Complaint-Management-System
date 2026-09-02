@@ -6,7 +6,7 @@ COPY src ./src
 RUN cp src/main/resources/application.properties.example src/main/resources/application.properties
 RUN mvn -B -DskipTests package
 
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:21.0.12_8-jre
 WORKDIR /app
 
 RUN mkdir -p /app/uploads

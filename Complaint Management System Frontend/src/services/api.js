@@ -1,3 +1,5 @@
+import { SESSION_MESSAGE_KEY, SESSION_TIMEOUT_MESSAGE } from '../constants/securityPolicy';
+
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ?? 'http://localhost:8080';
 
 const HTTP_ERROR_MESSAGES = {
@@ -55,6 +57,30 @@ function fallbackHttpMessage(status, bodyText) {
 
 function withQuery(path, queryString) {
   return queryString ? `${path}?${queryString}` : path;
+}
+
+function applySlidingToken(response) {
+  const next = response.headers.get('X-New-Access-Token') || response.headers.get('x-new-access-token');
+  if (!next) return;
+  try {
+    const userStr = localStorage.getItem('user');
+    if (!userStr) return;
+    const user = JSON.parse(userStr);
+    user.token = next;
+    localStorage.setItem('user', JSON.stringify(user));
+  } catch (error) {
+    ignoredAsNull(error);
+  }
+}
+
+function redirectIfSessionExpired(response, bodyData, options) {
+  if (options?.skipSessionRedirect) return;
+  if (response.status !== 401) return;
+  const path = window.location.pathname || '';
+  if (path.includes('staff-login')) return;
+  sessionStorage.setItem(SESSION_MESSAGE_KEY, SESSION_TIMEOUT_MESSAGE);
+  localStorage.removeItem('user');
+  window.location.replace('/staff-login');
 }
 
 class ApiService {
@@ -116,10 +142,12 @@ class ApiService {
     return headers;
   }
 
-  async handleResponse(response) {
+  async handleResponse(response, options = {}) {
+    applySlidingToken(response);
     const { bodyText, bodyData } = await readResponsePayload(response);
 
     if (!response.ok) {
+      redirectIfSessionExpired(response, bodyData, options);
       const code = bodyData?.code || `HTTP_${response.status}`;
       const message = bodyData?.message || bodyData?.error || fallbackHttpMessage(response.status, bodyText);
       const err = new Error(message);
@@ -163,7 +191,20 @@ class ApiService {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
     });
-    return this.handleResponse(response);
+    return this.handleResponse(response, { skipSessionRedirect: true });
+  }
+
+  async changeExpiredPassword(payload) {
+    const response = await fetch(`${API_BASE_URL}/api/auth/expired-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return this.handleResponse(response, { skipSessionRedirect: true });
+  }
+
+  async getPasswordStatus() {
+    return this.get('/api/users/password-status');
   }
 
   async updatePassword(currentPassword, newPassword, confirmPassword) {
@@ -516,6 +557,14 @@ class ApiService {
     return this.get(withQuery('/api/rca/root-cause-analysis', query));
   }
 
+  async getNatureCapa(nature) {
+    return this.get(`/api/rca/nature-capa?nature=${encodeURIComponent(nature)}`);
+  }
+
+  async saveNatureCapa(payload) {
+    return this.put('/api/rca/nature-capa', payload);
+  }
+
   async exportRootCauseAnalysis(format, filters = {}) {
     const params = new URLSearchParams();
     params.append('format', format || 'csv');
@@ -620,7 +669,7 @@ class ApiService {
   }
 
   async resetUserPassword(id, newPassword) {
-    const pwd = (newPassword && String(newPassword).trim() !== '') ? String(newPassword).trim() : '123';
+    const pwd = (newPassword && String(newPassword).trim() !== '') ? String(newPassword).trim() : '';
     return this.post(`/api/admin/users/${id}/reset-password`, { newPassword: pwd });
   }
 

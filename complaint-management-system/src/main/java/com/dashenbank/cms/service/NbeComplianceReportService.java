@@ -41,6 +41,23 @@ public class NbeComplianceReportService {
     private static final ZoneId SYSTEM_ZONE = ZoneId.of("Africa/Addis_Ababa");
     private static final DateTimeFormatter ISO_LOCAL = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
+    private static final String KEY_COMPLAINT_ID = "complaintId";
+    private static final String KEY_DBC_TICKET_ID = "dbcTicketId";
+    private static final String KEY_PROCESS_INSTANCE_ID = "processInstanceId";
+    private static final String KEY_CLASSIFICATION = "classification";
+    private static final String KEY_STATUS = "status";
+    private static final String KEY_MOBILE = "mobile";
+    private static final String KEY_EMAIL = "email";
+    private static final String KEY_LODGED_DATE = "lodgedDate";
+    private static final String KEY_RESOLVED_DATE = "resolvedDate";
+    private static final String KEY_OVERALL_STATUS = "overallStatus";
+    private static final String CLASSIFICATION_COMPLAINT = "COMPLAINT";
+    private static final String CLASSIFICATION_DECLINED = "DECLINED";
+    private static final String CLASSIFICATION_OTHER = "OTHER";
+    private static final String CLASSIFICATION_INTAKE = "INTAKE";
+    private static final String PREFIX_DBC = "DBC-";
+    private static final String PREFIX_FCR = "FCR-";
+
     private final NbeComplianceReportRepository repository;
     private final ComplainantRelatedInformationService criService;
     private final ComplaintSlaMetricsRepository slaMetricsRepository;
@@ -93,13 +110,7 @@ public class NbeComplianceReportService {
             throw new IllegalArgumentException(
                     "No complainant related information record exists for ticket " + ticketNumber);
         }
-        Optional<ComplaintSlaMetrics> sla = slaMetricsRepository.findByComplaintId(ticketNumber);
-        if (sla.isEmpty()) {
-            sla = slaMetricsRepository.findByGeneralTicketId(ticketNumber);
-        }
-        if (sla.isEmpty()) {
-            sla = slaMetricsRepository.findByDbcTicketId(ticketNumber);
-        }
+        Optional<ComplaintSlaMetrics> sla = findSlaByTicket(ticketNumber);
         if (sla.isPresent() && !SlaTrackingService.isClassifiedComplaint(sla.get())) {
             throw new IllegalArgumentException(
                     "Ticket " + ticketNumber + " is not a classified complaint and cannot be stored as an NBE report");
@@ -144,6 +155,16 @@ public class NbeComplianceReportService {
         Set<String> seenTickets = new HashSet<>();
         List<Map<String, Object>> classifiedRows = new ArrayList<>();
 
+        appendHistoricClassifiedRows(historic, storedByTicket, seenTickets, classifiedRows);
+        appendUnseenStoredReports(storedByTicket, seenTickets, classifiedRows);
+        appendUnseenSlaMetrics(storedByTicket, seenTickets, classifiedRows);
+        classifiedRows.sort(classifiedRowOrder());
+        return classifiedRows;
+    }
+
+    private void appendHistoricClassifiedRows(List<Map<String, Object>> historic,
+            Map<String, NbeComplianceReport> storedByTicket, Set<String> seenTickets,
+            List<Map<String, Object>> classifiedRows) {
         for (Map<String, Object> row : historic) {
             hydrateIdentityFromOperationalStores(row);
             if (!isClassifiedComplaintRow(row)) {
@@ -156,70 +177,92 @@ public class NbeComplianceReportService {
             }
             classifiedRows.add(row);
         }
+    }
 
+    private void appendUnseenStoredReports(Map<String, NbeComplianceReport> storedByTicket, Set<String> seenTickets,
+            List<Map<String, Object>> classifiedRows) {
         for (NbeComplianceReport stored : storedByTicket.values()) {
-            if (seenTickets.contains(stored.getTicketNumber())) {
-                continue;
-            }
-            Map<String, Object> row = new HashMap<>();
-            row.put("complaintId", stored.getTicketNumber());
-            row.put("dbcTicketId", stored.getTicketNumber());
-            row.put("processInstanceId", stored.getProcessInstanceId());
-            hydrateIdentityFromOperationalStores(row);
-            if (!isClassifiedComplaintRow(row)) {
-                continue;
-            }
-            overlayOnReportRow(row, stored);
-            seenTickets.add(stored.getTicketNumber().trim());
-            classifiedRows.add(row);
+            appendStoredIfUnseen(stored, seenTickets, classifiedRows);
         }
+    }
 
-        for (ComplaintSlaMetrics metrics : slaMetricsRepository.findAll()) {
-            if (!SlaTrackingService.isClassifiedComplaint(metrics)) {
-                continue;
-            }
-            String ticket = firstNonBlank(metrics.getDbcTicketId(),
-                    firstNonBlank(metrics.getComplaintId(), metrics.getGeneralTicketId()));
-            if (isBlank(ticket) || seenTickets.contains(ticket.trim())) {
-                continue;
-            }
-            Map<String, Object> row = new HashMap<>();
-            row.put("complaintId", ticket);
-            row.put("dbcTicketId", ticket);
-            row.put("processInstanceId", metrics.getProcessInstanceId());
-            hydrateIdentityFromOperationalStores(row);
-            if (!isClassifiedComplaintRow(row)) {
-                continue;
-            }
-            overlayOnReportRow(row, storedByTicket.get(ticket.trim()));
-            seenTickets.add(ticket.trim());
-            classifiedRows.add(row);
+    private void appendStoredIfUnseen(NbeComplianceReport stored, Set<String> seenTickets,
+            List<Map<String, Object>> classifiedRows) {
+        if (seenTickets.contains(stored.getTicketNumber())) {
+            return;
         }
-        classifiedRows.sort(Comparator.comparing(row -> {
-            String dbc = stringValue(row.get("dbcTicketId"));
-            if (dbc.startsWith("DBC-") || dbc.startsWith("FCR-")) {
+        Map<String, Object> row = identityRow(stored.getTicketNumber(), stored.getProcessInstanceId());
+        hydrateIdentityFromOperationalStores(row);
+        if (!isClassifiedComplaintRow(row)) {
+            return;
+        }
+        overlayOnReportRow(row, stored);
+        seenTickets.add(stored.getTicketNumber().trim());
+        classifiedRows.add(row);
+    }
+
+    private void appendUnseenSlaMetrics(Map<String, NbeComplianceReport> storedByTicket, Set<String> seenTickets,
+            List<Map<String, Object>> classifiedRows) {
+        for (ComplaintSlaMetrics metrics : slaMetricsRepository.findAll()) {
+            appendSlaIfUnseen(metrics, storedByTicket, seenTickets, classifiedRows);
+        }
+    }
+
+    private void appendSlaIfUnseen(ComplaintSlaMetrics metrics, Map<String, NbeComplianceReport> storedByTicket,
+            Set<String> seenTickets, List<Map<String, Object>> classifiedRows) {
+        if (!SlaTrackingService.isClassifiedComplaint(metrics)) {
+            return;
+        }
+        String ticket = firstNonBlank(metrics.getDbcTicketId(),
+                firstNonBlank(metrics.getComplaintId(), metrics.getGeneralTicketId()));
+        if (isBlank(ticket) || seenTickets.contains(ticket.trim())) {
+            return;
+        }
+        Map<String, Object> row = identityRow(ticket, metrics.getProcessInstanceId());
+        hydrateIdentityFromOperationalStores(row);
+        if (!isClassifiedComplaintRow(row)) {
+            return;
+        }
+        overlayOnReportRow(row, storedByTicket.get(ticket.trim()));
+        seenTickets.add(ticket.trim());
+        classifiedRows.add(row);
+    }
+
+    private Map<String, Object> identityRow(String ticket, String processInstanceId) {
+        Map<String, Object> row = new HashMap<>();
+        row.put(KEY_COMPLAINT_ID, ticket);
+        row.put(KEY_DBC_TICKET_ID, ticket);
+        row.put(KEY_PROCESS_INSTANCE_ID, processInstanceId);
+        return row;
+    }
+
+    private Comparator<Map<String, Object>> classifiedRowOrder() {
+        return Comparator.comparing(row -> {
+            String dbc = stringValue(row.get(KEY_DBC_TICKET_ID));
+            if (dbc.startsWith(PREFIX_DBC) || dbc.startsWith(PREFIX_FCR)) {
                 return dbc;
             }
             return firstTicket(row);
-        }, TicketNumberSort.ASC));
-        return classifiedRows;
+        }, TicketNumberSort.ASC);
     }
 
     private boolean isClassifiedComplaintRow(Map<String, Object> row) {
-        String classification = stringValue(row.get("classification"));
-        String status = stringValue(row.get("status"));
-        if ("OTHER".equalsIgnoreCase(classification) || "INTAKE".equalsIgnoreCase(classification)) {
+        String classification = stringValue(row.get(KEY_CLASSIFICATION));
+        String status = stringValue(row.get(KEY_STATUS));
+        if (CLASSIFICATION_OTHER.equalsIgnoreCase(classification)
+                || CLASSIFICATION_INTAKE.equalsIgnoreCase(classification)) {
             return false;
         }
-        if ("OTHER".equalsIgnoreCase(status)
-                && !"COMPLAINT".equalsIgnoreCase(classification)
-                && !"DECLINED".equalsIgnoreCase(classification)) {
+        if (CLASSIFICATION_OTHER.equalsIgnoreCase(status)
+                && !CLASSIFICATION_COMPLAINT.equalsIgnoreCase(classification)
+                && !CLASSIFICATION_DECLINED.equalsIgnoreCase(classification)) {
             return false;
         }
         String ticket = firstTicket(row);
-        return ticket.startsWith("DBC-") || ticket.startsWith("FCR-")
-                || "DECLINED".equalsIgnoreCase(classification) || "DECLINED".equalsIgnoreCase(status)
-                || "COMPLAINT".equalsIgnoreCase(classification);
+        return ticket.startsWith(PREFIX_DBC) || ticket.startsWith(PREFIX_FCR)
+                || CLASSIFICATION_DECLINED.equalsIgnoreCase(classification)
+                || CLASSIFICATION_DECLINED.equalsIgnoreCase(status)
+                || CLASSIFICATION_COMPLAINT.equalsIgnoreCase(classification);
     }
 
     /**
@@ -247,9 +290,9 @@ public class NbeComplianceReportService {
         if (row == null || storedByTicket == null || storedByTicket.isEmpty()) {
             return null;
         }
-        NbeComplianceReport match = storedByTicket.get(stringValue(row.get("complaintId")));
+        NbeComplianceReport match = storedByTicket.get(stringValue(row.get(KEY_COMPLAINT_ID)));
         if (match == null) {
-            match = storedByTicket.get(stringValue(row.get("dbcTicketId")));
+            match = storedByTicket.get(stringValue(row.get(KEY_DBC_TICKET_ID)));
         }
         return match;
     }
@@ -259,68 +302,70 @@ public class NbeComplianceReportService {
         Optional<ComplainantRelatedInformation> criOpt = isBlank(ticket) ? Optional.empty()
                 : criService.findByUniqueIdNo(ticket);
         criOpt.ifPresent(criService::applyDisplayedCaseStatus);
-
-        Optional<ComplaintSlaMetrics> slaOpt = findSlaByTicket(ticket);
-        if (slaOpt.isEmpty() && row.get("processInstanceId") != null) {
-            slaOpt = slaMetricsRepository.findByProcessInstanceId(String.valueOf(row.get("processInstanceId")));
-        }
-
-        ComplainantRelatedInformation cri = criOpt.orElse(null);
-        ComplaintSlaMetrics sla = slaOpt.orElse(null);
-
-        if (cri != null) {
-            putIfHasText(row, "complainantName", cri.getNameOfComplainant());
-            String[] contact = splitPhoneAndEmail(cri.getContactAddress());
-            if (contact[0] != null) {
-                row.put("mobile", contact[0]);
-            } else {
-                row.put("mobile", phoneOnly(row.get("mobile")));
-            }
-            if (contact[1] != null) {
-                row.put("email", contact[1]);
-            }
-            putIfHasText(row, "issuesRaised",
-                    firstNonBlank(cri.getDetailsOfComplaint(), cri.getComplaintsCategory()));
-            if (cri.getDateOfComplaint() != null) {
-                row.put("lodgedDate", ISO_LOCAL.format(cri.getDateOfComplaint()));
-            }
-            if (cri.getActualResolutionDate() != null) {
-                row.put("resolvedDate", ISO_LOCAL.format(cri.getActualResolutionDate()));
-            }
-            if (cri.getCaseStatus() != null) {
-                row.put("overallStatus", cri.getCaseStatus());
-                row.put("status", cri.getCaseStatus());
-            }
-        }
-
-        if (sla != null) {
-            putIfBlank(row, "complainantName", sla.getCustomerName());
-            putIfBlank(row, "issuesRaised", sla.getComplaintCategory());
-            putIfBlank(row, "slaStatus", sla.getSlaStatus());
-            if (sla.getClassification() != null) {
-                row.putIfAbsent("classification", sla.getClassification());
-            }
-            if (row.get("lodgedDate") == null && sla.getCreatedAt() != null) {
-                row.put("lodgedDate", ISO_LOCAL.format(sla.getCreatedAt()));
-            }
-            if (row.get("resolvedDate") == null && sla.getResolvedAt() != null) {
-                row.put("resolvedDate", ISO_LOCAL.format(sla.getResolvedAt()));
-            }
-            row.put("daysOpen", calculateDaysOpen(sla.getCreatedAt(), sla.getResolvedAt()));
-            if (row.get("overallStatus") == null && sla.getOverallStatus() != null) {
-                row.put("overallStatus", sla.getOverallStatus());
-                row.put("status", sla.getOverallStatus());
-            }
-            if (row.get("processInstanceId") == null) {
-                row.put("processInstanceId", sla.getProcessInstanceId());
-            }
-        }
-
-        row.putIfAbsent("classification", "COMPLAINT");
+        applyCriIdentity(row, criOpt.orElse(null));
+        applySlaIdentity(row, resolveSlaForRow(ticket, row));
+        row.putIfAbsent(KEY_CLASSIFICATION, CLASSIFICATION_COMPLAINT);
         row.putIfAbsent("reasonForNonResolution", "");
         row.putIfAbsent("additionalComments", "");
         row.putIfAbsent("reportStatus", "");
         applyPhoneOnlyMobile(row);
+    }
+
+    private ComplaintSlaMetrics resolveSlaForRow(String ticket, Map<String, Object> row) {
+        Optional<ComplaintSlaMetrics> slaOpt = findSlaByTicket(ticket);
+        if (slaOpt.isEmpty() && row.get(KEY_PROCESS_INSTANCE_ID) != null) {
+            slaOpt = slaMetricsRepository.findByProcessInstanceId(String.valueOf(row.get(KEY_PROCESS_INSTANCE_ID)));
+        }
+        return slaOpt.orElse(null);
+    }
+
+    private void applyCriIdentity(Map<String, Object> row, ComplainantRelatedInformation cri) {
+        if (cri == null) {
+            return;
+        }
+        putIfHasText(row, "complainantName", cri.getNameOfComplainant());
+        String[] contact = splitPhoneAndEmail(cri.getContactAddress());
+        row.put(KEY_MOBILE, contact[0] != null ? contact[0] : phoneOnly(row.get(KEY_MOBILE)));
+        if (contact[1] != null) {
+            row.put(KEY_EMAIL, contact[1]);
+        }
+        putIfHasText(row, "issuesRaised", firstNonBlank(cri.getDetailsOfComplaint(), cri.getComplaintsCategory()));
+        if (cri.getDateOfComplaint() != null) {
+            row.put(KEY_LODGED_DATE, ISO_LOCAL.format(cri.getDateOfComplaint()));
+        }
+        if (cri.getActualResolutionDate() != null) {
+            row.put(KEY_RESOLVED_DATE, ISO_LOCAL.format(cri.getActualResolutionDate()));
+        }
+        if (cri.getCaseStatus() != null) {
+            row.put(KEY_OVERALL_STATUS, cri.getCaseStatus());
+            row.put(KEY_STATUS, cri.getCaseStatus());
+        }
+    }
+
+    private void applySlaIdentity(Map<String, Object> row, ComplaintSlaMetrics sla) {
+        if (sla == null) {
+            return;
+        }
+        putIfBlank(row, "complainantName", sla.getCustomerName());
+        putIfBlank(row, "issuesRaised", sla.getComplaintCategory());
+        putIfBlank(row, "slaStatus", sla.getSlaStatus());
+        if (sla.getClassification() != null) {
+            row.putIfAbsent(KEY_CLASSIFICATION, sla.getClassification());
+        }
+        if (row.get(KEY_LODGED_DATE) == null && sla.getCreatedAt() != null) {
+            row.put(KEY_LODGED_DATE, ISO_LOCAL.format(sla.getCreatedAt()));
+        }
+        if (row.get(KEY_RESOLVED_DATE) == null && sla.getResolvedAt() != null) {
+            row.put(KEY_RESOLVED_DATE, ISO_LOCAL.format(sla.getResolvedAt()));
+        }
+        row.put("daysOpen", calculateDaysOpen(sla.getCreatedAt(), sla.getResolvedAt()));
+        if (row.get(KEY_OVERALL_STATUS) == null && sla.getOverallStatus() != null) {
+            row.put(KEY_OVERALL_STATUS, sla.getOverallStatus());
+            row.put(KEY_STATUS, sla.getOverallStatus());
+        }
+        if (row.get(KEY_PROCESS_INSTANCE_ID) == null) {
+            row.put(KEY_PROCESS_INSTANCE_ID, sla.getProcessInstanceId());
+        }
     }
 
     private Optional<ComplaintSlaMetrics> findSlaByTicket(String ticket) {
@@ -374,11 +419,11 @@ public class NbeComplianceReportService {
     }
 
     private String firstTicket(Map<String, Object> row) {
-        String complaintId = stringValue(row.get("complaintId"));
+        String complaintId = stringValue(row.get(KEY_COMPLAINT_ID));
         if (!isBlank(complaintId) && !"N/A".equals(complaintId)) {
             return complaintId;
         }
-        return stringValue(row.get("dbcTicketId"));
+        return stringValue(row.get(KEY_DBC_TICKET_ID));
     }
 
     private String firstNonBlank(String primary, String fallback) {
@@ -386,45 +431,46 @@ public class NbeComplianceReportService {
     }
 
     private void applyPhoneOnlyMobile(Map<String, Object> row) {
-        String[] parts = splitPhoneAndEmail(stringValue(row.get("mobile")));
+        String[] parts = splitPhoneAndEmail(stringValue(row.get(KEY_MOBILE)));
         if (parts[0] != null) {
-            row.put("mobile", parts[0]);
-        } else if (stringValue(row.get("mobile")).contains("@")) {
-            row.put("mobile", "");
+            row.put(KEY_MOBILE, parts[0]);
+        } else if (stringValue(row.get(KEY_MOBILE)).contains("@")) {
+            row.put(KEY_MOBILE, "");
         }
-        if (isBlank(stringValue(row.get("email"))) && parts[1] != null) {
-            row.put("email", parts[1]);
+        if (isBlank(stringValue(row.get(KEY_EMAIL))) && parts[1] != null) {
+            row.put(KEY_EMAIL, parts[1]);
         }
     }
 
     private static String[] splitPhoneAndEmail(String contact) {
         String[] result = new String[] { null, null };
-        if (contact == null || contact.isBlank() || "N/A".equalsIgnoreCase(contact.trim())
-                || "-".equals(contact.trim())) {
+        if (isEmptyContact(contact)) {
             return result;
         }
         StringBuilder phones = new StringBuilder();
         StringBuilder emails = new StringBuilder();
         for (String part : contact.split("[,;/]")) {
-            String value = part.trim();
-            if (value.isEmpty()) {
-                continue;
-            }
-            if (value.contains("@")) {
-                if (emails.length() > 0) {
-                    emails.append(", ");
-                }
-                emails.append(value);
-            } else {
-                if (phones.length() > 0) {
-                    phones.append(", ");
-                }
-                phones.append(value);
-            }
+            appendContactPart(part.trim(), phones, emails);
         }
         result[0] = phones.length() > 0 ? phones.toString() : null;
         result[1] = emails.length() > 0 ? emails.toString() : null;
         return result;
+    }
+
+    private static boolean isEmptyContact(String contact) {
+        return contact == null || contact.isBlank() || "N/A".equalsIgnoreCase(contact.trim())
+                || "-".equals(contact.trim());
+    }
+
+    private static void appendContactPart(String value, StringBuilder phones, StringBuilder emails) {
+        if (value.isEmpty()) {
+            return;
+        }
+        StringBuilder target = value.contains("@") ? emails : phones;
+        if (target.length() > 0) {
+            target.append(", ");
+        }
+        target.append(value);
     }
 
     private static String phoneOnly(Object value) {

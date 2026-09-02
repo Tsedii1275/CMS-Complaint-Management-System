@@ -20,10 +20,12 @@ import { BRAND_COLORS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import ApiService from '../services/api';
 import UserAccountMenu from './UserAccountMenu';
+import {
+  PASSWORD_POLICY,
+  PASSWORD_REQUIREMENTS_MESSAGE,
+  passwordExpiryBannerText,
+} from '../constants/securityPolicy';
 import '../index.css';
-
-const PASSWORD_POLICY = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
-const PASSWORD_REQUIREMENTS_MESSAGE = 'New password does not meet the password requirements.';
 
 function SidebarMenu({ collapsed, userRole, user, onNavigate }) {
   const location = useLocation();
@@ -326,12 +328,33 @@ const DashboardLayout = ({ children, userRole }) => {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [passwordSubmitting, setPasswordSubmitting] = useState(false);
   const [passwordError, setPasswordError] = useState('');
+  const [passwordStatus, setPasswordStatus] = useState(null);
   const [passwordForm] = Form.useForm();
   const navigate = useNavigate();
-  const { logout, user } = useAuth();
+  const { logout, user, updateUser } = useAuth();
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.lg;
   const effectiveRole = user?.role || userRole || '';
+
+  useEffect(() => {
+    let cancelled = false;
+    ApiService.getPasswordStatus()
+      .then((status) => {
+        if (!cancelled) setPasswordStatus(status);
+      })
+      .catch(() => {
+        if (!cancelled) setPasswordStatus(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.mustChangePassword]);
+
+  useEffect(() => {
+    if (user?.mustChangePassword) {
+      setIsPasswordModalOpen(true);
+    }
+  }, [user?.mustChangePassword]);
 
   const handleLogout = () => {
     console.log('DashboardLayout - Logging out user');
@@ -341,7 +364,7 @@ const DashboardLayout = ({ children, userRole }) => {
   };
 
   const closePasswordModal = () => {
-    if (passwordSubmitting) return;
+    if (passwordSubmitting || user?.mustChangePassword) return;
     setIsPasswordModalOpen(false);
     setPasswordError('');
     passwordForm.resetFields();
@@ -360,6 +383,8 @@ const DashboardLayout = ({ children, userRole }) => {
       message.success(result?.message || 'Password updated successfully.');
       passwordForm.resetFields();
       setIsPasswordModalOpen(false);
+      updateUser?.({ mustChangePassword: false });
+      ApiService.getPasswordStatus().then(setPasswordStatus).catch(() => setPasswordStatus(null));
     } catch (err) {
       setPasswordError(err?.message || 'Unable to update password. Please try again.');
     } finally {
@@ -445,6 +470,15 @@ const DashboardLayout = ({ children, userRole }) => {
               minWidth: 0,
             }}
           >
+            {passwordStatus?.expiringSoon && !passwordStatus?.expired ? (
+              <Alert
+                type="warning"
+                showIcon
+                banner
+                message={passwordExpiryBannerText(passwordStatus.daysRemaining)}
+                style={{ margin: 0 }}
+              />
+            ) : null}
             <div className="cms-page">{children}</div>
           </Layout.Content>
         </Layout>
@@ -460,12 +494,15 @@ const DashboardLayout = ({ children, userRole }) => {
         )}
         open={isPasswordModalOpen}
         onCancel={closePasswordModal}
+        closable={!user?.mustChangePassword}
         destroyOnClose
-        maskClosable={!passwordSubmitting}
+        maskClosable={!passwordSubmitting && !user?.mustChangePassword}
         footer={[
+          user?.mustChangePassword ? null : (
           <Button key="cancel" onClick={closePasswordModal} disabled={passwordSubmitting}>
             Cancel
-          </Button>,
+          </Button>
+          ),
           <Button
             key="update"
             type="primary"

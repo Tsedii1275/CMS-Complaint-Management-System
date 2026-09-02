@@ -5,6 +5,7 @@ import DashboardLayout from '../components/DashboardLayout';
 import Pagination from '../components/Pagination';
 import ApiService from '../services/api';
 import { BRAND_COLORS } from '../constants/theme';
+import { PASSWORD_POLICY, PASSWORD_REQUIREMENTS_MESSAGE } from '../constants/securityPolicy';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -398,7 +399,20 @@ function UserManagementPage() {
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="password" label="Initial Password" rules={[{ required: true, message: 'Please enter initial password' }]} initialValue="Password@123">
+                <Form.Item
+                  name="password"
+                  label="Initial Password"
+                  rules={[
+                    { required: true, message: 'Please enter initial password' },
+                    {
+                      validator: (_, value) => {
+                        if (!value || PASSWORD_POLICY.test(value)) return Promise.resolve();
+                        return Promise.reject(new Error(PASSWORD_REQUIREMENTS_MESSAGE));
+                      }
+                    }
+                  ]}
+                  initialValue="Password@123"
+                >
                   <Input.Password placeholder="Password" />
                 </Form.Item>
               </Col>
@@ -554,7 +568,19 @@ function UserManagementPage() {
         >
           <Alert message={`Resetting password for user: ${selectedUser?.username}`} type="warning" showIcon style={{ marginBottom: '16px' }} />
           <Form form={resetForm} layout="vertical" onFinish={handleResetPassword}>
-            <Form.Item name="newPassword" label="New Password" rules={[{ required: true, message: 'Please enter new password' }]}>
+            <Form.Item
+              name="newPassword"
+              label="New Password"
+              rules={[
+                { required: true, message: 'Please enter new password' },
+                {
+                  validator: (_, value) => {
+                    if (!value || PASSWORD_POLICY.test(value)) return Promise.resolve();
+                    return Promise.reject(new Error(PASSWORD_REQUIREMENTS_MESSAGE));
+                  }
+                }
+              ]}
+            >
               <Input.Password placeholder="Enter new password" />
             </Form.Item>
           </Form>

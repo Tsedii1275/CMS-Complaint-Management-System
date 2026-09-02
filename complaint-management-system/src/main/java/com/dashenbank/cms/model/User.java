@@ -56,4 +56,21 @@ public class User {
 
     @Column(name = "full_name")
     private String fullName;
+
+    @Builder.Default
+    @Column(name = "failed_login_attempts", nullable = false)
+    private int failedLoginAttempts = 0;
+
+    @Builder.Default
+    @Column(name = "account_locked", nullable = false)
+    private boolean accountLocked = false;
+
+    @Column(name = "lockout_time")
+    private LocalDateTime lockoutTime;
+
+    @Column(name = "password_changed_at")
+    private LocalDateTime passwordChangedAt;
+
+    @Column(name = "password_expiry_date")
+    private LocalDateTime passwordExpiryDate;
 }

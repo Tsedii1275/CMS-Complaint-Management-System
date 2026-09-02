@@ -4,6 +4,7 @@ import { EyeOutlined } from '@ant-design/icons';
 import DashboardLayout from '../components/DashboardLayout';
 import Pagination from '../components/Pagination';
 import ExportDropdown from '../components/ExportDropdown';
+import CapaAnalysisModal from '../components/CapaAnalysisModal';
 import ApiService from '../services/api';
 import { BRAND_COLORS } from '../constants/theme';
 import { renderComplaintStatusTag } from '../utils/statusUtils';
@@ -148,6 +149,8 @@ function RcaDashboardPage() {
   const [analysis, setAnalysis] = useState(null);
   const [selectedNature, setSelectedNature] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [capaNature, setCapaNature] = useState(null);
+  const [isCapaModalOpen, setIsCapaModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -196,6 +199,16 @@ function RcaDashboardPage() {
     setSelectedNature(record);
     setCurrentPage(1);
     setIsDetailModalOpen(true);
+  };
+
+  const openCapaAnalysis = (record) => {
+    setCapaNature(record?.nature);
+    setIsCapaModalOpen(true);
+  };
+
+  const closeCapaAnalysis = () => {
+    setIsCapaModalOpen(false);
+    setCapaNature(null);
   };
 
   const closeNatureComplaints = () => {
@@ -247,17 +260,27 @@ function RcaDashboardPage() {
       title: 'Action',
       key: 'action',
       align: 'center',
-      width: 90,
+      width: 170,
       render: (_, record) => (
-        <Tooltip title="View Complaints">
+        <Space size={4} wrap style={{ justifyContent: 'center' }}>
+          <Tooltip title="View Complaints">
+            <Button
+              type="text"
+              size="small"
+              icon={<EyeOutlined style={{ color: BRAND_COLORS.primary, fontSize: '16px' }} />}
+              onClick={() => openNatureComplaints(record)}
+              style={{ padding: '2px 4px', height: '24px', display: 'flex', alignItems: 'center' }}
+            />
+          </Tooltip>
           <Button
-            type="text"
             size="small"
-            icon={<EyeOutlined style={{ color: BRAND_COLORS.primary, fontSize: '16px' }} />}
-            onClick={() => openNatureComplaints(record)}
-            style={{ padding: '2px 4px', height: '24px', display: 'flex', alignItems: 'center', margin: '0 auto' }}
-          />
-        </Tooltip>
+            type="link"
+            onClick={() => openCapaAnalysis(record)}
+            style={{ padding: 0, height: 'auto', fontWeight: 600 }}
+          >
+            CAPA Analysis
+          </Button>
+        </Space>
       )
     }
   ];
@@ -388,6 +411,12 @@ function RcaDashboardPage() {
           itemUnit="complaints"
         />
       </Modal>
+
+      <CapaAnalysisModal
+        open={isCapaModalOpen}
+        nature={capaNature}
+        onClose={closeCapaAnalysis}
+      />
     </DashboardLayout>
   );
 }
