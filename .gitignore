@@ -25,9 +25,7 @@
 *.log
 uploads/
 
-# Local secrets — copy from application.properties.example
-complaint-management-system/src/main/resources/application.properties
-.env
+# Keep personal overrides local. Shared lab .env and application.properties are committed.
 .env.local
 .env.*.local
 

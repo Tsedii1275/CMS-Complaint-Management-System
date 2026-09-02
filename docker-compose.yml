@@ -1,6 +1,6 @@
 # Full CMS stack. From this directory:
-#   copy .env.example to .env and fill in secrets
 #   docker compose up -d --build
+# Uses the committed .env and backend application.properties.
 # App: http://localhost
 # phpMyAdmin (lab only): docker compose --profile tools up -d
 #
