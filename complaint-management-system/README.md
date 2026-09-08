@@ -72,14 +72,17 @@ The React app is a separate project:
 
 ## 🐳 Docker Deployment
 
-Use the Compose file in the parent CMS folder (not this backend folder):
+Backend-only stack (Spring Boot + MySQL). From this directory:
 
 ```powershell
-cd D:\Complaint-projects\demo\CMS
+cd complaint-management-system
 docker compose up -d --build
 ```
 
-The app is at http://localhost and phpMyAdmin at http://localhost:8081.
+- API: http://localhost:8080
+- phpMyAdmin: `docker compose --profile tools up -d` then http://localhost:8081
+
+The frontend is a separate Compose file in `Complaint Management System Frontend`.
 
 ## 🧑‍💻 Usage & Workflow
 

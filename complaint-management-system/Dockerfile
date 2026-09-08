@@ -3,16 +3,20 @@ WORKDIR /build
 
 COPY pom.xml .
 COPY src ./src
-RUN cp src/main/resources/application.properties.example src/main/resources/application.properties
 RUN mvn -B -DskipTests package
 
 FROM eclipse-temurin:21.0.12_8-jre
 WORKDIR /app
 
-RUN mkdir -p /app/uploads
+RUN groupadd --system cms \
+    && useradd --system --gid cms --home-dir /app --no-create-home cms \
+    && mkdir -p /app/uploads \
+    && chown -R cms:cms /app
 
-COPY --from=build /build/target/complaint-management-system-0.0.1-SNAPSHOT.jar app.jar
+COPY --from=build --chown=cms:cms /build/target/complaint-management-system-0.0.1-SNAPSHOT.jar app.jar
 
 EXPOSE 8080
+
+USER cms
 
 ENTRYPOINT ["java", "-jar", "app.jar"]

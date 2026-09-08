@@ -25,8 +25,8 @@ React frontend for the Flowable-based Complaint Management System.
 
 ### Prerequisites
 
-- Node.js 14+ 
-- Backend server running on `http://localhost:8080`
+- Node.js 14+
+- Backend API available at `http://localhost:8080` (Docker or `mvnw spring-boot:run`)
 
 ### Installation
 
@@ -43,6 +43,19 @@ npm start
 ```
 
 The app will open at `http://localhost:3000`
+
+## Docker Deployment
+
+Frontend-only stack (Nginx + compiled React). The backend Compose stack must already be running on port 8080.
+
+```powershell
+cd "Complaint Management System Frontend"
+docker compose up -d --build
+```
+
+UI: http://localhost
+
+Nginx proxies `/api` using `CMS_BACKEND` in this folder's `.env` (default `host.docker.internal:8080`).
 
 ### Building for Production
 

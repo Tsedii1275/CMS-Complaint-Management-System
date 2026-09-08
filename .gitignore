@@ -25,7 +25,7 @@
 *.log
 uploads/
 
-# Keep personal overrides local. Shared lab .env and application.properties are committed.
+# Keep personal Compose overrides local. Project .env files are committed for lab clones.
 .env.local
 .env.*.local
 

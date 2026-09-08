@@ -2,43 +2,50 @@
 
 Dashen Bank complaint workflow: Spring Boot + Flowable backend and React frontend.
 
+Frontend and backend Docker stacks are independent. There is no root Compose file.
+
 ## Layout
 
-- `complaint-management-system` — Spring Boot (`Dockerfile` in this folder)
-- `Complaint Management System Frontend` — React (`Dockerfile` and `nginx.conf` in this folder)
-- `docker-compose.yml` — the only Compose file (Nginx + Spring Boot + MySQL + phpMyAdmin)
+- `complaint-management-system` — backend (Spring Boot, MySQL, optional phpMyAdmin)
+- `Complaint Management System Frontend` — frontend (Nginx serving the production React build)
 
-## Run the full stack (Docker)
+## Docker (decoupled)
+
+Start backend first, then frontend.
 
 ```powershell
-cd D:\Complaint-projects\demo\CMS
+cd complaint-management-system
 docker compose up -d --build
 ```
 
-- Application: http://localhost
-- phpMyAdmin: http://localhost:8081
+```powershell
+cd "Complaint Management System Frontend"
+docker compose up -d --build
+```
 
-Spring Boot port 8080 stays on the Compose network only.
+- UI: http://localhost
+- API: http://localhost:8080
+- phpMyAdmin: `docker compose --profile tools up -d` from the backend folder, then http://localhost:8081
+
+Each folder has its own `.env`. The frontend proxies `/api` to the backend using `CMS_BACKEND` (default `host.docker.internal:8080`).
 
 ## Run on the host (developer mode)
 
-MySQL + phpMyAdmin from the same Compose file:
+MySQL from the backend Compose file:
 
 ```powershell
-cd D:\Complaint-projects\demo\CMS
-docker compose up -d mysql phpmyadmin
+cd complaint-management-system
+docker compose up -d mysql
 ```
 
 Backend:
 
 ```powershell
 cd complaint-management-system
-copy src\main\resources\application.properties.example src\main\resources\application.properties
-# edit local secrets, then:
 .\mvnw.cmd spring-boot:run
 ```
 
-Frontend (quotes required because of spaces):
+Frontend:
 
 ```powershell
 cd "Complaint Management System Frontend"

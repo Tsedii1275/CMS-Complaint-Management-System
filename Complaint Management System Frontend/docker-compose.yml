@@ -1,0 +1,25 @@
+# Frontend stack only (Nginx serving the production React build).
+# From this directory:
+#   docker compose up -d --build
+# UI: http://localhost
+#
+# Start the backend stack first (port 8080) so /api proxying works.
+# Override CMS_BACKEND in this folder's .env if the API is not on the host at 8080.
+
+name: cms-frontend
+
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cms-nginx
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      CMS_BACKEND: ${CMS_BACKEND:-host.docker.internal:8080}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "80:8080"

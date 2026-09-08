@@ -10,6 +10,11 @@ ENV GENERATE_SOURCEMAP=false
 RUN npm run build
 
 FROM nginx:1.30.4-alpine
-COPY --from=build /src/build /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
+COPY nginx-main.conf /etc/nginx/nginx.conf
+COPY nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY --from=build --chown=nginx:nginx /src/build /usr/share/nginx/html
+
+RUN chown -R nginx:nginx /var/cache/nginx /var/log/nginx /etc/nginx/conf.d /etc/nginx/templates
+
+EXPOSE 8080
+USER nginx

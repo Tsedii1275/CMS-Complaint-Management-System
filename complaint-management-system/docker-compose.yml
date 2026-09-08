@@ -1,20 +1,21 @@
-# Full CMS stack. From this directory:
+# Backend stack only. From this directory:
 #   docker compose up -d --build
-# Uses the committed .env and backend application.properties.
-# App: http://localhost
-# phpMyAdmin (lab only): docker compose --profile tools up -d
+# API: http://localhost:8080
+# phpMyAdmin (optional): docker compose --profile tools up -d
 #
-# Host mvnw + npm start (MySQL only):
+# Host mvnw against this MySQL:
 #   docker compose up -d mysql
 
-name: cms
+name: cms-backend
 
 services:
   mysql:
-    # Stay on 8.0 until a staged 8.4 LTS cutover (see Phase 2B report). Do not change this tag in production without backup.
+    # Stay on 8.0 until a staged 8.4 LTS cutover. Do not change this tag without backup.
     image: mysql:8.0
     container_name: cms-mysql
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-cms_db}
@@ -32,7 +33,7 @@ services:
       start_period: 20s
 
   phpmyadmin:
-    profiles: ["tools"]
+    profiles: [tools]
     image: phpmyadmin/phpmyadmin
     container_name: cms-phpmyadmin
     restart: unless-stopped
@@ -47,10 +48,12 @@ services:
 
   complaint-management-system:
     build:
-      context: ./complaint-management-system
+      context: .
       dockerfile: Dockerfile
     container_name: cms-complaint-management-system
     restart: unless-stopped
+    env_file:
+      - .env
     depends_on:
       mysql:
         condition: service_healthy
@@ -61,29 +64,18 @@ services:
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: "false"
       SPRING_FLYWAY_OUT_OF_ORDER: "true"
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      APP_PUBLIC_BASE_URL: http://localhost
-      APP_CORS_ALLOWED_ORIGINS: http://localhost,http://127.0.0.1
+      APP_PUBLIC_BASE_URL: ${APP_PUBLIC_BASE_URL:-http://localhost}
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost,http://127.0.0.1,http://localhost:3000,http://127.0.0.1:3000}
       FILE_UPLOAD_DIR: /app/uploads
       SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
       SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
       APP_JWT_SECRET: ${APP_JWT_SECRET}
-      APP_JWT_EXPIRATION_MS: "900000"
+      APP_JWT_EXPIRATION_MS: ${APP_JWT_EXPIRATION_MS:-900000}
       INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD}
     volumes:
       - cms_uploads:/app/uploads
-    expose:
-      - "8080"
-
-  nginx:
-    build:
-      context: "./Complaint Management System Frontend"
-      dockerfile: Dockerfile
-    container_name: cms-nginx
-    restart: unless-stopped
-    depends_on:
-      - complaint-management-system
     ports:
-      - "80:80"
+      - "8080:8080"
 
 volumes:
   mysql_data:
