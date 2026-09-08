@@ -9,6 +9,19 @@ Frontend and backend Docker stacks are independent. There is no root Compose fil
 - `complaint-management-system` — backend (Spring Boot, MySQL, optional phpMyAdmin)
 - `Complaint Management System Frontend` — frontend (Nginx serving the production React build)
 
+## Configuration
+
+Each folder has `.env` (switch), `.env.dev` (localhost), and `.env.prod` (UAT). Set `APP_ENV=dev` or `APP_ENV=prod` in `.env`. Compose, Spring, and the frontend scripts load `.env.${APP_ENV}`.
+
+- Backend: `APP_PUBLIC_BASE_URL`, `APP_CORS_ALLOWED_ORIGINS`, DB, mail, JWT.
+- Frontend: `CMS_BACKEND` is the Nginx `/api` upstream. `REACT_APP_API_BASE_URL` is for `npm start`; the Docker image uses same-origin `/api`.
+
+Edit `.env` on the target machine, then:
+
+```powershell
+docker compose up -d --build
+```
+
 ## Docker (decoupled)
 
 Start backend first, then frontend.
@@ -26,8 +39,6 @@ docker compose up -d --build
 - UI: http://localhost
 - API: http://localhost:8080
 - phpMyAdmin: `docker compose --profile tools up -d` from the backend folder, then http://localhost:8081
-
-Each folder has its own `.env`. The frontend proxies `/api` to the backend using `CMS_BACKEND` (default `host.docker.internal:8080`).
 
 ## Run on the host (developer mode)
 

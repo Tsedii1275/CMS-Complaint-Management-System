@@ -5,6 +5,7 @@ COPY package.json package-lock.json ./
 RUN npm install --no-audit --no-fund
 
 COPY . .
+# Same-origin /api in the image. Nginx uses CMS_BACKEND from .env.dev / .env.prod at runtime.
 ENV REACT_APP_API_BASE_URL=
 ENV GENERATE_SOURCEMAP=false
 RUN npm run build

@@ -1,4 +1,5 @@
 spring.application.name=complaint-management-system
+spring.config.import=optional:file:.env,optional:file:.env.${APP_ENV:dev}
 
 # MySQL. sslMode=DISABLED for local servers without TLS.
 # Production: MYSQL_SSL_MODE=REQUIRED or VERIFY_IDENTITY.
@@ -22,11 +23,11 @@ spring.flowable.database-schema-update=true
 flowable.database-schema-update=true
 flowable.check-process-definitions=true
 
-# SMTP — set via environment or local application.properties (not committed)
-spring.mail.host=smtp.gmail.com
-spring.mail.port=587
-spring.mail.username=${SPRING_MAIL_USERNAME:your-smtp-user@example.com}
-spring.mail.password=${SPRING_MAIL_PASSWORD:your-smtp-app-password}
+# SMTP — set via .env.dev / .env.prod
+spring.mail.host=${SPRING_MAIL_HOST:smtp.gmail.com}
+spring.mail.port=${SPRING_MAIL_PORT:587}
+spring.mail.username=${SPRING_MAIL_USERNAME:}
+spring.mail.password=${SPRING_MAIL_PASSWORD:}
 
 spring.mail.properties.mail.smtp.auth=true
 spring.mail.properties.mail.smtp.starttls.enable=true
@@ -47,7 +48,7 @@ app.jwtSecret=${APP_JWT_SECRET}
 app.jwtExpirationMs=${APP_JWT_EXPIRATION_MS:900000}
 
 # Browser-facing origin for email/SMS (React). Not a Spring SSL setting.
-# Profiles: application-dev.properties | application-uat.properties | application-prod.properties
-# SPRING_PROFILES_ACTIVE=dev|uat|prod
+# Values come from .env.dev or .env.prod (APP_ENV in .env)
 app.public-base-url=${APP_PUBLIC_BASE_URL:http://localhost:3000}
 app.cors.allowed-origins=${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
+server.forward-headers-strategy=framework

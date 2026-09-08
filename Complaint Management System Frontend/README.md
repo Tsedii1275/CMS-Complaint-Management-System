@@ -55,7 +55,7 @@ docker compose up -d --build
 
 UI: http://localhost
 
-Nginx proxies `/api` using `CMS_BACKEND` in this folder's `.env` (default `host.docker.internal:8080`).
+Nginx proxies `/api` using `CMS_BACKEND` from `.env.dev` or `.env.prod` (`APP_ENV` in `.env`).
 
 ### Building for Production
 

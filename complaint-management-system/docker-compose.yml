@@ -1,5 +1,6 @@
-# Backend stack only. From this directory:
+# Backend stack. From this directory:
 #   docker compose up -d --build
+# .env sets APP_ENV=dev|prod; values come from .env.dev or .env.prod.
 # API: http://localhost:8080
 # phpMyAdmin (optional): docker compose --profile tools up -d
 #
@@ -15,12 +16,7 @@ services:
     container_name: cms-mysql
     restart: unless-stopped
     env_file:
-      - .env
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-cms_db}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      - .env.${APP_ENV:-dev}
     volumes:
       - mysql_data:/var/lib/mysql
     ports:
@@ -52,26 +48,18 @@ services:
       dockerfile: Dockerfile
     container_name: cms-complaint-management-system
     restart: unless-stopped
-    env_file:
-      - .env
     depends_on:
       mysql:
         condition: service_healthy
+    env_file:
+      - .env.${APP_ENV:-dev}
     environment:
+      APP_ENV: ${APP_ENV:-dev}
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-cms_db}?sslMode=${MYSQL_SSL_MODE:-DISABLED}&serverTimezone=UTC&allowPublicKeyRetrieval=true
-      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
-      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: "false"
       SPRING_FLYWAY_OUT_OF_ORDER: "true"
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      APP_PUBLIC_BASE_URL: ${APP_PUBLIC_BASE_URL:-http://localhost}
-      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost,http://127.0.0.1,http://localhost:3000,http://127.0.0.1:3000}
       FILE_UPLOAD_DIR: /app/uploads
-      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
-      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
-      APP_JWT_SECRET: ${APP_JWT_SECRET}
-      APP_JWT_EXPIRATION_MS: ${APP_JWT_EXPIRATION_MS:-900000}
-      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD}
     volumes:
       - cms_uploads:/app/uploads
     ports:

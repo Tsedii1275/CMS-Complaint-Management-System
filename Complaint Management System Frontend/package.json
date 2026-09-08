@@ -15,9 +15,8 @@
     "react-scripts": "5.0.1"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "build:uat": "npx --yes env-cmd -f .env.uat react-scripts build",
+    "start": "node load-app-env.js react-scripts start",
+    "build": "node load-app-env.js react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

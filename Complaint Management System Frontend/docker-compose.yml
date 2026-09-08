@@ -1,10 +1,10 @@
-# Frontend stack only (Nginx serving the production React build).
+# Frontend stack (Nginx serving the React build).
 # From this directory:
 #   docker compose up -d --build
+# .env sets APP_ENV=dev|prod; CMS_BACKEND comes from .env.dev or .env.prod.
 # UI: http://localhost
 #
 # Start the backend stack first (port 8080) so /api proxying works.
-# Override CMS_BACKEND in this folder's .env if the API is not on the host at 8080.
 
 name: cms-frontend
 
@@ -16,9 +16,9 @@ services:
     container_name: cms-nginx
     restart: unless-stopped
     env_file:
-      - .env
+      - .env.${APP_ENV:-dev}
     environment:
-      CMS_BACKEND: ${CMS_BACKEND:-host.docker.internal:8080}
+      APP_ENV: ${APP_ENV:-dev}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
