@@ -372,7 +372,7 @@ function ChiefCommitteeDashboard() {
 
       if (selectedFile) {
         try {
-          const uploadResult = await ApiService.uploadEvidence(selectedFile);
+          const uploadResult = await ApiService.uploadEvidence(selectedFile, ApiService.ticketFromTask(selectedTask));
           uploadedUrl = uploadResult.url;
           uploadedName = uploadResult.fileName;
         } catch (uploadError) {

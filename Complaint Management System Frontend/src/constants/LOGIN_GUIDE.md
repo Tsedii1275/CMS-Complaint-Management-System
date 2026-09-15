@@ -25,7 +25,6 @@
 Each dashboard includes:
 - Professional header with Dashen Bank branding
 - Role-specific task management
-- Clear All Tasks functionality
 - Logout functionality
 - Responsive design
 

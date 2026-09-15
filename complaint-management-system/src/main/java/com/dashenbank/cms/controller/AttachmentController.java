@@ -2,6 +2,7 @@ package com.dashenbank.cms.controller;
 
 import com.dashenbank.cms.dto.AttachmentDTO;
 import com.dashenbank.cms.model.Attachment;
+import com.dashenbank.cms.security.FileSecurityService;
 import com.dashenbank.cms.service.AttachmentService;
 import com.dashenbank.cms.service.AuditService;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,9 @@ public class AttachmentController {
     @Autowired
     private AuditService auditService;
 
+    @Autowired
+    private FileSecurityService fileSecurityService;
+
     private String getCurrentUsername() {
         var auth = SecurityContextHolder.getContext().getAuthentication();
         return (auth != null && auth.getName() != null) ? auth.getName() : "anonymous";
@@ -37,18 +41,18 @@ public class AttachmentController {
     @PostMapping("/upload")
     public ResponseEntity<?> uploadAttachment(
             @RequestParam("file") MultipartFile file,
-            @RequestParam("complaintId") String complaintId,
-            @RequestParam(value = "uploadedBy", required = false) String uploadedBy) {
+            @RequestParam("complaintId") String complaintId) {
         try {
-            String uploader = (uploadedBy != null && !uploadedBy.isBlank()) ? uploadedBy : getCurrentUsername();
-            AttachmentDTO dto = attachmentService.saveAttachment(file, complaintId, uploader);
+            fileSecurityService.validateUpload(file, false);
+            String ticket = fileSecurityService.bindComplaintId(complaintId, true);
+            AttachmentDTO dto = attachmentService.saveAttachment(file, ticket, getCurrentUsername());
             return ResponseEntity.ok(dto);
         } catch (IllegalArgumentException e) {
             log.warn("Attachment upload validation failed: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (IOException e) {
             log.error("Failed to upload attachment: {}", e.getMessage());
-            return ResponseEntity.status(500).body(Map.of("error", "Upload failed: " + e.getMessage()));
+            return ResponseEntity.status(500).body(Map.of("error", "Upload failed"));
         }
     }
 
@@ -60,31 +64,15 @@ public class AttachmentController {
 
     @GetMapping("/download/{id}")
     public ResponseEntity<Resource> downloadAttachmentById(@PathVariable Long id) {
-        var opt = attachmentService.getAttachmentEntityById(id);
-        if (opt.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-        Attachment att = opt.get();
-        try {
-            Resource resource = attachmentService.loadAttachmentResource(att);
-            String contentType = att.getFileType() != null ? att.getFileType() : "application/octet-stream";
-
-            // Audit Trail
-            auditService.log(att.getComplaintId(), "", "", "ATTACHMENT_DOWNLOADED", "ATTACHMENT",
-                    getCurrentUsername(), "Downloaded attachment: " + att.getFileName(), "", "", "");
-
-            return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + att.getFileName() + "\"")
-                    .body(resource);
-        } catch (Exception e) {
-            log.error("Error downloading file ID {}: {}", id, e.getMessage());
-            return ResponseEntity.status(500).build();
-        }
+        return serveAttachment(id, "ATTACHMENT_DOWNLOADED", "Downloaded attachment: ");
     }
 
     @GetMapping("/preview/{id}")
     public ResponseEntity<Resource> previewAttachmentById(@PathVariable Long id) {
+        return serveAttachment(id, "ATTACHMENT_PREVIEWED", "Previewed attachment: ");
+    }
+
+    private ResponseEntity<Resource> serveAttachment(Long id, String action, String auditPrefix) {
         var opt = attachmentService.getAttachmentEntityById(id);
         if (opt.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -93,17 +81,15 @@ public class AttachmentController {
         try {
             Resource resource = attachmentService.loadAttachmentResource(att);
             String contentType = att.getFileType() != null ? att.getFileType() : "application/octet-stream";
-
-            // Audit Trail
-            auditService.log(att.getComplaintId(), "", "", "ATTACHMENT_PREVIEWED", "ATTACHMENT",
-                    getCurrentUsername(), "Previewed attachment: " + att.getFileName(), "", "", "");
-
+            auditService.log(att.getComplaintId(), "", "", action, "ATTACHMENT",
+                    getCurrentUsername(), auditPrefix + att.getFileName(), "", "", "");
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + att.getFileName() + "\"")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, fileSecurityService.safeContentDisposition(att.getFileName()))
+                    .header("X-Content-Type-Options", "nosniff")
                     .body(resource);
         } catch (Exception e) {
-            log.error("Error previewing file ID {}: {}", id, e.getMessage());
+            log.error("Error serving file ID {}: {}", id, e.getMessage());
             return ResponseEntity.status(500).build();
         }
     }

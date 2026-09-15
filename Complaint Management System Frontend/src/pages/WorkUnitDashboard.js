@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Typography, Button, Tag, Empty, Alert, Form, Input, Space, Row, Col, message as antdMessage } from 'antd';
-import { DeleteOutlined, ArrowLeftOutlined, SearchOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, SearchOutlined } from '@ant-design/icons';
 import DashboardLayout from '../components/DashboardLayout';
 import ApiService from '../services/api';
 import { BRAND_COLORS } from '../constants/theme';
@@ -23,7 +23,6 @@ function WorkUnitDashboard() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
-  const [clearingTasks, setClearingTasks] = useState(false);
 
   useEffect(() => {
     loadTasks();
@@ -91,29 +90,6 @@ function WorkUnitDashboard() {
       console.error('Error loading tasks:', err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const clearAllTasks = async () => {
-    if (window.confirm('Are you sure you want to clear all tasks? This action cannot be undone.')) {
-      setClearingTasks(true);
-      try {
-        await ApiService.clearAllTasks();
-        antdMessage.success('All tasks and SLA records cleared successfully!');
-        setMessage('All tasks and SLA records cleared successfully!');
-        setSelectedTask(null);
-        setFormData({ resolutionDetails: '', actionTaken: '', isSensitive: false });
-        await loadTasks();
-
-        setTimeout(() => setMessage(''), 4000);
-      } catch (err) {
-        const detail = err?.message || 'Failed to clear all tasks';
-        antdMessage.error(detail);
-        setMessage(`error: ${detail}`);
-        console.error('Error clearing tasks:', err);
-      } finally {
-        setClearingTasks(false);
-      }
     }
   };
 
@@ -211,18 +187,6 @@ function WorkUnitDashboard() {
             <Text type="secondary" style={{ fontSize: '15px' }}>
               Resolve assigned complaints
             </Text>
-          </div>
-          <div>
-            <Button
-              danger
-              type="primary"
-              icon={<DeleteOutlined />}
-              onClick={clearAllTasks}
-              loading={clearingTasks}
-              style={{ borderRadius: '6px' }}
-            >
-              Clear All Tasks
-            </Button>
           </div>
         </div>
 

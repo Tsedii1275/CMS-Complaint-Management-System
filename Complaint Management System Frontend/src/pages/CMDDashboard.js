@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, Typography, Button, Tag, Empty, Alert, Form, Input, Checkbox, Row, Col, Select, Radio, Progress, Tooltip, Tabs, Table, Space, Modal, Upload, Badge, message as antMessage } from 'antd';
-import { DeleteOutlined, ArrowLeftOutlined, DashboardOutlined, SearchOutlined, UserOutlined, WarningOutlined, EditOutlined, CheckOutlined, CloseOutlined, UploadOutlined, PaperClipOutlined, CheckCircleOutlined, CheckCircleFilled, CloseCircleOutlined, SaveOutlined, SwapOutlined, AudioOutlined, EyeOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, DashboardOutlined, SearchOutlined, UserOutlined, WarningOutlined, EditOutlined, CheckOutlined, CloseOutlined, UploadOutlined, PaperClipOutlined, CheckCircleOutlined, CheckCircleFilled, CloseCircleOutlined, SaveOutlined, SwapOutlined, AudioOutlined, EyeOutlined } from '@ant-design/icons';
 import DashboardLayout from '../components/DashboardLayout';
 import ApiService from '../services/api';
 import { BRAND_COLORS } from '../constants/theme';
@@ -965,39 +965,6 @@ async function confirmCmdTaskAssignment(ref) {
   }
 }
 
-async function clearAllCmdTasks(ref) {
-  if (!window.confirm('Are you sure you want to clear all tasks? This action cannot be undone.')) {
-    return;
-  }
-  const s = sget(ref);
-  s.setClearingTasks(true);
-  try {
-    await ApiService.clearAllTasks();
-    antMessage.success('All tasks and SLA records cleared successfully!');
-    s.setMessage('All tasks and SLA records cleared successfully!');
-    s.setSelectedTask(null);
-    s.setFormData({
-      complaintClassification: 'General',
-      requiresInvestigation: false,
-      notes: '',
-      district: '',
-      branch: '',
-      department: '',
-      manager: ''
-    });
-    await loadCmdTasks(ref, true);
-    await fetchSlaMetricsCmd(ref);
-    setTimeout(() => s.setMessage(''), 4000);
-  } catch (error) {
-    const detail = error?.message || 'Failed to clear all tasks';
-    antMessage.error(detail);
-    s.setMessage(`error: ${detail}`);
-    console.error('Error clearing tasks:', error);
-  } finally {
-    s.setClearingTasks(false);
-  }
-}
-
 async function selectCmdTask(ref, task) {
   const s = sget(ref);
   s.setSelectedTask(task);
@@ -1294,8 +1261,7 @@ function bindCmdHandlers(stateRef) {
     handleSubmit: () => submitCmdScreening(stateRef),
     handleFcrVerification: (action) => verifyCmdFcr(stateRef, action),
     handleCloseCommitteeDecisionCase: (accepted) => closeCmdCommitteeCase(stateRef, accepted),
-    handleCloseAfterWorkUnit: () => closeCmdAfterWorkUnitResolution(stateRef),
-    clearAllTasks: () => clearAllCmdTasks(stateRef)
+    handleCloseAfterWorkUnit: () => closeCmdAfterWorkUnitResolution(stateRef)
   };
 }
 
@@ -1324,7 +1290,6 @@ function useCmdDashboardState() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
-  const [clearingTasks, setClearingTasks] = useState(false);
   const [investigationFileList, setInvestigationFileList] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -1359,8 +1324,6 @@ function useCmdDashboardState() {
     setIsSubmitting,
     message,
     setMessage,
-    clearingTasks,
-    setClearingTasks,
     investigationFileList,
     setInvestigationFileList,
     searchQuery,
@@ -2920,7 +2883,6 @@ function CmdDashboardView(props) {
   setActiveTab,
   message,
   setMessage,
-  clearingTasks,
   searchQuery,
   setSearchQuery,
   isAssignModalOpen,
@@ -2940,8 +2902,7 @@ function CmdDashboardView(props) {
   handleCloseFollowup,
   handleOpenAssignModal,
   confirmTaskAssignment,
-  handleTaskSelect,
-  clearAllTasks
+  handleTaskSelect
   } = props;
   if (loading) {
     return (
@@ -2980,19 +2941,7 @@ function CmdDashboardView(props) {
               Screen &amp; categorize complaints
             </Text>
           </div>
-          <div>
-                                    <Button
-              danger
-                                      type="primary"
-              icon={<DeleteOutlined />}
-              onClick={clearAllTasks}
-              loading={clearingTasks}
-              style={{ borderRadius: '6px' }}
-            >
-              Clear All Tasks
-                                    </Button>
-                            </div>
-                        </div>
+        </div>
 
 
         <CmdMessageBanner message={message} onClose={() => setMessage('')} />

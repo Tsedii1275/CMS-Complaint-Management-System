@@ -11,11 +11,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.dashenbank.cms.exception.FeedbackTokenException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -52,7 +49,6 @@ public class CustomerFeedbackController {
     private final CustomerFeedbackRepository feedbackRepository;
     private final ComplaintSlaMetricsRepository slaMetricsRepository;
     private final AuditService auditService;
-    private final JdbcTemplate jdbcTemplate;
 
     @Autowired(required = false)
     private com.dashenbank.cms.service.SlaTrackingService slaTrackingService;
@@ -60,13 +56,11 @@ public class CustomerFeedbackController {
     public CustomerFeedbackController(TaskService taskService,
             CustomerFeedbackRepository feedbackRepository,
             ComplaintSlaMetricsRepository slaMetricsRepository,
-            AuditService auditService,
-            JdbcTemplate jdbcTemplate) {
+            AuditService auditService) {
         this.taskService = taskService;
         this.feedbackRepository = feedbackRepository;
         this.slaMetricsRepository = slaMetricsRepository;
         this.auditService = auditService;
-        this.jdbcTemplate = jdbcTemplate;
     }
 
     @SuppressWarnings("unchecked")
@@ -75,76 +69,6 @@ public class CustomerFeedbackController {
             return (Map<String, Object>) map;
         }
         return Map.of();
-    }
-
-    @GetMapping("/customer-feedback/init-db")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ResponseEntity<String> initDb() {
-        String[] alters = {
-                "ALTER TABLE customer_feedback ADD COLUMN complaint_id varchar(100) DEFAULT NULL",
-                "ALTER TABLE customer_feedback ADD COLUMN ticket_number varchar(100) DEFAULT ''",
-                "ALTER TABLE customer_feedback ADD COLUMN resolution_confirmed bit(1) DEFAULT NULL",
-                "ALTER TABLE customer_feedback ADD COLUMN csat_score int DEFAULT NULL",
-                "ALTER TABLE customer_feedback ADD COLUMN nps_score int DEFAULT NULL",
-                "ALTER TABLE customer_feedback ADD COLUMN nps_comment text",
-                "ALTER TABLE customer_feedback ADD COLUMN ces_score int DEFAULT NULL",
-                "ALTER TABLE customer_feedback ADD COLUMN ces_comment text",
-                "ALTER TABLE customer_feedback ADD COLUMN additional_comments text",
-                "ALTER TABLE customer_feedback ADD COLUMN reopened_case bit(1) DEFAULT b'0'",
-                "ALTER TABLE customer_feedback ADD COLUMN secure_token varchar(100) DEFAULT NULL",
-                "ALTER TABLE customer_feedback ADD COLUMN token_expired bit(1) DEFAULT b'0'",
-                "ALTER TABLE customer_feedback ADD COLUMN feedback_request_sent_at timestamp NULL DEFAULT NULL",
-                "ALTER TABLE customer_feedback ADD COLUMN feedback_submitted_at timestamp NULL DEFAULT NULL",
-                "ALTER TABLE customer_feedback ADD COLUMN feedback_response_time bigint DEFAULT NULL",
-                "ALTER TABLE customer_feedback ADD COLUMN reopen_count int DEFAULT '0'",
-                "ALTER TABLE customer_feedback ADD COLUMN customer_satisfaction_status varchar(30) DEFAULT NULL",
-                "ALTER TABLE customer_feedback ADD UNIQUE KEY UK_feedback_token (secure_token)",
-                "ALTER TABLE customer_feedback MODIFY COLUMN satisfied bit(1) DEFAULT NULL",
-                "ALTER TABLE customer_feedback MODIFY COLUMN comment text DEFAULT NULL",
-                "ALTER TABLE customer_feedback MODIFY COLUMN ticket_id varchar(100) DEFAULT NULL",
-                "ALTER TABLE customer_feedback ADD COLUMN preferred_language varchar(30) DEFAULT 'english'",
-                "ALTER TABLE customer_feedback ADD COLUMN employee_id varchar(100) DEFAULT NULL",
-                "ALTER TABLE customer_feedback ADD COLUMN department varchar(100) DEFAULT NULL",
-                "ALTER TABLE customer_feedback ADD COLUMN resolution_speed_rating varchar(50) DEFAULT NULL",
-                "ALTER TABLE customer_feedback ADD COLUMN ease_rating varchar(50) DEFAULT NULL",
-                "ALTER TABLE customer_feedback ADD COLUMN followup_status varchar(50) DEFAULT 'PENDING'",
-                "ALTER TABLE customer_feedback ADD COLUMN followup_started_at timestamp NULL DEFAULT NULL",
-                "ALTER TABLE customer_feedback ADD COLUMN followup_closed_at timestamp NULL DEFAULT NULL",
-                "ALTER TABLE customer_feedback ADD COLUMN followup_assigned_to varchar(100) DEFAULT NULL",
-                "ALTER TABLE audit_log ADD COLUMN details_of_complaint text DEFAULT NULL",
-                "ALTER TABLE audit_log ADD COLUMN complaint_category varchar(100) DEFAULT NULL",
-                "ALTER TABLE audit_log ADD COLUMN customer_name varchar(100) DEFAULT NULL",
-                "ALTER TABLE audit_log ADD COLUMN general_ticket_id varchar(50) DEFAULT NULL",
-                "ALTER TABLE complaint_sla_metrics ADD COLUMN department varchar(100) DEFAULT NULL",
-                "ALTER TABLE complaint_sla_metrics ADD COLUMN manager varchar(100) DEFAULT NULL",
-                "ALTER TABLE complaint_sla_metrics ADD COLUMN assigned_user_id bigint DEFAULT NULL",
-                "ALTER TABLE users ADD COLUMN district varchar(100) DEFAULT NULL",
-                "ALTER TABLE users ADD COLUMN branch varchar(100) DEFAULT NULL",
-                "ALTER TABLE users ADD COLUMN department varchar(100) DEFAULT NULL",
-                "ALTER TABLE users ADD COLUMN full_name varchar(255) DEFAULT NULL"
-        };
-
-        StringBuilder logBuilder = new StringBuilder("Database Update Log:\n");
-        for (String sql : alters) {
-            try {
-                jdbcTemplate.execute(sql);
-                logBuilder.append("SUCCESS: ").append(sql).append("\n");
-            } catch (Exception e) {
-                logBuilder.append("SKIPPED/FAILED: ").append(sql).append(" (Reason: ").append(e.getMessage())
-                        .append(")\n");
-            }
-        }
-        return ResponseEntity.ok(logBuilder.toString());
-    }
-
-    @EventListener(ApplicationReadyEvent.class)
-    public void onStartupInitDb() {
-        try {
-            log.info("Executing startup database schema check for CustomerFeedback...");
-            initDb();
-        } catch (Exception e) {
-            log.error("Startup database schema check encountered an error: {}", e.getMessage());
-        }
     }
 
     private String dbcIdFromMetrics(Optional<ComplaintSlaMetrics> metricsOpt) {

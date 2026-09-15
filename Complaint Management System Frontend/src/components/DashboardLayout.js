@@ -27,6 +27,24 @@ import {
 } from '../constants/securityPolicy';
 import '../index.css';
 
+function formatSlaDeadline(value) {
+  if (!value) {
+    return 'Standard SLA Target';
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return 'Standard SLA Target';
+  }
+  return parsed.toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+}
+
 function SidebarMenu({ collapsed, userRole, user, onNavigate }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -158,10 +176,11 @@ function AppHeader({ collapsed, isMobile, onMenuClick, userRole, user, onLogout,
   const fetchTasks = async () => {
     try {
       if (!user || userRole === 'admin') return;
-      const data = await ApiService.getEnrichedTasks();
+      const data = await ApiService.getSlaAlerts();
       setTasks(data || []);
     } catch (err) {
-      console.error('Failed to fetch tasks in AppHeader:', err);
+      console.error('Failed to fetch SLA alerts in AppHeader:', err);
+      setTasks([]);
     }
   };
 
@@ -215,11 +234,9 @@ function AppHeader({ collapsed, isMobile, onMenuClick, userRole, user, onLogout,
             const statusColor = isBreached ? '#dc2626' : '#d97706';
             const badgeTagColor = isBreached ? 'error' : 'warning';
 
-            const dbcTicketNumber = task.dbcTicketId || task.variables?.dbcTicketId || task.complaintId || 'N/A';
-            const workflowStage = task.name || task.taskDefinitionKey || 'Workflow Processing';
-            const slaDeadline = task.dueDate
-              ? new Date(task.dueDate).toLocaleString()
-              : (task.variables?.expectedResolutionDate || 'Standard SLA Target');
+            const dbcTicketNumber = task.dbcTicketId || task.complaintId || 'N/A';
+            const workflowStage = task.currentStageLabel || task.name || 'Workflow Processing';
+            const slaDeadline = formatSlaDeadline(task.slaDeadline || task.dueDate);
             const currentDateTime = new Date().toLocaleString();
 
             return (

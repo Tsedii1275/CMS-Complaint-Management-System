@@ -1,5 +1,5 @@
-# Loads .env (APP_ENV=dev|prod) then .env.<APP_ENV> before running the command.
-# Already-set process env vars win (so Docker can force REACT_APP_API_BASE_URL).
+// Loads .env (APP_ENV=dev|prod) then .env.<APP_ENV> before running the command.
+// Already-set process env vars win (so Docker can force REACT_APP_API_BASE_URL).
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');

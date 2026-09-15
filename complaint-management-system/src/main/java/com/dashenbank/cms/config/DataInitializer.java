@@ -29,12 +29,6 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        try {
-            jdbcTemplate.execute("ALTER TABLE users MODIFY COLUMN role VARCHAR(100) NOT NULL");
-        } catch (Exception e) {
-            log.info("Role column alter info: {}", e.getMessage());
-        }
-
         int migrated = jdbcTemplate.update(
                 """
                 UPDATE users

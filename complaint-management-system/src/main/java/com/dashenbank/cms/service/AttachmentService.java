@@ -20,9 +20,10 @@ import java.util.stream.Collectors;
 @Slf4j
 public class AttachmentService {
 
-    private static final long MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
+    private static final long MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
-            "pdf", "png", "jpg", "jpeg", "doc", "docx", "xls", "xlsx", "txt", "csv", "zip", "rar");
+            "pdf", "png", "jpg", "jpeg", "doc", "docx", "xls", "xlsx", "txt", "csv",
+            "mp3", "wav", "m4a", "webm", "ogg");
 
     @Autowired
     private AttachmentRepository attachmentRepository;
@@ -80,7 +81,7 @@ public class AttachmentService {
         }
 
         if (file.getSize() > MAX_FILE_SIZE_BYTES) {
-            throw new IllegalArgumentException("File size exceeds maximum threshold of 50MB");
+            throw new IllegalArgumentException("File size exceeds maximum threshold of 10MB");
         }
 
         String originalFilename = file.getOriginalFilename();
@@ -91,6 +92,10 @@ public class AttachmentService {
         String extension = originalFilename.substring(originalFilename.lastIndexOf(".") + 1).toLowerCase();
         if (!ALLOWED_EXTENSIONS.contains(extension)) {
             throw new IllegalArgumentException("File type ." + extension + " is not allowed");
+        }
+        String contentType = file.getContentType() == null ? "" : file.getContentType().toLowerCase();
+        if (contentType.contains("html") || contentType.contains("javascript") || contentType.contains("svg")) {
+            throw new IllegalArgumentException("Unsupported MIME type");
         }
     }
 

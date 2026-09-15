@@ -1,11 +1,13 @@
 package com.dashenbank.cms.security;
 
 import com.dashenbank.cms.config.AppHttpProperties;
+import com.dashenbank.cms.repository.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -13,6 +15,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -28,18 +31,30 @@ public class WebSecurityConfig {
     private final AuthEntryPointJwt unauthorizedHandler;
     private final AppHttpProperties appHttpProperties;
     private final PasswordEncoder passwordEncoder;
+    private final UserRepository userRepository;
 
     public WebSecurityConfig(UserDetailsServiceImpl userDetailsService, AuthEntryPointJwt unauthorizedHandler,
-            AppHttpProperties appHttpProperties, PasswordEncoder passwordEncoder) {
+            AppHttpProperties appHttpProperties, PasswordEncoder passwordEncoder, UserRepository userRepository) {
         this.userDetailsService = userDetailsService;
         this.unauthorizedHandler = unauthorizedHandler;
         this.appHttpProperties = appHttpProperties;
         this.passwordEncoder = passwordEncoder;
+        this.userRepository = userRepository;
     }
 
     @Bean
     public AuthTokenFilter authenticationJwtTokenFilter() {
         return new AuthTokenFilter();
+    }
+
+    @Bean
+    public ApiRateLimitFilter apiRateLimitFilter() {
+        return new ApiRateLimitFilter();
+    }
+
+    @Bean
+    public MustChangePasswordFilter mustChangePasswordFilter() {
+        return new MustChangePasswordFilter(userRepository);
     }
 
     @Bean
@@ -61,6 +76,16 @@ public class WebSecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
+                .headers(headers -> {
+                    headers.contentTypeOptions(Customizer.withDefaults());
+                    headers.frameOptions(frame -> frame.deny());
+                    headers.referrerPolicy(policy -> policy.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN));
+                    headers.permissionsPolicy(policy -> {
+                        policy.policy("camera=(), microphone=(), geolocation=()");
+                    });
+                    headers.contentSecurityPolicy(csp -> csp.policyDirectives(
+                            "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"));
+                })
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
@@ -84,6 +109,7 @@ public class WebSecurityConfig {
                                 "ROLE_SERVICE_QUALITY_DIRECTOR",
                                 "ROLE_ADMIN")
                         .requestMatchers("/api/admin/**", "/api/users", "/api/users/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers("/api/sla/alerts", "/api/sla/alerts/**").authenticated()
                         .requestMatchers("/api/sla/config/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/rca/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/nbe-compliance-reports/**", "/api/nbe-compliance-reports")
@@ -92,18 +118,20 @@ public class WebSecurityConfig {
                         .requestMatchers("/api/complainant-related-information",
                                 "/api/complainant-related-information/**")
                         .hasAuthority("ROLE_ADMIN")
-                        .requestMatchers("/api/customer-feedback/init-db").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/customer-feedback/list", "/api/customer-feedback/analytics",
                                 "/api/customer-feedback/distributions", "/api/customer-feedback/trends")
                         .hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/audit/logs", "/api/audit/analytics/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/audit/sla/**").authenticated()
                         .requestMatchers("/api/cmd/analytics/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/process/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/tasks/**", "/api/process/**").authenticated()
                         .anyRequest().authenticated());
 
         http.authenticationProvider(authenticationProvider());
+        http.addFilterBefore(apiRateLimitFilter(), UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
+        http.addFilterAfter(mustChangePasswordFilter(), AuthTokenFilter.class);
 
         return http.build();
     }

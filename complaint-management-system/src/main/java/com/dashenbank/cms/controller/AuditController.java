@@ -5,6 +5,8 @@ import com.dashenbank.cms.model.ComplaintSlaMetrics;
 import com.dashenbank.cms.model.TaskTimeTracking;
 import com.dashenbank.cms.repository.ComplaintSlaMetricsRepository;
 import com.dashenbank.cms.service.AuditService;
+import com.dashenbank.cms.service.SlaAlertAuthorizationService;
+import com.dashenbank.cms.service.SlaAlertScope;
 import com.dashenbank.cms.service.SlaStatusRules;
 import com.dashenbank.cms.service.SlaTrackingService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +40,9 @@ public class AuditController {
     private com.dashenbank.cms.repository.UserRepository userRepository;
 
     @Autowired
+    private SlaAlertAuthorizationService slaAlertAuthorizationService;
+
+    @Autowired
     private org.flowable.engine.HistoryService historyService;
 
     @Autowired
@@ -67,14 +72,6 @@ public class AuditController {
         LocalDateTime endDate;
     }
 
-    private String getCurrentUserRole() {
-        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getAuthorities() != null && !auth.getAuthorities().isEmpty()) {
-            return auth.getAuthorities().iterator().next().getAuthority();
-        }
-        return "ROLE_ANONYMOUS";
-    }
-
     private String getCurrentUsername() {
         var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         if (auth != null) {
@@ -84,34 +81,15 @@ public class AuditController {
     }
 
     private List<ComplaintSlaMetrics> filterByRoleOwnership(List<ComplaintSlaMetrics> metrics) {
-        String role = getCurrentUserRole();
-        if ("ROLE_ADMIN".equals(role) || "ROLE_CUSTOMER_CARE_OFFICER".equals(role)
-                || "ROLE_CHIEF_COMMITTEE".equals(role)
-                || "ROLE_AUDIT_INVESTIGATION_TEAM".equals(role) || "ROLE_OPERATIONAL_AUDIT_SENIOR_MANAGER".equals(role)
-                || "ROLE_OPERATIONAL_AUDIT_DIRECTOR".equals(role)) {
+        String role = slaAlertAuthorizationService.currentRole();
+        if (SlaAlertScope.isAdmin(role)) {
             return metrics;
         }
-
-        String username = getCurrentUsername();
-        var userOpt = userRepository.findByUsernameIgnoreCase(username);
-        if (userOpt.isPresent()) {
-            com.dashenbank.cms.model.User user = userOpt.get();
-            String branch = user.getBranch();
-            String department = user.getDepartment();
-
-            if ("ROLE_DEPARTMENT_WORKUNIT".equals(role)) {
-                return metrics.stream()
-                        .filter(m -> {
-                            boolean matchBranch = branch == null || branch.isBlank()
-                                    || branch.equalsIgnoreCase(m.getBranch());
-                            boolean matchDept = department == null || department.isBlank()
-                                    || department.equalsIgnoreCase(m.getDepartment());
-                            return matchBranch && matchDept;
-                        })
-                        .collect(Collectors.toList());
-            }
+        var userOpt = userRepository.findByUsernameIgnoreCase(getCurrentUsername());
+        if (userOpt.isEmpty()) {
+            return List.of();
         }
-        return metrics;
+        return slaAlertAuthorizationService.filterMetricsForUser(metrics, role, userOpt.get());
     }
 
     @GetMapping("/logs")
@@ -141,11 +119,13 @@ public class AuditController {
 
     @GetMapping("/sla/process/{processInstanceId}")
     public ResponseEntity<Map<String, Object>> getSlaByProcessInstance(@PathVariable String processInstanceId) {
+        slaAlertAuthorizationService.assertCanViewProcessSla(processInstanceId);
         return ResponseEntity.ok(slaTrackingService.buildSlaReport(processInstanceId));
     }
 
     @GetMapping("/sla/complaint/{complaintId}")
     public ResponseEntity<Map<String, Object>> getSlaByComplaintId(@PathVariable String complaintId) {
+        slaAlertAuthorizationService.assertCanViewComplaintSla(complaintId);
         var metrics = slaTrackingService.getMetricsByComplaintId(complaintId);
         if (metrics.isEmpty()) {
             return ResponseEntity.ok(Map.of("available", false));
@@ -155,6 +135,7 @@ public class AuditController {
 
     @GetMapping("/sla/tasks/{processInstanceId}")
     public ResponseEntity<List<TaskTimeTracking>> getTaskTracking(@PathVariable String processInstanceId) {
+        slaAlertAuthorizationService.assertCanViewProcessSla(processInstanceId);
         return ResponseEntity.ok(slaTrackingService.getTaskTrackingByProcessInstanceId(processInstanceId));
     }
 
@@ -195,10 +176,8 @@ public class AuditController {
         if (filter.startDate != null && (m.getCreatedAt() == null || m.getCreatedAt().isBefore(filter.startDate))) {
             return false;
         }
-        if (filter.endDate != null && (m.getCreatedAt() == null || m.getCreatedAt().isAfter(filter.endDate))) {
-            return false;
-        }
-        return true;
+        return filter.endDate == null
+                || (m.getCreatedAt() != null && !m.getCreatedAt().isAfter(filter.endDate));
     }
 
     private boolean equalsIgnoreNull(String expected, String actual) {

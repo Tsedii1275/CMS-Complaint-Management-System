@@ -1,5 +1,7 @@
 package com.dashenbank.cms.controller;
 
+import com.dashenbank.cms.dto.PasswordResetRequest;
+import com.dashenbank.cms.dto.UserCreateRequest;
 import com.dashenbank.cms.model.Role;
 import com.dashenbank.cms.model.SecurityAuditEvent;
 import com.dashenbank.cms.model.User;
@@ -9,6 +11,7 @@ import com.dashenbank.cms.security.SecurityPolicy;
 import com.dashenbank.cms.service.PasswordPolicyService;
 import com.dashenbank.cms.service.SecurityAuditService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -84,19 +87,15 @@ public class UserController {
 
     @PostMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ResponseEntity<Object> createUser(@RequestBody Map<String, String> payload) {
-        String username = payload.get("username");
-        String email = payload.get(KEY_EMAIL);
-        String password = payload.get("password");
-        String fullName = payload.get(KEY_FULL_NAME);
-        String roleStr = payload.get("role");
-        String district = payload.get(KEY_DISTRICT);
-        String branch = payload.get(KEY_BRANCH);
-        String department = payload.get(KEY_DEPARTMENT);
-
-        if (username == null || username.isBlank() || password == null || password.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of(KEY_ERROR, "Username and password are required."));
-        }
+    public ResponseEntity<Object> createUser(@Valid @RequestBody UserCreateRequest payload) {
+        String username = payload.getUsername();
+        String email = payload.getEmail();
+        String password = payload.getPassword();
+        String fullName = payload.getFullName();
+        String roleStr = payload.getRole();
+        String district = payload.getDistrict();
+        String branch = payload.getBranch();
+        String department = payload.getDepartment();
 
         PasswordPolicyService.Validation validation = passwordPolicyService.validateNewPassword(null, password);
         if (validation != PasswordPolicyService.Validation.VALID) {
@@ -189,18 +188,14 @@ public class UserController {
 
     @PostMapping("/{id}/reset-password")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ResponseEntity<Object> resetPassword(@PathVariable Long id, @RequestBody Map<String, String> payload,
+    public ResponseEntity<Object> resetPassword(@PathVariable Long id, @Valid @RequestBody PasswordResetRequest payload,
             HttpServletRequest request) {
         Optional<User> userOpt = userRepository.findById(id);
         if (userOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
 
-        String newPassword = payload != null ? payload.get("newPassword") : null;
-        if (newPassword == null || newPassword.isBlank()) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of(KEY_ERROR, SecurityPolicy.PASSWORD_REQUIREMENTS_MESSAGE));
-        }
+        String newPassword = payload.getNewPassword();
 
         User user = userOpt.get();
         PasswordPolicyService.Validation validation = passwordPolicyService.validateNewPassword(user, newPassword);

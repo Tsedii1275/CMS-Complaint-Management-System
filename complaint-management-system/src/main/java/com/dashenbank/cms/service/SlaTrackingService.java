@@ -33,6 +33,14 @@ public class SlaTrackingService {
     private static final String STATUS_CLOSED = "CLOSED";
     private static final String STATUS_RESOLVED = "RESOLVED";
     private static final String STATUS_DECLINED = "DECLINED";
+    private static final String CLASSIFICATION_INTAKE = "INTAKE";
+    private static final String CLASSIFICATION_COMPLAINT = "COMPLAINT";
+    private static final String CLASSIFICATION_OTHER = "OTHER";
+    private static final String KEY_COMPLAINT_ID = "complaintId";
+    private static final String KEY_CLASSIFICATION = "classification";
+    private static final String KEY_STATUS = "status";
+    private static final String KEY_CURRENT_STAGE = "currentStage";
+    private static final String KEY_REQUIRES_INVESTIGATION = "requiresInvestigation";
     private static final String ACTOR_CUSTOMER_CARE_OFFICER = "Customer Care Officer";
     private static final String LOG_OPTIONAL_SKIPPED = "Optional operation skipped: {}";
     private static final ZoneId SYSTEM_ZONE = ZoneId.of("Africa/Addis_Ababa");
@@ -41,10 +49,7 @@ public class SlaTrackingService {
     private final TaskTimeTrackingRepository taskTimeTrackingRepository;
     private final SlaConfigService slaConfigService;
     private final BusinessHoursService businessHoursService;
-    private final SlaBreachRecordRepository breachRecordRepository;
-    private final SlaEscalationRecordRepository escalationRecordRepository;
     private final BranchRepository branchRepository;
-    private final AuditLogRepository auditLogRepository;
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
     private final RuntimeService runtimeService;
 
@@ -52,20 +57,14 @@ public class SlaTrackingService {
             TaskTimeTrackingRepository taskTimeTrackingRepository,
             SlaConfigService slaConfigService,
             BusinessHoursService businessHoursService,
-            SlaBreachRecordRepository breachRecordRepository,
-            SlaEscalationRecordRepository escalationRecordRepository,
             BranchRepository branchRepository,
-            AuditLogRepository auditLogRepository,
             org.springframework.jdbc.core.JdbcTemplate jdbcTemplate,
             ObjectProvider<RuntimeService> runtimeServiceProvider) {
         this.slaMetricsRepository = slaMetricsRepository;
         this.taskTimeTrackingRepository = taskTimeTrackingRepository;
         this.slaConfigService = slaConfigService;
         this.businessHoursService = businessHoursService;
-        this.breachRecordRepository = breachRecordRepository;
-        this.escalationRecordRepository = escalationRecordRepository;
         this.branchRepository = branchRepository;
-        this.auditLogRepository = auditLogRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.runtimeService = runtimeServiceProvider.getIfAvailable();
     }
@@ -226,7 +225,7 @@ public class SlaTrackingService {
                 .processInstanceId(processInstanceId)
                 .complaintId(complaintId)
                 .generalTicketId(complaintId)
-                .classification("INTAKE")
+                .classification(CLASSIFICATION_INTAKE)
                 .complaintCategory(category)
                 .priority(priority)
                 .requiresInvestigation(false)
@@ -772,7 +771,7 @@ public class SlaTrackingService {
                 metrics.setDbcTicketId(complaintId);
             }
             metrics.setFcrStatus(true);
-            metrics.setClassification("COMPLAINT");
+            metrics.setClassification(CLASSIFICATION_COMPLAINT);
             metrics.setStatus(STATUS_RESOLVED);
             metrics.setOverallStatus(STATUS_RESOLVED);
             metrics.setCurrentStage(STATUS_RESOLVED);
@@ -1006,7 +1005,7 @@ public class SlaTrackingService {
                                 if (runtimeService != null) {
                                     try {
                                         runtimeService.setVariable(pId, "dbcTicketId", freshDbcId);
-                                        runtimeService.setVariable(pId, "complaintId", freshDbcId);
+                                        runtimeService.setVariable(pId, KEY_COMPLAINT_ID, freshDbcId);
                                     } catch (Exception ignored) {
             log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
         }
@@ -1207,7 +1206,7 @@ public class SlaTrackingService {
     @Transactional
     public void reconcileIntakeRowFromWorkflow(ComplaintSlaMetrics m) {
         if (m == null || runtimeService == null || isClassifiedComplaint(m)
-                || "OTHER".equalsIgnoreCase(m.getClassification())) {
+                || CLASSIFICATION_OTHER.equalsIgnoreCase(m.getClassification())) {
             return;
         }
         String processInstanceId = m.getProcessInstanceId();
@@ -1215,26 +1214,38 @@ public class SlaTrackingService {
             return;
         }
 
-        Map<String, Object> vars;
-        try {
-            vars = runtimeService.getVariables(processInstanceId);
-        } catch (Exception ignored) {
-            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-            return;
-        }
+        Map<String, Object> vars = readWorkflowVariables(processInstanceId);
         if (vars == null || vars.isEmpty()) {
             return;
         }
 
-        String classification = str(vars, "classification");
-        if ("OTHER".equalsIgnoreCase(classification) || "OTHER".equalsIgnoreCase(str(vars, "status"))) {
+        String classification = str(vars, KEY_CLASSIFICATION);
+        if (CLASSIFICATION_OTHER.equalsIgnoreCase(classification)
+                || CLASSIFICATION_OTHER.equalsIgnoreCase(str(vars, KEY_STATUS))) {
             return;
         }
-        String dbc = firstDbcTicket(str(vars, "dbcTicketId"), str(vars, "complaintId"));
-        if (dbc == null || !"COMPLAINT".equalsIgnoreCase(classification)) {
+        String dbc = firstDbcTicket(str(vars, "dbcTicketId"), str(vars, KEY_COMPLAINT_ID));
+        if (dbc == null || !CLASSIFICATION_COMPLAINT.equalsIgnoreCase(classification)) {
             return;
         }
 
+        applyClassifiedWorkflowSnapshot(m, vars, dbc, processInstanceId);
+        slaMetricsRepository.save(m);
+        log.info("Realigned SLA row {} to classified complaint {} (stage {})", processInstanceId, dbc,
+                m.getCurrentStage());
+    }
+
+    private Map<String, Object> readWorkflowVariables(String processInstanceId) {
+        try {
+            return runtimeService.getVariables(processInstanceId);
+        } catch (Exception ignored) {
+            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+            return null;
+        }
+    }
+
+    private void applyClassifiedWorkflowSnapshot(ComplaintSlaMetrics m, Map<String, Object> vars, String dbc,
+            String processInstanceId) {
         String intakeId = m.getGeneralTicketId();
         if (intakeId == null || intakeId.isBlank()) {
             intakeId = m.getComplaintId();
@@ -1244,20 +1255,17 @@ public class SlaTrackingService {
         if (intakeId != null && !intakeId.isBlank() && !intakeId.startsWith("DBC-")) {
             m.setGeneralTicketId(intakeId);
         }
-        m.setClassification("COMPLAINT");
+        m.setClassification(CLASSIFICATION_COMPLAINT);
 
-        String stage = str(vars, "currentStage");
+        String stage = str(vars, KEY_CURRENT_STAGE);
         if (!stage.isBlank()) {
             m.setCurrentStage(stage);
         }
-        if (Boolean.TRUE.equals(vars.get("requiresInvestigation"))) {
+        if (Boolean.TRUE.equals(vars.get(KEY_REQUIRES_INVESTIGATION))) {
             m.setRequiresInvestigation(true);
         }
         m.setStatus(OverallComplaintStatus.resolve(vars,
                 hasCustomerFeedback(processInstanceId, dbc)));
-        slaMetricsRepository.save(m);
-        log.info("Realigned SLA row {} to classified complaint {} (stage {})", processInstanceId, dbc,
-                m.getCurrentStage());
     }
 
     private static String firstDbcTicket(String... candidates) {
@@ -1285,7 +1293,7 @@ public class SlaTrackingService {
         if (Boolean.TRUE.equals(m.getFcrStatus())) {
             return true;
         }
-        if ("COMPLAINT".equalsIgnoreCase(m.getClassification())) {
+        if (CLASSIFICATION_COMPLAINT.equalsIgnoreCase(m.getClassification())) {
             return true;
         }
         return startsWithDbcOrFcr(m.getComplaintId())
@@ -1299,7 +1307,7 @@ public class SlaTrackingService {
         }
         String classification = m.getClassification() != null ? m.getClassification() : "";
         String status = m.getStatus() != null ? m.getStatus() : "";
-        return "OTHER".equalsIgnoreCase(classification) || "OTHER".equalsIgnoreCase(status);
+        return CLASSIFICATION_OTHER.equalsIgnoreCase(classification) || CLASSIFICATION_OTHER.equalsIgnoreCase(status);
     }
 
     public static boolean isNonComplaintClassification(ComplaintSlaMetrics m) {
@@ -1307,10 +1315,10 @@ public class SlaTrackingService {
             return true;
         }
         String classification = m.getClassification() != null ? m.getClassification() : "";
-        if ("OTHER".equalsIgnoreCase(classification)) {
+        if (CLASSIFICATION_OTHER.equalsIgnoreCase(classification)) {
             return true;
         }
-        if ("INTAKE".equalsIgnoreCase(classification)
+        if (CLASSIFICATION_INTAKE.equalsIgnoreCase(classification)
                 && !startsWithDbcOrFcr(m.getComplaintId())
                 && !startsWithDbcOrFcr(m.getGeneralTicketId())
                 && !startsWithDbcOrFcr(m.getDbcTicketId())) {
@@ -1318,9 +1326,9 @@ public class SlaTrackingService {
         }
         // Operational status OTHER only excludes unclassified / OTHER cases.
         String status = m.getStatus() != null ? m.getStatus() : "";
-        return "OTHER".equalsIgnoreCase(status)
-                && !"COMPLAINT".equalsIgnoreCase(classification)
-                && !"DECLINED".equalsIgnoreCase(classification);
+        return CLASSIFICATION_OTHER.equalsIgnoreCase(status)
+                && !CLASSIFICATION_COMPLAINT.equalsIgnoreCase(classification)
+                && !STATUS_DECLINED.equalsIgnoreCase(classification);
     }
 
     private static boolean startsWithDbcOrFcr(String id) {
@@ -1435,12 +1443,12 @@ public class SlaTrackingService {
 
         ComplaintSlaMetrics m = metricsOpt.get();
         report.put("available", true);
-        report.put("complaintId", m.getComplaintId());
+        report.put(KEY_COMPLAINT_ID, m.getComplaintId());
         report.put("category", m.getComplaintCategory());
         report.put("priority", m.getPriority());
-        report.put("requiresInvestigation", m.getRequiresInvestigation());
+        report.put(KEY_REQUIRES_INVESTIGATION, m.getRequiresInvestigation());
         report.put("investigationType", m.getInvestigationType());
-        report.put("currentStage", m.getCurrentStage());
+        report.put(KEY_CURRENT_STAGE, m.getCurrentStage());
         report.put("currentStageStatus", m.getCurrentStageStatus());
         report.put("currentStageElapsedMinutes", m.getCurrentStageElapsedMinutes());
         report.put("currentStageAllowedMinutes", m.getCurrentStageAllowedMinutes());
@@ -1500,24 +1508,15 @@ public class SlaTrackingService {
         return report;
     }
 
-    @Transactional
-    public void clearAllSlaData() {
-        slaMetricsRepository.deleteAll();
-        taskTimeTrackingRepository.deleteAll();
-        breachRecordRepository.deleteAll();
-        escalationRecordRepository.deleteAll();
-        auditLogRepository.deleteAll();
-    }
-
     public String resolveOverallStatus(ComplaintSlaMetrics metrics) {
         if (metrics == null) {
             return OverallComplaintStatus.RECORDED;
         }
         Map<String, Object> vars = new HashMap<>();
-        vars.put("status", metrics.getStatus());
-        vars.put("currentStage", metrics.getCurrentStage());
-        vars.put("classification", metrics.getClassification());
-        vars.put("requiresInvestigation", metrics.getRequiresInvestigation());
+        vars.put(KEY_STATUS, metrics.getStatus());
+        vars.put(KEY_CURRENT_STAGE, metrics.getCurrentStage());
+        vars.put(KEY_CLASSIFICATION, metrics.getClassification());
+        vars.put(KEY_REQUIRES_INVESTIGATION, metrics.getRequiresInvestigation());
         vars.put("department", metrics.getDepartment());
         vars.put("fcrStatus", metrics.getFcrStatus());
         boolean feedback = hasCustomerFeedback(metrics.getProcessInstanceId(), metrics.getComplaintId());
@@ -1557,8 +1556,8 @@ public class SlaTrackingService {
 
     @Transactional
     public void persistOverallStatus(String processInstanceId, String complaintId, Map<String, Object> workflowVars) {
-        if ("OTHER".equalsIgnoreCase(str(workflowVars, "classification"))
-                || "OTHER".equalsIgnoreCase(str(workflowVars, "status"))) {
+        if (CLASSIFICATION_OTHER.equalsIgnoreCase(str(workflowVars, KEY_CLASSIFICATION))
+                || CLASSIFICATION_OTHER.equalsIgnoreCase(str(workflowVars, KEY_STATUS))) {
             return;
         }
         boolean feedback = hasCustomerFeedback(processInstanceId, complaintId);
@@ -1622,7 +1621,7 @@ public class SlaTrackingService {
      * DBC identity that JDBC or workflow variables already assigned.
      */
     private void preserveClassifiedIdentity(ComplaintSlaMetrics m, String complaintId) {
-        if (m == null || "OTHER".equalsIgnoreCase(m.getClassification())) {
+        if (m == null || CLASSIFICATION_OTHER.equalsIgnoreCase(m.getClassification())) {
             return;
         }
         if (complaintId != null && complaintId.startsWith("DBC-")) {
@@ -1630,12 +1629,12 @@ public class SlaTrackingService {
             m.setDbcTicketId(complaintId);
             if (!STATUS_DECLINED.equalsIgnoreCase(m.getClassification())
                     && !STATUS_DECLINED.equalsIgnoreCase(m.getStatus())) {
-                m.setClassification("COMPLAINT");
+                m.setClassification(CLASSIFICATION_COMPLAINT);
             }
-        } else if ("INTAKE".equalsIgnoreCase(m.getClassification())
+        } else if (CLASSIFICATION_INTAKE.equalsIgnoreCase(m.getClassification())
                 && (startsWithDbcOrFcr(m.getComplaintId()) || startsWithDbcOrFcr(m.getDbcTicketId())
                         || startsWithDbcOrFcr(m.getGeneralTicketId()))) {
-            m.setClassification("COMPLAINT");
+            m.setClassification(CLASSIFICATION_COMPLAINT);
         }
     }
 

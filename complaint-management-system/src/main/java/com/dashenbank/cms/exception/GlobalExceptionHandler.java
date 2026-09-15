@@ -4,8 +4,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
@@ -51,6 +54,37 @@ public class GlobalExceptionHandler {
         body.put(KEY_TIMESTAMP, currentTimestamp());
 
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex,
+            HttpServletRequest request) {
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .map(FieldError::getDefaultMessage)
+                .findFirst()
+                .orElse("Validation failed");
+        log.warn("Validation failed [{} {}]: {}", request.getMethod(), request.getRequestURI(), message);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put(KEY_SUCCESS, false);
+        body.put("code", "VALIDATION_ERROR");
+        body.put(KEY_MESSAGE, message);
+        body.put("error", message);
+        body.put(KEY_TIMESTAMP, currentTimestamp());
+        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleResponseStatus(ResponseStatusException ex,
+            HttpServletRequest request) {
+        String message = ex.getReason() != null ? ex.getReason() : ex.getMessage();
+        log.warn("Request rejected [{} {}]: {}", request.getMethod(), request.getRequestURI(), message);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put(KEY_SUCCESS, false);
+        body.put("code", "REQUEST_REJECTED");
+        body.put(KEY_MESSAGE, message);
+        body.put("error", message);
+        body.put(KEY_TIMESTAMP, currentTimestamp());
+        return new ResponseEntity<>(body, ex.getStatusCode());
     }
 
     @ExceptionHandler(Exception.class)

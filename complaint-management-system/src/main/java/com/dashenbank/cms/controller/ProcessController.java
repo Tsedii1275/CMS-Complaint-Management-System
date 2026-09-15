@@ -14,6 +14,8 @@ import com.dashenbank.cms.service.AuditService;
 import com.dashenbank.cms.service.ComplainantRelatedInformationService;
 import com.dashenbank.cms.service.NbeComplianceReportService;
 import com.dashenbank.cms.service.NotificationService;
+import com.dashenbank.cms.service.SlaAlertAuthorizationService;
+import com.dashenbank.cms.service.SlaAlertScope;
 import com.dashenbank.cms.service.SlaTrackingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.flowable.engine.HistoryService;
@@ -83,7 +85,6 @@ public class ProcessController {
     private static final String KEY_PROCESS_INSTANCE_ID = "processInstanceId";
     private static final String KEY_SYSTEM = "system";
     private static final String KEY_MESSAGE = "message";
-    private static final String ROLE_DEPARTMENT_WORKUNIT = "ROLE_DEPARTMENT_WORKUNIT";
     private static final String KEY_FORM_TASK_43 = "FormTask_43";
     private static final String KEY_FORM_TASK_48 = "FormTask_48";
     private static final String KEY_FORM_TASK_57 = "FormTask_57";
@@ -180,6 +181,10 @@ public class ProcessController {
     private NbeComplianceReportService nbeComplianceReportService;
     @Autowired
     private com.dashenbank.cms.config.AppHttpProperties appHttpProperties;
+    @Autowired
+    private SlaAlertAuthorizationService slaAlertAuthorizationService;
+    @Autowired
+    private com.dashenbank.cms.security.FileSecurityService fileSecurityService;
     private final NotificationDelegate notificationDelegate;
 
     @SuppressWarnings("java:S107")
@@ -697,28 +702,6 @@ public class ProcessController {
         return "ROLE_ANONYMOUS";
     }
 
-    private Set<String> mapRoleToTaskDefinitionKeys(String role) {
-        if (role == null)
-            return Set.of();
-        if (role.contains("AUDIT") || role.contains(STAGE_INVESTIGATION)) {
-            return Set.of(KEY_FORM_TASK_48);
-        }
-        return switch (role) {
-            case "ROLE_CONTACT_CENTER_AGENT", "ROLE_CONTACT_CENTER_SENIOR_MANAGER" ->
-                Set.of("FormTask_16", "FormTask_24", "FormTask_20", "FormTask_67", "FormTask_12");
-            case "ROLE_CUSTOMER_CARE_OFFICER", "ROLE_CUSTOMER_CARE_SENIOR_MANAGER", "ROLE_CUSTOMER_CARE_TEAM_LEADER",
-                    "ROLE_SERVICE_QUALITY_DIRECTOR" ->
-                Set.of(KEY_FORM_TASK_43, "FormTask_67", KEY_SERVICE_TASK_65);
-            case "ROLE_AUDIT_INVESTIGATION_TEAM", "ROLE_OPERATIONAL_AUDIT_SENIOR_MANAGER",
-                    "ROLE_OPERATIONAL_AUDIT_DIRECTOR" ->
-                Set.of(KEY_FORM_TASK_48);
-            case ROLE_DEPARTMENT_WORKUNIT -> Set.of(KEY_FORM_TASK_57);
-            case "ROLE_CHIEF_COMMITTEE", "ROLE_COMMITTEE_SECRETARY" -> Set.of(KEY_FORM_TASK_CHIEF_COMMITTEE);
-            case "ROLE_CHIEF_EXPERIENCE_OFFICER" -> Set.of("FormTask_CEX");
-            default -> Set.of();
-        };
-    }
-
     @GetMapping("/tasks")
     public ResponseEntity<List<Map<String, Object>>> findTasks(
             @RequestParam(required = false) String assignee,
@@ -732,6 +715,9 @@ public class ProcessController {
         } else {
             tasks = taskService.createTaskQuery().list();
         }
+        String role = getCurrentUserRole();
+        User currentUser = userRepository.findByUsernameIgnoreCase(getCurrentUsername()).orElse(null);
+        tasks = slaAlertAuthorizationService.retainAuthorizedTasks(tasks, role, currentUser, Map.of());
 
         var result = tasks.stream().map(task -> {
             Map<String, Object> map = new HashMap<>();
@@ -755,7 +741,7 @@ public class ProcessController {
             @RequestParam(required = false) String stateFilter) {
 
         String role = getCurrentUserRole();
-        Set<String> allowedKeys = mapRoleToTaskDefinitionKeys(role);
+        User currentUser = userRepository.findByUsernameIgnoreCase(getCurrentUsername()).orElse(null);
 
         var query = taskService.createTaskQuery();
         if (assignee != null && !assignee.isBlank()) {
@@ -765,7 +751,6 @@ public class ProcessController {
         }
 
         List<Task> tasks = query.list();
-        tasks = filterTasksByRoleAllowedKeys(tasks, role, allowedKeys, assignee, candidateGroup);
 
         Map<String, Map<String, Object>> taskVarsCache = new HashMap<>();
         for (Task t : tasks) {
@@ -776,7 +761,7 @@ public class ProcessController {
             }
         }
 
-        tasks = filterTasksByUserRole(tasks, role, taskVarsCache);
+        tasks = slaAlertAuthorizationService.retainAuthorizedTasks(tasks, role, currentUser, taskVarsCache);
 
         List<Map<String, Object>> enriched = tasks.stream()
                 .map(t -> enrichTask(t, taskVarsCache.getOrDefault(t.getId(), Map.of()))).toList();
@@ -791,49 +776,6 @@ public class ProcessController {
                 .toList();
 
         return ResponseEntity.ok(filtered);
-    }
-
-    private List<Task> filterTasksByRoleAllowedKeys(List<Task> tasks, String role, Set<String> allowedKeys,
-            String assignee, String candidateGroup) {
-        if (assignee != null || candidateGroup != null || allowedKeys.isEmpty() || "ROLE_ADMIN".equals(role)) {
-            return tasks;
-        }
-        return tasks.stream()
-                .filter(t -> {
-                    String key = t.getTaskDefinitionKey();
-                    if (role != null && (role.contains("AUDIT") || role.contains(STAGE_INVESTIGATION))) {
-                        return true;
-                    }
-                    if (key == null) {
-                        return "SecondaryResolutionReview".equals(t.getCategory()) &&
-                                ROLE_DEPARTMENT_WORKUNIT.equals(role);
-                    }
-                    return allowedKeys.contains(key);
-                })
-                .toList();
-    }
-
-    private List<Task> filterTasksByUserRole(List<Task> tasks, String role,
-            Map<String, Map<String, Object>> taskVarsCache) {
-        String currentUsername = getCurrentUsername();
-        var currentUser = userRepository.findByUsernameIgnoreCase(currentUsername).orElse(null);
-        if (currentUser == null)
-            return tasks;
-
-        String uBranch = currentUser.getBranch();
-        String uDept = currentUser.getDepartment();
-        if (ROLE_DEPARTMENT_WORKUNIT.equals(role)) {
-            return tasks.stream()
-                    .filter(t -> {
-                        Map<String, Object> vars = taskVarsCache.getOrDefault(t.getId(), Map.of());
-                        String tBranch = (String) vars.get(KEY_BRANCH);
-                        String tDept = (String) vars.get(KEY_DEPARTMENT);
-                        return orgValueUnrestrictedOrMatches(tBranch, uBranch)
-                                && orgValueUnrestrictedOrMatches(tDept, uDept);
-                    })
-                    .toList();
-        }
-        return tasks;
     }
 
     @SuppressWarnings("java:S3776")
@@ -909,8 +851,28 @@ public class ProcessController {
         enrichedTask.put(KEY_GENERAL_TICKET_ID, vars.getOrDefault(KEY_GENERAL_TICKET_ID, complaintId));
         enrichedTask.put(KEY_CLASSIFICATION, classificationVal);
         enrichedTask.put(KEY_CUSTOMER_NAME, customerName);
+        String activeStage = SlaAlertScope.stageCodeFromTaskKey(task.getTaskDefinitionKey());
+        if (activeStage == null) {
+            activeStage = String.valueOf(vars.getOrDefault(KEY_CURRENT_STAGE, ""));
+        }
+        String currentStageLabel = SlaAlertScope.stageLabel(activeStage);
+        String slaDeadline = null;
+        Optional<ComplaintSlaMetrics> metricsForDisplay = slaMetricsRepository
+                .findByProcessInstanceId(task.getProcessInstanceId());
+        if (metricsForDisplay.isPresent()
+                && SlaAlertScope.sameStage(metricsForDisplay.get().getCurrentStage(), activeStage)
+                && metricsForDisplay.get().getCurrentStageDueTime() != null) {
+            slaDeadline = DateTimeFormatter.ISO_LOCAL_DATE_TIME
+                    .format(metricsForDisplay.get().getCurrentStageDueTime());
+        }
+
         enrichedTask.put(KEY_PRIORITY, priority);
         enrichedTask.put(KEY_SLA_STATUS, slaStatus);
+        enrichedTask.put(KEY_CURRENT_STAGE, activeStage);
+        enrichedTask.put("currentStageLabel", currentStageLabel);
+        enrichedTask.put("slaName", SlaAlertScope.slaNameForStage(activeStage));
+        enrichedTask.put("slaDeadline", slaDeadline);
+        enrichedTask.put("dueDate", slaDeadline);
         String overallStatus = slaTrackingService != null
                 ? slaTrackingService.resolveOverallStatus(vars, task.getProcessInstanceId(), complaintId)
                 : OverallComplaintStatus.resolve(vars, false);
@@ -918,7 +880,9 @@ public class ProcessController {
         enrichedTask.put(KEY_STATUS, overallStatus);
         enrichedTask.put("responseSlaStatus", isClaimed ? STATUS_ON_TIME : "UNCLAIMED");
         enrichedTask.put("resolutionSlaStatus", slaStatus);
-        enrichedTask.put("state", state);
+        enrichedTask.put("state", currentStageLabel != null && !currentStageLabel.isBlank()
+                ? currentStageLabel
+                : state);
         enrichedTask.put("createdAt", createdAt);
         enrichedTask.put("notification", buildNotificationStatusMap(vars));
         enrichedTask.put(KEY_VARIABLES, vars);
@@ -938,19 +902,9 @@ public class ProcessController {
         if (task != null && task.getProcessInstanceId() != null) {
             Optional<ComplaintSlaMetrics> metricsOpt = slaMetricsRepository
                     .findByProcessInstanceId(task.getProcessInstanceId());
-            if (metricsOpt.isPresent()) {
-                ComplaintSlaMetrics m = metricsOpt.get();
-                slaTrackingService.recalculateSlaStatus(m);
-                if (Boolean.TRUE.equals(m.getBreached())
-                        || "BREACHED".equalsIgnoreCase(m.getSlaStatus())
-                        || "BREACHED".equalsIgnoreCase(m.getCurrentStageStatus())) {
-                    return STATUS_OVERDUE;
-                }
-                if (VAL_APPROACHING.equalsIgnoreCase(m.getSlaStatus())
-                        || VAL_APPROACHING.equalsIgnoreCase(m.getCurrentStageStatus())) {
-                    return VAL_APPROACHING;
-                }
-                return STATUS_ON_TIME;
+            if (metricsOpt.isPresent() && slaAlertAuthorizationService != null) {
+                return slaAlertAuthorizationService.stageSlaStatusForTask(metricsOpt.get(),
+                        task.getTaskDefinitionKey());
             }
         }
         return calculateStandardTaskSlaStatus(sla);
@@ -980,17 +934,16 @@ public class ProcessController {
 
     @GetMapping("/tasks/{taskId}/variables")
     public ResponseEntity<Map<String, Object>> getTaskVariables(@PathVariable String taskId) {
+        slaAlertAuthorizationService.requireAuthorizedTask(taskId, SlaAlertAuthorizationService.TaskAction.VIEW);
         Map<String, Object> vars = taskService.getVariables(taskId);
         return ResponseEntity.ok(vars);
     }
 
     @PostMapping("/tasks/{taskId}/claim")
     public ResponseEntity<Map<String, Object>> claimTask(@PathVariable String taskId) {
+        Task task = slaAlertAuthorizationService.requireAuthorizedTask(taskId,
+                SlaAlertAuthorizationService.TaskAction.CLAIM);
         String username = getCurrentUsername();
-        Task task = taskService.createTaskQuery().taskId(taskId).singleResult();
-        if (task == null) {
-            return ResponseEntity.notFound().build();
-        }
 
         try {
             taskService.setAssignee(taskId, username);
@@ -1045,6 +998,7 @@ public class ProcessController {
     public ResponseEntity<Object> assignTask(
             @PathVariable String taskId,
             @RequestParam String targetUsername) {
+        slaAlertAuthorizationService.requireAuthorizedTask(taskId, SlaAlertAuthorizationService.TaskAction.ASSIGN);
         String currentManager = getCurrentUsername();
         Task task = taskService.createTaskQuery().taskId(taskId).singleResult();
         if (task == null) {
@@ -1125,10 +1079,8 @@ public class ProcessController {
                     ? new HashMap<>(castToMap(body.get(KEY_VARIABLES)))
                     : new HashMap<>(body);
 
-            Task task = taskService.createTaskQuery().taskId(taskId).singleResult();
-            if (task == null) {
-                return ResponseEntity.status(404).body(Map.of(KEY_ERROR, "Task not found", KEY_TASK_ID, taskId));
-            }
+            Task task = slaAlertAuthorizationService.requireAuthorizedTask(taskId,
+                    SlaAlertAuthorizationService.TaskAction.COMPLETE);
 
             Map<String, Object> vars = taskService.getVariables(taskId);
             Map<String, Object> complaint = castToMap(vars.get(KEY_COMPLAINT));
@@ -1144,6 +1096,8 @@ public class ProcessController {
 
             return ResponseEntity.ok(Map.of(KEY_TASK_ID, taskId, "completed", true));
 
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Failed to complete task {}: ", taskId, e);
             String errorMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
@@ -1815,17 +1769,6 @@ public class ProcessController {
         }
     }
 
-    /**
-     * Blank task or user org values mean "no restriction" for that dimension.
-     * CMD often sends only branch or only department, never both.
-     */
-    private boolean orgValueUnrestrictedOrMatches(String taskValue, String userValue) {
-        if (taskValue == null || taskValue.isBlank() || userValue == null || userValue.isBlank()) {
-            return true;
-        }
-        return userValue.equalsIgnoreCase(taskValue);
-    }
-
     private boolean isCustomerCareOfficerFinalClosure(Map<String, Object> processVars) {
         if (processVars == null) {
             return false;
@@ -2013,128 +1956,10 @@ public class ProcessController {
     }
 
     @DeleteMapping("/process/{instanceId}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<Void> deleteProcess(@PathVariable String instanceId) {
         runtimeService.deleteProcessInstance(instanceId, "Deleted by user from dashboard");
         return ResponseEntity.ok().build();
-    }
-
-    @PostMapping({ "/process/clear-all", "/tasks/clear-all" })
-    @SuppressWarnings("java:S1141")
-    public ResponseEntity<Map<String, Object>> clearAllTasksAndProcesses() {
-        try {
-            // Delete active process instances safely
-            try {
-                var activeInstances = runtimeService.createProcessInstanceQuery().list();
-                for (var inst : activeInstances) {
-                    tryDeleteActiveInstance(inst.getId());
-                }
-            } catch (Exception ignored) {
-                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-                }
-
-            // Delete historic process instances safely
-            try {
-                var historicInstances = historyService.createHistoricProcessInstanceQuery().list();
-                for (var hist : historicInstances) {
-                    tryDeleteHistoricInstance(hist.getId());
-                }
-            } catch (Exception ignored) {
-                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-                }
-
-            // Clear SLA tracking data safely
-            try {
-                slaTrackingService.clearAllSlaData();
-            } catch (Exception ignored) {
-                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-                }
-
-            // Direct SQL purge on Flowable tables and SLA tables to guarantee 0 residual
-            // tasks
-            try {
-                try {
-                    jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS = 0");
-                } catch (Exception ignored) {
-                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-                }
-                try {
-                    jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY FALSE");
-                } catch (Exception ignored) {
-                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-                }
-
-                String[] tablesToPurge = {
-                        "task_time_tracking",
-                        "sla_breach_records",
-                        "sla_breach_record",
-                        "sla_escalation_records",
-                        "sla_escalation_record",
-                        "audit_log",
-                        "audit_logs",
-                        "first_contact_resolutions",
-                        "complaint_sla_metrics",
-                        "complaints",
-                        "customer_feedback",
-                        "complainant_related_information",
-                        "ACT_RU_TASK",
-                        "ACT_RU_VARIABLE",
-                        "ACT_RU_IDENTITYLINK",
-                        "ACT_RU_EVENT_SUBSCR",
-                        "ACT_RU_EXECUTION",
-                        "ACT_HI_TASKINST",
-                        "ACT_HI_VARINST",
-                        "ACT_HI_PROCINST",
-                        "ACT_HI_ACTINST",
-                        "ACT_HI_DETAIL",
-                        "ACT_HI_COMMENT",
-                        "ACT_HI_ATTACHMENT"
-                };
-
-                for (String table : tablesToPurge) {
-                    try {
-                        jdbcTemplate.execute("DELETE FROM " + table);
-                    } catch (Exception ignored) {
-                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-                }
-                }
-
-                try {
-                    jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS = 1");
-                } catch (Exception ignored) {
-                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-                }
-                try {
-                    jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY TRUE");
-                } catch (Exception ignored) {
-                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-                }
-            } catch (Exception ex) {
-                log.warn("SQL purge warning: {}", ex.getMessage());
-            }
-
-            return ResponseEntity.ok(Map.of(
-                    KEY_MESSAGE, "All tasks, process instances, and SLA metrics successfully cleared for fresh start.",
-                    "cleared", true));
-        } catch (Exception e) {
-            log.error("Failed to clear all tasks: ", e);
-            return ResponseEntity.status(500).body(Map.of(KEY_ERROR, "Failed to clear all tasks: " + e.getMessage()));
-        }
-    }
-
-    private void tryDeleteActiveInstance(String instanceId) {
-        try {
-            runtimeService.deleteProcessInstance(instanceId, "Fresh System Reset");
-        } catch (Exception ignored) {
-            // Ignored during reset
-        }
-    }
-
-    private void tryDeleteHistoricInstance(String instanceId) {
-        try {
-            historyService.deleteHistoricProcessInstance(instanceId);
-        } catch (Exception ignored) {
-            // Ignored during reset
-        }
     }
 
     @GetMapping("/process/{instanceId}")
@@ -2316,128 +2141,78 @@ public class ProcessController {
     }
 
     @PostMapping("/complaints/upload-audio")
-    @SuppressWarnings("java:S1141")
     public ResponseEntity<Map<String, Object>> uploadAudio(@RequestParam("file") MultipartFile file,
             @RequestParam(value = KEY_COMPLAINT_ID, required = false) String complaintId) {
-        try {
-            if (file.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of(KEY_ERROR, "File is empty"));
-            }
-
-            File uploadsDir = new File(DIR_UPLOADS);
-            if (!uploadsDir.exists()) {
-                uploadsDir.mkdirs();
-            }
-
-            String originalFilename = file.getOriginalFilename();
-            String extension = "";
-            if (originalFilename != null && originalFilename.contains(".")) {
-                extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-            }
-            String fileName = UUID.randomUUID().toString() + extension;
-
-            Path targetPath = Paths.get(DIR_UPLOADS).resolve(fileName);
-            Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-
-            if (complaintId != null && !complaintId.isBlank()) {
-                try {
-                    attachmentService.saveAttachmentRecord(complaintId,
-                            originalFilename != null ? originalFilename : fileName, fileName, file.getContentType(),
-                            getCurrentUsername());
-                } catch (Exception ignored) {
-                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-                }
-            }
-
-            String fileUrl = "/api/complaints/attachments/" + fileName;
-            return ResponseEntity
-                    .ok(Map.of("url", fileUrl, "fileName", originalFilename != null ? originalFilename : fileName));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(KEY_ERROR, "Failed to upload audio: " + e.getMessage()));
-        }
+        return storePublicOrStaffUpload(file, complaintId, true);
     }
 
     @GetMapping("/complaints/attachments/{fileName:.+}")
-    public ResponseEntity<Resource> getAttachment(@PathVariable String fileName) {
+    public ResponseEntity<Resource> getAttachment(@PathVariable String fileName,
+            @RequestParam(required = false) String exp,
+            @RequestParam(required = false) String sig) {
+        Path filePath = fileSecurityService.resolveStoredFile(fileName);
+        boolean staff = isStaffAuthenticated();
+        if (!staff && !fileSecurityService.hasValidDownloadGrant(fileName, exp, sig)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         try {
-            Path filePath = Paths.get(DIR_UPLOADS).resolve(fileName).normalize();
             Resource resource = new UrlResource(filePath.toUri());
-            if (resource.exists()) {
-                String contentType = Files.probeContentType(filePath);
-                if (contentType == null) {
-                    contentType = "application/octet-stream";
-                }
-                return ResponseEntity.ok()
-                        .contentType(MediaType.parseMediaType(contentType))
-                        .header(HttpHeaders.CONTENT_DISPOSITION,
-                                "attachment; filename=\"" + resource.getFilename() + "\"")
-                        .body(resource);
-            } else {
-                String lowerName = fileName.toLowerCase();
-                Path fallbackPath;
-                if (lowerName.endsWith(".mp3") || lowerName.endsWith(".wav") || lowerName.endsWith(".m4a")) {
-                    fallbackPath = Paths.get(DIR_UPLOADS).resolve("voice.mp3").normalize();
-                } else {
-                    fallbackPath = Paths.get(DIR_UPLOADS).resolve("evidence.pdf").normalize();
-                }
-                Resource fallbackResource = new UrlResource(fallbackPath.toUri());
-                if (fallbackResource.exists()) {
-                    String contentType = Files.probeContentType(fallbackPath);
-                    return ResponseEntity.ok()
-                            .contentType(MediaType
-                                    .parseMediaType(contentType != null ? contentType : "application/octet-stream"))
-                            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
-                            .body(fallbackResource);
-                }
+            if (!resource.exists() || !resource.isReadable()) {
                 return ResponseEntity.notFound().build();
             }
+            String contentType = Files.probeContentType(filePath);
+            if (contentType == null) {
+                contentType = "application/octet-stream";
+            }
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, fileSecurityService.safeContentDisposition(fileName))
+                    .header("X-Content-Type-Options", "nosniff")
+                    .body(resource);
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+            throw e;
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
         }
     }
 
     @PostMapping("/complaints/upload-evidence")
-    @SuppressWarnings("java:S1141")
     public ResponseEntity<Map<String, Object>> uploadEvidence(@RequestParam("file") MultipartFile file,
             @RequestParam(value = KEY_COMPLAINT_ID, required = false) String complaintId) {
+        return storePublicOrStaffUpload(file, complaintId, false);
+    }
+
+    private ResponseEntity<Map<String, Object>> storePublicOrStaffUpload(MultipartFile file, String complaintId,
+            boolean audio) {
+        fileSecurityService.validateUpload(file, audio);
+        boolean staff = isStaffAuthenticated();
+        String boundTicket = fileSecurityService.bindComplaintId(complaintId, staff);
+        fileSecurityService.ensureUploadDirectory();
+        String storedName = fileSecurityService.newStoredFileName(file);
+        Path targetPath = fileSecurityService.resolveStoredFile(storedName);
         try {
-            if (file.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of(KEY_ERROR, "File is empty"));
-            }
-
-            File uploadsDir = new File(DIR_UPLOADS);
-            if (!uploadsDir.exists()) {
-                uploadsDir.mkdirs();
-            }
-
-            String originalFilename = file.getOriginalFilename();
-            String extension = "";
-            if (originalFilename != null && originalFilename.contains(".")) {
-                extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-            }
-            String fileName = UUID.randomUUID().toString() + extension;
-
-            Path targetPath = Paths.get(DIR_UPLOADS).resolve(fileName);
             Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-
-            if (complaintId != null && !complaintId.isBlank()) {
-                try {
-                    attachmentService.saveAttachmentRecord(complaintId,
-                            originalFilename != null ? originalFilename : fileName, fileName, file.getContentType(),
-                            getCurrentUsername());
-                } catch (Exception ignored) {
-                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-                }
-            }
-
-            String fileUrl = "/api/complaints/attachments/" + fileName;
-            return ResponseEntity
-                    .ok(Map.of("url", fileUrl, "fileName", originalFilename != null ? originalFilename : fileName));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(KEY_ERROR, "Failed to upload evidence: " + e.getMessage()));
+                    .body(Map.of(KEY_ERROR, "Failed to store file"));
         }
+        try {
+            attachmentService.saveAttachmentRecord(boundTicket,
+                    file.getOriginalFilename() != null ? file.getOriginalFilename() : storedName, storedName,
+                    file.getContentType(), staff ? getCurrentUsername() : "public");
+        } catch (Exception ignored) {
+            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+        }
+        Map<String, Object> body = new HashMap<>();
+        body.putAll(fileSecurityService.signedDownload(storedName, file.getOriginalFilename()));
+        return ResponseEntity.ok(body);
+    }
+
+    private boolean isStaffAuthenticated() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null && auth.isAuthenticated()
+                && auth.getName() != null
+                && !"anonymousUser".equalsIgnoreCase(auth.getName());
     }
 
     @GetMapping("/complaints/nbe-reports")
@@ -2756,10 +2531,8 @@ public class ProcessController {
     @SuppressWarnings("java:S1141")
     public ResponseEntity<Map<String, Object>> rejectFcrTask(@PathVariable String taskId) {
         try {
-            Task task = taskService.createTaskQuery().taskId(taskId).singleResult();
-            if (task == null) {
-                return ResponseEntity.badRequest().body(Map.of(KEY_ERROR, "Task not found: " + taskId));
-            }
+            Task task = slaAlertAuthorizationService.requireAuthorizedTask(taskId,
+                    SlaAlertAuthorizationService.TaskAction.COMPLETE);
 
             String procInstId = task.getProcessInstanceId();
             Map<String, Object> vars = runtimeService.getVariables(procInstId);
@@ -2794,6 +2567,8 @@ public class ProcessController {
 
             return ResponseEntity
                     .ok(Map.of(KEY_MESSAGE, "FCR status rejected successfully. Task remains in screening queue."));
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Failed to reject FCR status: {}", e.getMessage());
             return ResponseEntity.status(500).body(Map.of(KEY_ERROR, e.getMessage()));

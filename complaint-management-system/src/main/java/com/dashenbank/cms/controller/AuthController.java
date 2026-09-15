@@ -1,5 +1,7 @@
 package com.dashenbank.cms.controller;
 
+import com.dashenbank.cms.dto.ExpiredPasswordChangeRequest;
+import com.dashenbank.cms.dto.LoginRequest;
 import com.dashenbank.cms.dto.PasswordChangeRequest;
 import com.dashenbank.cms.model.SecurityAuditEvent;
 import com.dashenbank.cms.model.User;
@@ -11,6 +13,7 @@ import com.dashenbank.cms.service.AccountLockoutService;
 import com.dashenbank.cms.service.PasswordChangeService;
 import com.dashenbank.cms.service.SecurityAuditService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -38,7 +41,6 @@ public class AuthController {
     private static final String KEY_ERROR = "error";
     private static final String KEY_CODE = "code";
     private static final String CODE_ACCOUNT_LOCKED = "ACCOUNT_LOCKED";
-    private static final String KEY_PASSWORD = "password";
 
     private final AuthenticationManager authenticationManager;
     private final JwtUtils jwtUtils;
@@ -62,10 +64,10 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> authenticateUser(@RequestBody Map<String, String> loginRequest,
+    public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest,
             HttpServletRequest httpRequest) {
-        String rawUsername = loginRequest.get(KEY_USERNAME);
-        String rawPassword = loginRequest.get(KEY_PASSWORD);
+        String rawUsername = loginRequest.getUsername();
+        String rawPassword = loginRequest.getPassword();
         String username = rawUsername != null ? rawUsername.trim() : "";
         String password = rawPassword != null ? rawPassword.trim() : "";
         String ip = ClientIp.from(httpRequest);
@@ -119,16 +121,11 @@ public class AuthController {
             if (userOpt.isPresent() && accountLockoutService.isLocked(userOpt.get())) {
                 return lockedResponse();
             }
-            log.warn("Authentication failed for user: {} (password length={})",
-                    loginRequest.get(KEY_USERNAME),
-                    loginRequest.get(KEY_PASSWORD) == null ? -1 : loginRequest.get(KEY_PASSWORD).length());
+            log.warn("Authentication failed for user: {}", username);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of(KEY_ERROR, "Invalid username or password", KEY_CODE, "INVALID_CREDENTIALS"));
         } catch (Exception e) {
-            log.warn("Authentication failed for user: {} (password length={})",
-                    loginRequest.get(KEY_USERNAME),
-                    loginRequest.get(KEY_PASSWORD) == null ? -1 : loginRequest.get(KEY_PASSWORD).length(),
-                    e);
+            log.warn("Authentication failed for user: {}", username, e);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of(KEY_ERROR, "Invalid username or password", KEY_CODE, "INVALID_CREDENTIALS"));
         }
@@ -136,18 +133,19 @@ public class AuthController {
 
     @PutMapping("/password")
     public ResponseEntity<Map<String, String>> updatePassword(
-            @RequestBody(required = false) PasswordChangeRequest request) {
+            @Valid @RequestBody PasswordChangeRequest request) {
         return mapPasswordResult(passwordChangeService.changePassword(request));
     }
 
     @PostMapping("/expired-password")
-    public ResponseEntity<Map<String, String>> updateExpiredPassword(@RequestBody Map<String, String> payload) {
+    public ResponseEntity<Map<String, String>> updateExpiredPassword(
+            @Valid @RequestBody ExpiredPasswordChangeRequest payload) {
         PasswordChangeRequest request = new PasswordChangeRequest();
-        request.setCurrentPassword(payload.get("currentPassword"));
-        request.setNewPassword(payload.get("newPassword"));
-        request.setConfirmPassword(payload.get("confirmPassword"));
+        request.setCurrentPassword(payload.getCurrentPassword());
+        request.setNewPassword(payload.getNewPassword());
+        request.setConfirmPassword(payload.getConfirmPassword());
         return mapPasswordResult(passwordChangeService.changeExpiredPassword(
-                payload.get("passwordChangeToken"), request));
+                payload.getPasswordChangeToken(), request));
     }
 
     private ResponseEntity<Map<String, String>> mapPasswordResult(PasswordChangeService.Result result) {

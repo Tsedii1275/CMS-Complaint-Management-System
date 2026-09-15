@@ -1,11 +1,12 @@
 package com.dashenbank.cms.dto;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-@JsonIgnoreProperties(ignoreUnknown = true)
-public class PasswordChangeRequest {
+public class ExpiredPasswordChangeRequest {
+
+    @NotBlank
+    private String passwordChangeToken;
 
     @NotBlank
     @Size(max = 128)
@@ -18,6 +19,14 @@ public class PasswordChangeRequest {
     @NotBlank
     @Size(min = 12, max = 128)
     private String confirmPassword;
+
+    public String getPasswordChangeToken() {
+        return passwordChangeToken;
+    }
+
+    public void setPasswordChangeToken(String passwordChangeToken) {
+        this.passwordChangeToken = passwordChangeToken;
+    }
 
     public String getCurrentPassword() {
         return currentPassword;

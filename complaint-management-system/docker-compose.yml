@@ -58,7 +58,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-cms_db}?sslMode=${MYSQL_SSL_MODE:-DISABLED}&serverTimezone=UTC&allowPublicKeyRetrieval=true
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: "false"
       SPRING_FLYWAY_OUT_OF_ORDER: "true"
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
       FILE_UPLOAD_DIR: /app/uploads
     volumes:
       - cms_uploads:/app/uploads

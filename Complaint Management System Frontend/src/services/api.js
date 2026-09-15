@@ -10,16 +10,11 @@ const HTTP_ERROR_MESSAGES = {
   409: 'This request has already been submitted or completed.',
 };
 
-function ignoredAsNull(error) {
-  void error;
-  return null;
-}
-
 function parseJsonOrNull(bodyText) {
   try {
     return JSON.parse(bodyText);
-  } catch (error) {
-    return ignoredAsNull(error);
+  } catch {
+    return null;
   }
 }
 
@@ -38,8 +33,8 @@ async function readResponsePayload(response) {
   try {
     bodyText = await response.text();
     bodyData = parseBodyIfJson(bodyText, contentType);
-  } catch (error) {
-    bodyData = ignoredAsNull(error);
+  } catch {
+    bodyData = null;
   }
   return { bodyText, bodyData };
 }
@@ -68,8 +63,8 @@ function applySlidingToken(response) {
     const user = JSON.parse(userStr);
     user.token = next;
     localStorage.setItem('user', JSON.stringify(user));
-  } catch (error) {
-    ignoredAsNull(error);
+  } catch {
+    // Keep the current token if localStorage is unavailable or malformed.
   }
 }
 
@@ -98,11 +93,10 @@ class ApiService {
   }
 
   // Centralized Standardized Attachment Methods
-  async uploadAttachment(file, complaintId, uploadedBy) {
+  async uploadAttachment(file, complaintId) {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('complaintId', complaintId);
-    if (uploadedBy) formData.append('uploadedBy', uploadedBy);
 
     const headers = {};
     const userStr = localStorage.getItem('user');
@@ -249,6 +243,10 @@ class ApiService {
     return this.get(`/api/tasks/enriched${params}`);
   }
 
+  async getSlaAlerts() {
+    return this.get('/api/sla/alerts');
+  }
+
   // Complete a task with variables
   async completeTask(taskId, variables) {
     return this.post(`/api/tasks/${taskId}/complete`, variables);
@@ -279,11 +277,6 @@ class ApiService {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     return true;
-  }
-
-  // Clear all tasks and process instances from database
-  async clearAllTasks() {
-    return this.post('/api/process/clear-all', {});
   }
 
   // Fetch First Contact Resolution (FCR) database records
@@ -385,11 +378,27 @@ class ApiService {
     return this.get('/api/hierarchy');
   }
 
-  // Upload audio file/blob
-  async uploadAudio(file, fileName = 'recording.wav') {
-    const formData = new FormData();
-    formData.append('file', file, fileName);
+  ticketFromTask(task) {
+    if (!task) {
+      return undefined;
+    }
+    if (typeof task === 'string' && task.trim()) {
+      return task.trim();
+    }
+    const candidates = [
+      task.dbcTicketId,
+      task.variables?.dbcTicketId,
+      task.complaintId,
+      task.variables?.complaintId,
+      task.variables?.complaint?.id,
+      task.generalTicketId,
+      task.variables?.generalTicketId,
+      task.ticketNumber
+    ];
+    return candidates.find((value) => typeof value === 'string' && value.trim())?.trim();
+  }
 
+  authHeaders() {
     const headers = {};
     const userStr = localStorage.getItem('user');
     if (userStr) {
@@ -398,10 +407,20 @@ class ApiService {
         headers['Authorization'] = `Bearer ${user.token}`;
       }
     }
+    return headers;
+  }
+
+  // Upload audio file/blob
+  async uploadAudio(file, fileName = 'recording.wav', complaintId) {
+    const formData = new FormData();
+    formData.append('file', file, fileName);
+    if (complaintId) {
+      formData.append('complaintId', complaintId);
+    }
 
     const response = await fetch(`${API_BASE_URL}/api/complaints/upload-audio`, {
       method: 'POST',
-      headers: headers,
+      headers: this.authHeaders(),
       body: formData
     });
 
@@ -440,12 +459,16 @@ class ApiService {
   }
 
   // Upload evidence file (public, no auth needed)
-  async uploadEvidence(file) {
+  async uploadEvidence(file, complaintId) {
     const formData = new FormData();
     formData.append('file', file, file.name);
+    if (complaintId) {
+      formData.append('complaintId', complaintId);
+    }
 
     const response = await fetch(`${API_BASE_URL}/api/complaints/upload-evidence`, {
       method: 'POST',
+      headers: this.authHeaders(),
       body: formData
     });
 
