@@ -41,6 +41,9 @@ public class RoleConverter implements AttributeConverter<Role, String> {
         if ("ROLE_SERVICE_QUALITY".equals(normalized)) {
             return Role.ROLE_CUSTOMER_CARE_OFFICER;
         }
+        if ("ROLE_CHIEF_COMMITTEE".equals(normalized)) {
+            return Role.ROLE_COMMITTEE_SECRETARY;
+        }
         if ("ROLE_BRANCH_STAFF".equals(normalized)) {
             return Role.ROLE_CONTACT_CENTER_AGENT;
         }

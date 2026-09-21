@@ -2,10 +2,8 @@ package com.dashenbank.cms.service;
 
 import com.dashenbank.cms.model.ComplaintSlaMetrics;
 import com.dashenbank.cms.model.SlaBreachRecord;
-import com.dashenbank.cms.model.SlaEscalationRecord;
 import com.dashenbank.cms.repository.ComplaintSlaMetricsRepository;
 import com.dashenbank.cms.repository.SlaBreachRecordRepository;
-import com.dashenbank.cms.repository.SlaEscalationRecordRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,31 +25,26 @@ public class SlaAutomationScheduler {
         private final SlaTrackingService slaTrackingService;
         private final AuditService auditService;
         private final SlaBreachRecordRepository breachRecordRepository;
-        private final SlaEscalationRecordRepository escalationRecordRepository;
 
         @Autowired
         public SlaAutomationScheduler(
                         ComplaintSlaMetricsRepository slaMetricsRepository,
                         SlaTrackingService slaTrackingService,
                         AuditService auditService,
-                        SlaBreachRecordRepository breachRecordRepository,
-                        SlaEscalationRecordRepository escalationRecordRepository) {
+                        SlaBreachRecordRepository breachRecordRepository) {
                 this.slaMetricsRepository = slaMetricsRepository;
                 this.slaTrackingService = slaTrackingService;
                 this.auditService = auditService;
                 this.breachRecordRepository = breachRecordRepository;
-                this.escalationRecordRepository = escalationRecordRepository;
         }
 
         /**
          * Periodically checks all active complaints every 60 seconds to evaluate
-         * business hours SLAs,
-         * issue automated 80% / 100% reminders, record breaches, and execute
-         * multi-level escalations.
+         * business hours SLAs, issue the 80% reminder, and record 100% breaches.
          */
         @Scheduled(fixedDelay = 60000)
         @Transactional
-        public void runSlaMonitoringAndEscalations() {
+        public void runSlaMonitoring() {
                 List<ComplaintSlaMetrics> activeCases = slaMetricsRepository.findAll().stream()
                                 .filter(m -> !"CLOSED".equalsIgnoreCase(m.getStatus())
                                                 && !"COMPLETED".equalsIgnoreCase(m.getCurrentStage())
@@ -88,13 +81,13 @@ public class SlaAutomationScheduler {
                 String complaintId = m.getComplaintId() != null ? m.getComplaintId()
                                 : "DBC-" + m.getProcessInstanceId();
 
-                checkReminderLevel1(m, consumptionRatio, complaintId);
-                checkReminderLevel2(m, consumptionRatio, elapsed, allowed, complaintId, now);
+                checkApproachingReminder(m, consumptionRatio, complaintId);
+                checkBreachAlert(m, consumptionRatio, elapsed, allowed, complaintId, now);
 
                 slaMetricsRepository.save(m);
         }
 
-        private void checkReminderLevel1(ComplaintSlaMetrics m, double consumptionRatio, String complaintId) {
+        private void checkApproachingReminder(ComplaintSlaMetrics m, double consumptionRatio, String complaintId) {
                 if (consumptionRatio >= 0.80 && consumptionRatio < 1.0
                                 && (m.getReminder1Sent() == null || !m.getReminder1Sent())) {
                         m.setReminder1Sent(true);
@@ -114,12 +107,12 @@ public class SlaAutomationScheduler {
 
                         auditService.log(complaintId, m.getProcessInstanceId(), null, "SLA_REMINDER_SENT", SYSTEM_ACTOR,
                                         responsibleUnit, msg, m.getCustomerName(), m.getComplaintCategory(), null);
-                        log.info(">>> Triggered SLA Reminder Level 1 for Ticket {} (Unit: {})", complaintId,
+                        log.info(">>> Triggered 80% SLA reminder for Ticket {} (Unit: {})", complaintId,
                                         responsibleUnit);
                 }
         }
 
-        private void checkReminderLevel2(ComplaintSlaMetrics m, double consumptionRatio, int elapsed, int allowed,
+        private void checkBreachAlert(ComplaintSlaMetrics m, double consumptionRatio, int elapsed, int allowed,
                         String complaintId, LocalDateTime now) {
                 if (consumptionRatio >= 1.0 && (m.getReminder2Sent() == null || !m.getReminder2Sent())) {
                         m.setReminder2Sent(true);
@@ -149,8 +142,7 @@ public class SlaAutomationScheduler {
                                                         + " mins)")
                                         .breachDurationMinutes((long) (elapsed - allowed))
                                         .responsibleWorkUnit(responsibleUnit)
-                                        .escalationLevel(0)
-                                        .escalationActionsTaken("Automated Level 2 Breach Alert dispatched to "
+                                        .escalationActionsTaken("Automated 100% SLA breach alert dispatched to "
                                                         + responsibleUnit)
                                         .build();
                         breachRecordRepository.save(breach);

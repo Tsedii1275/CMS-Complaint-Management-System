@@ -1,6 +1,7 @@
 package com.dashenbank.cms.security;
 
 import com.dashenbank.cms.config.AppHttpProperties;
+import com.dashenbank.cms.model.Role;
 import com.dashenbank.cms.repository.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,6 +27,8 @@ import java.util.List;
 @Configuration
 @EnableMethodSecurity
 public class WebSecurityConfig {
+
+    private static final String ROLE_ADMIN = Role.ROLE_ADMIN.name();
 
     private final UserDetailsServiceImpl userDetailsService;
     private final AuthEntryPointJwt unauthorizedHandler;
@@ -80,9 +83,8 @@ public class WebSecurityConfig {
                     headers.contentTypeOptions(Customizer.withDefaults());
                     headers.frameOptions(frame -> frame.deny());
                     headers.referrerPolicy(policy -> policy.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN));
-                    headers.permissionsPolicy(policy -> {
-                        policy.policy("camera=(), microphone=(), geolocation=()");
-                    });
+                    headers.permissionsPolicy(
+                            policy -> policy.policy("camera=(), microphone=(), geolocation=()"));
                     headers.contentSecurityPolicy(csp -> csp.policyDirectives(
                             "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"));
                 })
@@ -101,30 +103,31 @@ public class WebSecurityConfig {
                         .requestMatchers("/api/customer-feedback/validate").permitAll()
                         .requestMatchers("/api/hierarchy").permitAll()
                         .requestMatchers("/api/complaints/staff-submit", "/api/complaints/fcr-resolve").authenticated()
+                        .requestMatchers("/api/customers/by-account/**").authenticated()
                         .requestMatchers("/api/users/password-status").authenticated()
                         .requestMatchers("/api/users/officers").hasAnyAuthority(
                                 "ROLE_CUSTOMER_CARE_OFFICER",
                                 "ROLE_CUSTOMER_CARE_TEAM_LEADER",
                                 "ROLE_CUSTOMER_CARE_SENIOR_MANAGER",
                                 "ROLE_SERVICE_QUALITY_DIRECTOR",
-                                "ROLE_ADMIN")
-                        .requestMatchers("/api/admin/**", "/api/users", "/api/users/**").hasAuthority("ROLE_ADMIN")
+                                ROLE_ADMIN)
+                        .requestMatchers("/api/admin/**", "/api/users", "/api/users/**").hasAuthority(ROLE_ADMIN)
                         .requestMatchers("/api/sla/alerts", "/api/sla/alerts/**").authenticated()
-                        .requestMatchers("/api/sla/config/**").hasAuthority("ROLE_ADMIN")
-                        .requestMatchers("/api/rca/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers("/api/sla/config/**").hasAuthority(ROLE_ADMIN)
+                        .requestMatchers("/api/rca/**").hasAuthority(ROLE_ADMIN)
                         .requestMatchers("/api/nbe-compliance-reports/**", "/api/nbe-compliance-reports")
-                        .hasAuthority("ROLE_ADMIN")
-                        .requestMatchers("/api/complaints/nbe-reports").hasAuthority("ROLE_ADMIN")
+                        .hasAuthority(ROLE_ADMIN)
+                        .requestMatchers("/api/complaints/nbe-reports").hasAuthority(ROLE_ADMIN)
                         .requestMatchers("/api/complainant-related-information",
                                 "/api/complainant-related-information/**")
-                        .hasAuthority("ROLE_ADMIN")
+                        .hasAuthority(ROLE_ADMIN)
                         .requestMatchers("/api/customer-feedback/list", "/api/customer-feedback/analytics",
                                 "/api/customer-feedback/distributions", "/api/customer-feedback/trends")
-                        .hasAuthority("ROLE_ADMIN")
-                        .requestMatchers("/api/audit/logs", "/api/audit/analytics/**").hasAuthority("ROLE_ADMIN")
+                        .hasAuthority(ROLE_ADMIN)
+                        .requestMatchers("/api/audit/logs", "/api/audit/analytics/**").hasAuthority(ROLE_ADMIN)
                         .requestMatchers("/api/audit/sla/**").authenticated()
                         .requestMatchers("/api/cmd/analytics/**").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/process/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/process/**").hasAuthority(ROLE_ADMIN)
                         .requestMatchers("/api/tasks/**", "/api/process/**").authenticated()
                         .anyRequest().authenticated());
 

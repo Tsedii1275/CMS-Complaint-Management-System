@@ -6,6 +6,7 @@ import ApiService from '../services/api';
 import { BRAND_COLORS } from '../constants/theme';
 import TaskTable, { formatUniqueId, formatIntakeId, matchesTicketSearch } from '../components/TaskTable';
 import { useAuth } from '../contexts/AuthContext';
+import { complaintBranch } from '../utils/locationKeys';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -328,10 +329,10 @@ function WorkUnitDashboard() {
                         </Tag>
                       </div>
 
-                      {selectedTask.variables?.branch && (
+                      {complaintBranch(selectedTask.variables) && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text style={{ color: '#64748b', fontSize: '14px' }}>Branch</Text>
-                          <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>{selectedTask.variables.branch}</Text>
+                          <Text style={{ color: '#64748b', fontSize: '14px' }}>Complaint Branch</Text>
+                          <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>{complaintBranch(selectedTask.variables)}</Text>
                         </div>
                       )}
 

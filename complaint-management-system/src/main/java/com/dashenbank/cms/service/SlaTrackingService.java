@@ -255,7 +255,6 @@ public class SlaTrackingService {
                 .auditDuration(0)
                 .departmentDuration(0)
                 .serviceQualityDuration(0)
-                .escalationLevel(0)
                 .build();
 
         ComplaintSlaMetrics savedMetrics = slaMetricsRepository.save(metrics);
@@ -1456,7 +1455,6 @@ public class SlaTrackingService {
         report.put("totalElapsedMinutes", m.getTotalElapsedMinutes());
         report.put("remainingMinutes", m.getRemainingMinutes());
         report.put("slaStatus", m.getSlaStatus());
-        report.put("escalationLevel", m.getEscalationLevel());
         report.put("breached", m.getBreached());
 
         String deadlineStr = null;

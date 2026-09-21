@@ -1,0 +1,99 @@
+# Full CMS stack. From this directory:
+#   docker compose up -d --build
+# App: http://localhost
+# phpMyAdmin: http://localhost:8081
+#
+# Host mvnw + npm start (MySQL only):
+#   docker compose up -d mysql
+
+name: cms
+
+services:
+  mysql:
+    # Stay on 8.0 until a staged 8.4 LTS cutover. Do not change this tag without backup.
+    image: mysql:8.0
+    container_name: cms-mysql
+    restart: unless-stopped
+    env_file:
+      - ./complaint-management-system/.env.${APP_ENV:-dev}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./complaint-management-system/hardening.cnf:/opt/hardening.cnf:ro
+    entrypoint:
+      - bash
+      - -ec
+      - install -m 644 /opt/hardening.cnf /etc/mysql/conf.d/hardening.cnf && exec docker-entrypoint.sh mysqld
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --ssl-mode=REQUIRED -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - default
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: cms-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_SSL: "1"
+      PMA_SSL_VERIFY: "0"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - default
+
+  complaint-management-system:
+    build:
+      context: ./complaint-management-system
+      dockerfile: Dockerfile
+    container_name: cms-complaint-management-system
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    env_file:
+      - ./complaint-management-system/.env.${APP_ENV:-dev}
+    environment:
+      APP_ENV: ${APP_ENV:-dev}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-cms_db}?sslMode=${MYSQL_SSL_MODE:-REQUIRED}&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "false"
+      SPRING_FLYWAY_OUT_OF_ORDER: "true"
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      FILE_UPLOAD_DIR: /app/uploads
+    volumes:
+      - cms_uploads:/app/uploads
+    expose:
+      - "8080"
+    networks:
+      - default
+
+  nginx:
+    build:
+      context: "./Complaint Management System Frontend"
+      dockerfile: Dockerfile
+    container_name: cms-nginx
+    restart: unless-stopped
+    env_file:
+      - ./Complaint Management System Frontend/.env.${APP_ENV:-dev}
+    environment:
+      APP_ENV: ${APP_ENV:-dev}
+      CMS_BACKEND: complaint-management-system:8080
+    depends_on:
+      - complaint-management-system
+    ports:
+      - "80:8080"
+    networks:
+      - default
+
+volumes:
+  mysql_data:
+  cms_uploads:

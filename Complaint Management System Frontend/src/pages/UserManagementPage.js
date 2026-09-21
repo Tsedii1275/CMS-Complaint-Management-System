@@ -12,6 +12,7 @@ const { Option } = Select;
 
 const ROLE_OPTIONS = [
   { label: 'Customer Care Senior Manager', value: 'ROLE_CUSTOMER_CARE_SENIOR_MANAGER' },
+  { label: 'Service Quality Director', value: 'ROLE_SERVICE_QUALITY_DIRECTOR' },
   { label: 'Customer Care Team Leader', value: 'ROLE_CUSTOMER_CARE_TEAM_LEADER' },
   { label: 'Customer Care Officer', value: 'ROLE_CUSTOMER_CARE_OFFICER' },
   { label: 'Chief Experience Officer', value: 'ROLE_CHIEF_EXPERIENCE_OFFICER' },
@@ -24,7 +25,6 @@ const ROLE_OPTIONS = [
   { label: 'Operational Audit Senior Manager', value: 'ROLE_OPERATIONAL_AUDIT_SENIOR_MANAGER' },
   { label: 'Operational Audit Director', value: 'ROLE_OPERATIONAL_AUDIT_DIRECTOR' },
   { label: 'Committee Secretary', value: 'ROLE_COMMITTEE_SECRETARY' },
-  { label: 'Chief Committee', value: 'ROLE_CHIEF_COMMITTEE' },
   { label: 'Contact Center Agent', value: 'ROLE_CONTACT_CENTER_AGENT' },
   { label: 'Digital Marketing Officer', value: 'ROLE_DIGITAL_MARKETING_OFFICER' },
   { label: 'Work Unit Specialist', value: 'ROLE_DEPARTMENT_WORKUNIT' },
@@ -32,8 +32,8 @@ const ROLE_OPTIONS = [
 ];
 
 const RETIRED_ROLE_LABELS = {
-  ROLE_SERVICE_QUALITY_DIRECTOR: 'Service Quality Director',
-  ROLE_SERVICE_QUALITY: 'Service Quality',
+  ROLE_SERVICE_QUALITY: 'Service Quality Officer',
+  ROLE_CHIEF_COMMITTEE: 'Chief Committee',
   ROLE_BRANCH_STAFF: 'Branch Staff'
 };
 

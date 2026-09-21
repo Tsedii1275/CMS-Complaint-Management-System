@@ -115,8 +115,7 @@ function SlaConfigPage() {
     'WORKUNIT_RESOLUTION': { label: 'Work Unit Resolution SLA', color: 'geekblue' },
     'CUSTOMER_NOTIFICATION': { label: 'Final Dispatch SLA', color: 'gold' },
     'OVERALL_CASE_SLA': { label: 'Total Lifecycle SLA', color: 'purple' },
-    'OVERALL_SLA': { label: 'Total Lifecycle SLA', color: 'purple' },
-    'ESCALATION_SLA': { label: 'Executive Escalation SLA', color: 'volcano' }
+    'OVERALL_SLA': { label: 'Total Lifecycle SLA', color: 'purple' }
   };
 
   const renderPriorityBadge = (p) => {
@@ -150,7 +149,7 @@ function SlaConfigPage() {
               SLA Governance & Policy Configuration
             </Title>
             <Text type="secondary" style={{ fontSize: '14px' }}>
-              Institutional Service Level Agreement (SLA) policy administration, resolution matrix, multi-level escalation thresholds, and banking calendar management.
+              Institutional Service Level Agreement (SLA) policy administration, resolution matrix, 80% reminder and 100% breach alerts, and banking calendar management.
             </Text>
           </div>
           <div>
@@ -238,15 +237,15 @@ function SlaConfigPage() {
             </Card>
           </Tabs.TabPane>
 
-          {/* Tab 2: Automated Alerts & Escalation Policy */}
-          <Tabs.TabPane tab="Automated Alerts & Escalations" key="escalations">
+          {/* Tab 2: SLA Alerts */}
+          <Tabs.TabPane tab="SLA Alerts" key="alerts">
             <Row gutter={[16, 16]}>
               <Col xs={24}>
                 <Card title="SLA Breach Alert Thresholds & Notification Rules">
                   <Table
                     dataSource={[
-                      { level: 'Reminder Level 1 (Approaching SLA)', threshold: '80% Business Time Elapsed', action: 'Automated notification & Dashboard SLA Warning indicator to assigned officer.' },
-                      { level: 'Reminder Level 2 (SLA Breach)', threshold: '100% Business Time Elapsed', action: 'Automated breach alert dispatched to assigned Work Unit.' }
+                      { level: '80% Reminder (Approaching SLA)', threshold: '80% Business Time Elapsed', action: 'Automated notification & Dashboard SLA Warning indicator to assigned officer.' },
+                      { level: '100% Breach Alert', threshold: '100% Business Time Elapsed', action: 'Automated breach alert dispatched to assigned Work Unit.' }
                     ]}
                     rowKey="level"
                     pagination={false}

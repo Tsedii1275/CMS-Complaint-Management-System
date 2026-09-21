@@ -1,5 +1,6 @@
 package com.dashenbank.cms.delegate;
 
+import com.dashenbank.cms.customer.CustomerContactPhones;
 import com.dashenbank.cms.service.AuditService;
 import com.dashenbank.cms.service.NotificationService;
 import org.flowable.engine.delegate.DelegateExecution;
@@ -74,7 +75,6 @@ public class GenerateTicketDelegate implements JavaDelegate {
         sla.put("deadline", LocalDateTime.now(SYSTEM_ZONE).plusHours(24).toString());
         sla.put("breached", false);
         sla.put("reminderCount", 0);
-        sla.put("escalationLevel", 0);
         execution.setVariable("sla", sla);
     }
 
@@ -91,7 +91,7 @@ public class GenerateTicketDelegate implements JavaDelegate {
         Map<String, Object> customer = castToMap(execution.getVariable("customer"));
         String customerName = (String) customer.getOrDefault("name", "Valued Customer");
         String email = (String) customer.get("email");
-        String phone = (String) customer.get("phone");
+        String phone = CustomerContactPhones.currentContact(customer);
         String preferredLanguage = resolvePreferredLanguage(execution, customer);
 
         LocalDateTime now = LocalDateTime.now(SYSTEM_ZONE);

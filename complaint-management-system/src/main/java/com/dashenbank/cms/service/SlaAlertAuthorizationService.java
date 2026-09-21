@@ -1,5 +1,6 @@
 package com.dashenbank.cms.service;
 
+import com.dashenbank.cms.customer.LocationKeys;
 import com.dashenbank.cms.model.ComplaintSlaMetrics;
 import com.dashenbank.cms.model.User;
 import com.dashenbank.cms.repository.ComplaintSlaMetricsRepository;
@@ -165,8 +166,11 @@ public class SlaAlertAuthorizationService {
         Map<String, Object> vars = taskVarsCache != null
                 ? taskVarsCache.getOrDefault(task.getId(), Map.of())
                 : Map.of();
-        String branch = firstNonBlank(vars.get("branch"), metricsBranch(task.getProcessInstanceId()));
-        String district = firstNonBlank(vars.get("district"), metricsDistrict(task.getProcessInstanceId()));
+        Map<String, Object> complaint = nestedMap(vars.get("complaint"));
+        String branch = firstNonBlank(LocationKeys.complaintBranch(vars, complaint),
+                metricsBranch(task.getProcessInstanceId()));
+        String district = firstNonBlank(LocationKeys.complaintDistrict(vars, complaint),
+                metricsDistrict(task.getProcessInstanceId()));
         String department = firstNonBlank(vars.get("department"), metricsDepartment(task.getProcessInstanceId()));
         return user == null || SlaAlertScope.matchesOrganizationalScope(user, branch, district, department);
     }
@@ -225,10 +229,9 @@ public class SlaAlertAuthorizationService {
         boolean claimed = assignee != null && !assignee.isBlank()
                 && !"initiator".equalsIgnoreCase(assignee)
                 && !"unassigned".equalsIgnoreCase(assignee);
-        if (claimed && !assignee.equalsIgnoreCase(user.getUsername()) && !SlaAlertScope.canAssignTasks(role)) {
-            return false;
-        }
-        return true;
+        return !claimed
+                || assignee.equalsIgnoreCase(user.getUsername())
+                || SlaAlertScope.canAssignTasks(role);
     }
 
     public List<ComplaintSlaMetrics> filterMetricsForUser(List<ComplaintSlaMetrics> metrics, String role, User user) {
@@ -403,5 +406,13 @@ public class SlaAlertAuthorizationService {
             return first.toString();
         }
         return second;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> nestedMap(Object raw) {
+        if (raw instanceof Map<?, ?> map) {
+            return (Map<String, Object>) map;
+        }
+        return Map.of();
     }
 }

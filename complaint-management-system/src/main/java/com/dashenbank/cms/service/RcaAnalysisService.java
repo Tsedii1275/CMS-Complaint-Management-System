@@ -77,11 +77,6 @@ public class RcaAnalysisService {
                 (Integer) b.get(KEY_COMPLAINT_COUNT), (Integer) a.get(KEY_COMPLAINT_COUNT)));
 
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("totalComplaints", total);
-        response.put("totalNatures", natures.size());
-        response.put("mostCommonNature", natures.isEmpty() ? null : natures.get(0).get(KEY_NATURE));
-        response.put("highestVolumeNature", natures.isEmpty() ? null : natures.get(0).get(KEY_NATURE));
-        response.put("highestEscalationResolutionNature", highestRateNature(natures));
         response.put(KEY_NATURES, natures);
         response.put("filterOptions", filterOptions(records, allClassified));
         return response;
@@ -313,26 +308,6 @@ public class RcaAnalysisService {
         int resolved = statuses.getOrDefault(STATUS_RESOLVED, 0) + statuses.getOrDefault(STATUS_CLOSED, 0);
         return nature + " currently has " + count + " classified complaint(s), of which " + escalated
                 + " are escalated and " + resolved + " are resolved or closed.";
-    }
-
-    private String highestRateNature(List<Map<String, Object>> natures) {
-        String best = null;
-        double bestRate = -1;
-        for (Map<String, Object> nature : natures) {
-            @SuppressWarnings("unchecked")
-            Map<String, Integer> statuses = (Map<String, Integer>) nature.get(KEY_STATUSES);
-            int count = (Integer) nature.get(KEY_COMPLAINT_COUNT);
-            if (count <= 0) {
-                continue;
-            }
-            int rateNumerator = statuses.getOrDefault(STATUS_ESCALATED, 0) + statuses.getOrDefault(STATUS_RESOLVED, 0);
-            double rate = (double) rateNumerator / count;
-            if (rate > bestRate) {
-                bestRate = rate;
-                best = String.valueOf(nature.get(KEY_NATURE));
-            }
-        }
-        return best;
     }
 
     private Map<String, Object> filterOptions(List<ComplainantRelatedInformation> filtered,

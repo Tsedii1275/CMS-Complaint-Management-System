@@ -243,12 +243,9 @@ function CustomerExperienceDashboard() {
       f.tokenExpired === true || Boolean(f.feedbackSubmittedAt || f.submittedAt)
     );
     const totalResponses = completedResponses.length;
-    const responseRate = surveyRequestsSent > 0 ? (totalResponses / surveyRequestsSent) * 100 : 0;
 
     // Question 1: Has your complaint been resolved?
-    const q1YesList = completedResponses.filter(f => f.resolutionConfirmed === true);
     const q1NoList = completedResponses.filter(f => f.resolutionConfirmed === false);
-    const resolutionSuccessRate = totalResponses > 0 ? (q1YesList.length / totalResponses) * 100 : 0;
     const unresolvedComplaintsCount = q1NoList.length;
 
     // Question 2: CSAT (If Q1 = Yes)
@@ -333,8 +330,6 @@ function CustomerExperienceDashboard() {
     return {
       surveyRequestsSent,
       totalResponses,
-      responseRate,
-      resolutionSuccessRate,
       unresolvedComplaintsCount,
 
       // CSAT
@@ -623,21 +618,7 @@ function CustomerExperienceDashboard() {
                   {renderKpiCard({
                     title: 'Total Responses',
                     value: analytics.totalResponses,
-                    subtitle: `Rate: ${analytics.responseRate.toFixed(1)}%`
-                  })}
-                </Col>
-                <Col xs={24} sm={12} md={12} lg={6}>
-                  {renderKpiCard({
-                    title: 'Response Rate',
-                    value: `${analytics.responseRate.toFixed(1)}%`,
                     subtitle: 'Completed surveys'
-                  })}
-                </Col>
-                <Col xs={24} sm={12} md={12} lg={6}>
-                  {renderKpiCard({
-                    title: 'Resolution Success',
-                    value: `${analytics.resolutionSuccessRate.toFixed(1)}%`,
-                    subtitle: 'Q1 Answered Yes'
                   })}
                 </Col>
                 <Col xs={24} sm={12} md={12} lg={6}>

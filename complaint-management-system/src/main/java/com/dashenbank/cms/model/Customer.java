@@ -58,4 +58,10 @@ public class Customer {
 
     @Column(name = "relationship_manager")
     private String relationshipManager;
+
+    @Column(name = "home_branch", length = 150)
+    private String homeBranch;
+
+    @Column(name = "district", length = 100)
+    private String district;
 }

@@ -7,6 +7,8 @@ import { BRAND_COLORS } from '../constants/theme';
 import TaskTable, { formatUniqueId, formatIntakeId, matchesTicketSearch } from '../components/TaskTable';
 import { useAuth } from '../contexts/AuthContext';
 import { renderComplaintStatusTag } from '../utils/statusUtils';
+import { resolveCurrentContactPhone } from '../utils/customerContact';
+import { complaintBranch } from '../utils/locationKeys';
 
 const { Title, Text } = Typography;
 
@@ -84,6 +86,46 @@ const submitButtonStyle = {
   borderRadius: '6px',
   fontWeight: 600
 };
+
+function AuditCxInstructionsPanel({ variables }) {
+  const remarks = variables?.cxRemarks;
+  const files = variables?.investigationFiles || [];
+  if (!remarks && files.length === 0) {
+    return null;
+  }
+  return (
+    <Col span={24}>
+      <div style={cxBoxStyle}>
+        {remarks ? (
+          <div style={cxRemarkWrapStyle}>
+            <Text strong style={cxHeadingStyle}>Chief Experience Officer Instructions:</Text>
+            <Text style={cxTextStyle}>{remarks}</Text>
+          </div>
+        ) : null}
+        {files.length === 0 ? null : (
+          <div>
+            <Text strong style={cxAttachHeadingStyle}>
+              <PaperClipOutlined style={paperClipIconStyle} />
+              Attached Evidence & Documents ({files.length}):
+            </Text>
+            <Space direction="vertical" style={fullWidthStyle}>
+              {files.map((file, idx) => (
+                <div key={file.uid || idx} style={fileRowStyle}>
+                  <Text style={fileNameStyle}>{file.name}</Text>
+                  {file.url ? (
+                    <a href={file.url} download={file.name} target="_blank" rel="noreferrer">
+                      <Button size="small" type="link" style={downloadLinkStyle}>Download</Button>
+                    </a>
+                  ) : null}
+                </div>
+              ))}
+            </Space>
+          </div>
+        )}
+      </div>
+    </Col>
+  );
+}
 
 function AuditDashboard() {
   const { user } = useAuth();
@@ -326,12 +368,14 @@ function AuditDashboard() {
                     </Col>
 
                     <Col span={12}>
-                      <Text style={fieldCaptionStyle}>Contact Phone</Text>
-                      <Text style={fieldValueStyle}>{selectedTask.variables?.customer?.phone || 'N/A'}</Text>
+                      <Text style={fieldCaptionStyle}>Current Contact Phone</Text>
+                      <Text style={fieldValueStyle}>
+                        {resolveCurrentContactPhone(selectedTask.variables?.customer) || 'N/A'}
+                      </Text>
                     </Col>
                     <Col span={12}>
-                      <Text style={fieldCaptionStyle}>Branch / Unit</Text>
-                      <Text style={fieldValueStyle}>{selectedTask.variables?.complaint?.branch || 'Main Branch'}</Text>
+                      <Text style={fieldCaptionStyle}>Complaint Branch</Text>
+                      <Text style={fieldValueStyle}>{complaintBranch(selectedTask.variables) || 'Main Branch'}</Text>
                     </Col>
                     <Col span={12}>
                       <Text style={fieldCaptionStyle}>Overall Status</Text>
@@ -350,38 +394,7 @@ function AuditDashboard() {
                       <Text style={fieldValueStyle}>{selectedTask.variables?.complaint?.description || 'N/A'}</Text>
                     </Col>
 
-                    {(selectedTask.variables?.cxRemarks || (selectedTask.variables?.investigationFiles || []).length > 0) && (
-                      <Col span={24}>
-                        <div style={cxBoxStyle}>
-                          {selectedTask.variables?.cxRemarks && (
-                            <div style={cxRemarkWrapStyle}>
-                              <Text strong style={cxHeadingStyle}>Chief Experience Officer Instructions:</Text>
-                              <Text style={cxTextStyle}>{selectedTask.variables.cxRemarks}</Text>
-                            </div>
-                          )}
-                          {(selectedTask.variables?.investigationFiles || []).length > 0 && (
-                            <div>
-                              <Text strong style={cxAttachHeadingStyle}>
-                                <PaperClipOutlined style={paperClipIconStyle} />
-                                Attached Evidence &amp; Documents ({selectedTask.variables.investigationFiles.length}):
-                              </Text>
-                              <Space direction="vertical" style={fullWidthStyle}>
-                                {selectedTask.variables.investigationFiles.map((file, idx) => (
-                                  <div key={file.uid || idx} style={fileRowStyle}>
-                                    <Text style={fileNameStyle}>{file.name}</Text>
-                                    {file.url && (
-                                      <a href={file.url} download={file.name} target="_blank" rel="noreferrer">
-                                        <Button size="small" type="link" style={downloadLinkStyle}>Download</Button>
-                                      </a>
-                                    )}
-                                  </div>
-                                ))}
-                              </Space>
-                            </div>
-                          )}
-                        </div>
-                      </Col>
-                    )}
+                    <AuditCxInstructionsPanel variables={selectedTask.variables} />
                   </Row>
                 </div>
               </Col>

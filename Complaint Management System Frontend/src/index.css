@@ -233,9 +233,9 @@ h1, h2, h3, h4, h5, h6 {
 
 .header-search {
   border-radius: 4px;
-  background-color: rgba(255,255,255,0.1);
+  background-color: #012169;
   border: 1px solid rgba(255,255,255,0.2);
-  color: white;
+  color: #ffffff;
   width: 280px;
   transition: all 0.2s ease;
 }
@@ -251,7 +251,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .header-search:hover, .header-search:focus-within {
-  background-color: rgba(255,255,255,0.15) !important;
+  background-color: #011558 !important;
   border-color: rgba(255,255,255,0.4);
 }
 
@@ -368,19 +368,19 @@ h1, h2, h3, h4, h5, h6 {
 
 .status-approaching {
   background-color: #fff7e6;
-  color: #fa8c16;
+  color: #874d00;
   border: 1px solid #ffd591;
 }
 
 .status-overdue {
   background-color: #fff2f0;
-  color: #ff4d4f;
+  color: #cf1322;
   border: 1px solid #ffccc7;
 }
 
 .status-normal {
   background-color: #f6ffed;
-  color: #52c41a;
+  color: #237804;
   border: 1px solid #b7eb8f;
 }
 
@@ -589,7 +589,7 @@ html {
 
   .ant-descriptions-item-label,
   .ant-descriptions-item-content {
-    word-break: break-word;
+    overflow-wrap: anywhere;
   }
 
   .ant-upload,
@@ -710,5 +710,11 @@ html {
   .ant-btn-danger:hover {
     transform: none !important;
   }
+}
+
+/* Lighter Amharic type on the public complaint form */
+.amharic-lightweight,
+.amharic-lightweight * {
+  font-weight: 300 !important;
 }
 

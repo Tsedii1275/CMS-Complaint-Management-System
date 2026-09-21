@@ -4,7 +4,6 @@ public enum Role {
     ROLE_CONTACT_CENTER_AGENT,
     ROLE_DIGITAL_MARKETING_OFFICER,
     ROLE_DEPARTMENT_WORKUNIT,
-    ROLE_CHIEF_COMMITTEE,
     ROLE_ADMIN,
 
     // Customer Care Division Roles

@@ -7,9 +7,42 @@ import { BRAND_COLORS } from '../constants/theme';
 import TaskTable, { formatUniqueId, formatIntakeId, matchesTicketSearch } from '../components/TaskTable';
 import { useAuth } from '../contexts/AuthContext';
 import { renderComplaintStatusTag } from '../utils/statusUtils';
+import { resolveCurrentContactPhone, resolveCoreBankingPhone } from '../utils/customerContact';
+import { customerHomeBranch, customerHomeDistrict, complaintBranch, complaintDistrict } from '../utils/locationKeys';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
+
+const CMD_LABEL_STYLE = { color: '#475569', fontSize: '14px', fontWeight: 500 };
+const CMD_LABEL_STRONG_STYLE = { color: '#475569', fontSize: '14px', fontWeight: 600 };
+const CMD_LABEL_SMALL_STRONG_STYLE = { color: '#475569', fontSize: '13px', fontWeight: 600 };
+const CMD_LABEL_SMALL_STYLE = { color: '#475569', fontSize: '13px', fontWeight: 500 };
+const CMD_DARK_LABEL_STYLE = { fontWeight: 600, color: '#1e293b', fontSize: '13px' };
+const CMD_REQUIRED_MARK_STYLE = { color: '#ef4444' };
+const CMD_FORM_ITEM_24 = { marginBottom: '24px' };
+const CMD_FORM_ITEM_16 = { marginBottom: '16px' };
+const CMD_FORM_ITEM_12 = { marginBottom: '12px' };
+const CMD_OFFICER_LABEL_STYLE = { fontSize: '13px', display: 'block', marginBottom: '6px', color: '#1e293b' };
+const CMD_FOLLOWUP_TICKET_STYLE = {
+  fontFamily: 'monospace',
+  fontSize: '12px',
+  color: '#111827',
+  fontWeight: 600,
+  background: '#f3f4f6',
+  padding: '3px 8px',
+  borderRadius: '4px',
+  whiteSpace: 'nowrap',
+  display: 'inline-block'
+};
+
+function CmdFormLabel({ children, required = false, style = CMD_LABEL_STYLE }) {
+  return (
+    <span style={style}>
+      {children}
+      {required ? <span style={CMD_REQUIRED_MARK_STYLE}>{' *'}</span> : null}
+    </span>
+  );
+}
 
 function followupStatusTagColor(status) {
   if (status === 'CLOSED') return 'success';
@@ -138,21 +171,21 @@ function applyWorkUnitAssignmentVars(variables, formData) {
   const mode = formData.assignmentType || 'DISTRICT_BRANCH';
   variables.assignmentType = mode;
   if (mode === 'HQ_DEPARTMENT') {
-    variables.district = 'Head Office';
-    variables.branch = '';
+    variables.complaintDistrict = 'Head Office';
+    variables.complaintBranch = '';
     variables.department = formData.department;
     variables.manager = formData.manager || `Department Director & Manager (${formData.department})`;
         return;
       }
       if (mode === 'DISTRICT_DEPARTMENT') {
-    variables.district = formData.district;
-    variables.branch = '';
+    variables.complaintDistrict = formData.district;
+    variables.complaintBranch = '';
     variables.department = formData.department;
     variables.manager = formData.manager || `District Director & Manager (${formData.department})`;
           return;
         }
-  variables.district = formData.district;
-  variables.branch = formData.branch;
+  variables.complaintDistrict = formData.district;
+  variables.complaintBranch = formData.branch;
   variables.department = formData.department || '';
   variables.manager = formData.manager || 'Branch Manager & CSM';
 }
@@ -231,7 +264,7 @@ function cmdSubmitSuccessText(finalClassification, isClosingAfterRes, isReassign
     return 'Complaint resolution accepted, case CLOSED, and customer notified successfully!';
   }
   if (isReassigning) {
-        const targetUnit = variables.department || variables.branch || variables.district || 'Work Unit';
+        const targetUnit = variables.department || variables.complaintBranch || variables.branch || variables.complaintDistrict || variables.district || 'Work Unit';
     return `Complaint successfully reassigned to ${targetUnit} for additional resolution.`;
   }
   if (requiresInvestigation) {
@@ -245,7 +278,7 @@ function applyCmdRoleScope(filtered, user) {
       if (role === 'ROLE_BRANCH_MANAGER' || role === 'ROLE_CUSTOMER_SERVICE_MANAGER') {
         const userBranch = user?.branch || 'Bole Branch';
     return filtered.filter(t => {
-          const b = t.variables?.complaint?.branch || t.branch;
+          const b = complaintBranch(t.variables) || t.branch;
           return !b || b.toLowerCase().includes(userBranch.split(' ')[0].toLowerCase());
         });
   }
@@ -312,8 +345,8 @@ function buildCmdTaskList(tasksData, metricsData, user) {
 
 function resolveAssignmentTypeFromTask(task) {
   if (task.variables?.assignmentType) return task.variables.assignmentType;
-  if (task.variables?.district === 'Head Office') return 'HQ_DEPARTMENT';
-  if (task.variables?.department && !task.variables?.branch) return 'DISTRICT_DEPARTMENT';
+  if (complaintDistrict(task.variables) === 'Head Office' || task.variables?.district === 'Head Office') return 'HQ_DEPARTMENT';
+  if (task.variables?.department && !complaintBranch(task.variables)) return 'DISTRICT_DEPARTMENT';
   return 'DISTRICT_BRANCH';
 }
 
@@ -333,8 +366,8 @@ function initialCmdFormFromTask(task) {
       requiresInvestigation: Boolean(task.variables?.requiresInvestigation),
         notes: '',
     assignmentType: resolveAssignmentTypeFromTask(task),
-      district: task.variables?.district || task.variables?.complaint?.district || '',
-      branch: task.variables?.branch || task.variables?.complaint?.branch || '',
+      district: complaintDistrict(task.variables) || '',
+      branch: complaintBranch(task.variables) || '',
       department: task.variables?.department || '',
       manager: task.variables?.manager || '',
       accountNumber: task.variables?.customer?.accountNumber || task.variables?.accountNumber || '',
@@ -983,8 +1016,8 @@ function mergeSavedComplaintDetails(prev, formData) {
   if (!prev) return prev;
   const updatedVars = {
     ...prev.variables,
-    branch: formData.branch,
-    district: formData.district,
+    complaintBranch: formData.branch,
+    complaintDistrict: formData.district,
     description: formData.complaintDescription,
     complaintCategory: formData.complaintCategory,
     serviceType: formData.serviceType,
@@ -994,8 +1027,8 @@ function mergeSavedComplaintDetails(prev, formData) {
     accountNumber: formData.accountNumber,
     complaint: {
       ...prev.variables?.complaint,
-      branch: formData.branch,
-      district: formData.district,
+      complaintBranch: formData.branch,
+      complaintDistrict: formData.district,
       description: formData.complaintDescription,
       category: formData.complaintCategory,
       serviceType: formData.serviceType,
@@ -1010,8 +1043,8 @@ function mergeSavedComplaintDetails(prev, formData) {
   };
   return {
     ...prev,
-    branch: formData.branch,
-    district: formData.district,
+    complaintBranch: formData.branch,
+    complaintDistrict: formData.district,
     complaintCategory: formData.complaintCategory,
     channel: formData.complaintMadeOn,
     variables: updatedVars
@@ -1024,8 +1057,8 @@ async function saveAllCmdChanges(ref) {
   s.setIsSubmitting(true);
   try {
     const payload = {
-      branch: s.formData.branch,
-      district: s.formData.district,
+      complaintBranch: s.formData.branch,
+      complaintDistrict: s.formData.district,
       complaintDescription: s.formData.complaintDescription,
       description: s.formData.complaintDescription,
       complaintCategory: s.formData.complaintCategory,
@@ -1626,7 +1659,7 @@ function CmdCommitteeDecisionCard({ selectedTask, formData, setFormData, isSubmi
                         </div>
                       )}
                       <Form.Item
-                        label={<span style={{ fontWeight: 600, color: '#1e293b', fontSize: '13px' }}>Resolution Summary <span style={{ color: '#ef4444' }}>*</span></span>}
+                        label={<CmdFormLabel required style={CMD_DARK_LABEL_STYLE}>Resolution Summary</CmdFormLabel>}
                         required
                         style={{ marginBottom: '16px' }}
                       >
@@ -1789,7 +1822,7 @@ function CmdWorkUnitResolutionBanner({ selectedTask, formData, setFormData, isSu
                       </div>
 
                       <Form.Item
-                        label={<span style={{ fontWeight: 600, color: '#1e293b', fontSize: '13px' }}>Resolution Summary <span style={{ color: '#ef4444' }}>*</span></span>}
+                        label={<CmdFormLabel required style={CMD_DARK_LABEL_STYLE}>Resolution Summary</CmdFormLabel>}
                         required
                         style={{ marginBottom: '16px' }}
                       >
@@ -1909,11 +1942,11 @@ function CmdComplaintDetailsCard({
                       <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>{selectedTask.customerName || 'N/A'}</Text>
                     </div>
 
-                    {/* 2. Preferred Contact Number (No badge, no edit icon) */}
+                    {/* 2. Current contact phone (SMS destination) */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={{ color: '#64748b', fontSize: '14px' }}>Preferred Contact Number</Text>
+                      <Text style={{ color: '#64748b', fontSize: '14px' }}>Current Contact Phone</Text>
                       <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>
-                        {selectedTask.variables?.customer?.phone || selectedTask.variables?.phone || 'N/A'}
+                        {resolveCurrentContactPhone(selectedTask.variables?.customer, selectedTask.variables?.phone) || 'N/A'}
                       </Text>
                     </div>
 
@@ -1951,7 +1984,7 @@ function CmdComplaintDetailsCard({
                       ) : (
                         <div style={{ display: 'flex', alignItems: 'center' }}>
                           <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>
-                            {formData.branch || selectedTask.variables?.complaint?.branch || selectedTask.variables?.branch || 'N/A'}
+                            {formData.branch || complaintBranch(selectedTask.variables) || 'N/A'}
                           </Text>
                           {activeTab === 'my_tasks' && (
                             <Tooltip title="Edit Complaint Branch">
@@ -1967,7 +2000,7 @@ function CmdComplaintDetailsCard({
 
                     {/* 5. District (Editable with Edit Icon in My Tasks) */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={{ color: '#64748b', fontSize: '14px' }}>District</Text>
+                      <Text style={{ color: '#64748b', fontSize: '14px' }}>Complaint District</Text>
                       {activeTab === 'my_tasks' && editingFields.district ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <Select
@@ -1991,7 +2024,7 @@ function CmdComplaintDetailsCard({
                       ) : (
                         <div style={{ display: 'flex', alignItems: 'center' }}>
                           <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>
-                            {formData.district || selectedTask.variables?.district || selectedTask.variables?.complaint?.district || 'N/A'}
+                            {formData.district || complaintDistrict(selectedTask.variables) || 'N/A'}
                           </Text>
                           {activeTab === 'my_tasks' && (
                             <Tooltip title="Edit District">
@@ -2243,10 +2276,22 @@ function CmdAuditInvestigationCard({ selectedTask }) {
   );
 }
 
+function CmdProfileField({ label, value, monospace }) {
+  return (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text style={{ color: '#64748b', fontSize: '14px' }}>{label}</Text>
+                          <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600, fontFamily: monospace ? 'monospace' : undefined, textAlign: 'right', maxWidth: '280px' }}>
+                            {value || 'N/A'}
+                          </Text>
+                        </div>
+  );
+}
+
 function CmdCustomerProfileCard({ selectedTask, activeTab, editingFields, setEditingFields, formData, setFormData }) {
   if (!selectedTask.variables?.customer) {
     return null;
   }
+  const customer = selectedTask.variables.customer;
   return (
                     <div style={{
                       background: '#f8fafc',
@@ -2264,10 +2309,12 @@ function CmdCustomerProfileCard({ selectedTask, activeTab, editingFields, setEdi
                       </div>
 
                       <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                        <CmdProfileField label="Customer Name" value={customer.name || selectedTask.customerName} />
+
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <Text style={{ color: '#64748b', fontSize: '14px' }}>Customer Segment</Text>
-                          <Tag color={selectedTask.variables.customer.customerSegment === 'Corporate' ? 'gold' : 'blue'} style={{ fontWeight: 600, margin: 0 }}>
-                            {selectedTask.variables.customer.customerSegment || 'Retail'}
+                          <Tag color={customer.customerSegment === 'Corporate' ? 'gold' : 'blue'} style={{ fontWeight: 600, margin: 0 }}>
+                            {customer.customerSegment || 'Retail'}
                           </Tag>
                         </div>
 
@@ -2291,7 +2338,7 @@ function CmdCustomerProfileCard({ selectedTask, activeTab, editingFields, setEdi
                           ) : (
                             <div style={{ display: 'flex', alignItems: 'center' }}>
                               <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600, fontFamily: 'monospace' }}>
-                                {formData.accountNumber || selectedTask.variables?.customer?.accountNumber || selectedTask.variables?.accountNumber || 'N/A'}
+                                {formData.accountNumber || customer.accountNumber || selectedTask.variables?.accountNumber || 'N/A'}
                               </Text>
                               {activeTab === 'my_tasks' && (
                                 <Tooltip title="Edit Account Number">
@@ -2304,6 +2351,14 @@ function CmdCustomerProfileCard({ selectedTask, activeTab, editingFields, setEdi
                             </div>
                           )}
                         </div>
+
+                        <CmdProfileField label="Customer Home Branch" value={customerHomeBranch(customer)} />
+                        <CmdProfileField label="Customer Home District" value={customerHomeDistrict(customer)} />
+                        <CmdProfileField
+                          label="Registered Phone"
+                          value={resolveCoreBankingPhone(customer)}
+                          monospace
+                        />
                       </div>
                     </div>
   );
@@ -2325,7 +2380,7 @@ function CmdDeclineReasonSection({ formData, setFormData }) {
                                 <Text strong style={{ color: '#cf1322', fontSize: '14px', display: 'block', marginBottom: '8px' }}>
                                   Decline Complaint
                                 </Text>
-                                <Form.Item label={<span style={{ color: '#475569', fontSize: '13px', fontWeight: 600 }}>Decline Reason <span style={{ color: '#ef4444' }}>*</span></span>} required style={{ marginBottom: '12px' }}>
+                                <Form.Item label={<CmdFormLabel required style={CMD_LABEL_SMALL_STRONG_STYLE}>Decline Reason</CmdFormLabel>} required style={CMD_FORM_ITEM_12}>
                                   <Input.TextArea
                                     rows={3}
                                     placeholder="Enter mandatory reason for declining this complaint..."
@@ -2335,7 +2390,7 @@ function CmdDeclineReasonSection({ formData, setFormData }) {
                                   />
                                 </Form.Item>
 
-                                <Form.Item label={<span style={{ color: '#475569', fontSize: '13px', fontWeight: 500 }}>Additional Remarks (Optional)</span>} style={{ marginBottom: 0 }}>
+                                <Form.Item label={<CmdFormLabel style={CMD_LABEL_SMALL_STYLE}>Additional Remarks (Optional)</CmdFormLabel>} style={{ marginBottom: 0 }}>
                                   <Input.TextArea
                                     rows={2}
                                     placeholder="Enter any additional remarks..."
@@ -2443,7 +2498,7 @@ function CmdScreeningFormCard(props) {
                           <Form onFinish={handleSubmit} layout="vertical">
                             {/* Case Classification Section - Hidden when reassigning to Work Unit */}
                             {formData.ccoActionChoice !== 'reassign_work_unit' && (
-                              <Form.Item label={<span style={{ color: '#475569', fontSize: '14px', fontWeight: 600 }}>Case Classification <span style={{ color: '#ef4444' }}>*</span></span>} required style={{ marginBottom: '16px' }}>
+                              <Form.Item label={<CmdFormLabel required style={CMD_LABEL_STRONG_STYLE}>Case Classification</CmdFormLabel>} required style={CMD_FORM_ITEM_16}>
                                 <Radio.Group
                                   value={formData.classification || 'COMPLAINT'}
                                   onChange={(e) => setFormData(prev => ({ ...prev, classification: e.target.value, isDeclining: false, declineReason: '' }))}
@@ -2637,7 +2692,7 @@ function CmdScreeningFormCard(props) {
                                       </div>
 
                                       {/* Assignment Scope Radio Buttons */}
-                                      <Form.Item label={<span style={{ color: '#475569', fontSize: '14px', fontWeight: 600 }}>Assignment Scope</span>} required style={{ marginBottom: '24px' }}>
+                                      <Form.Item label={<CmdFormLabel style={CMD_LABEL_STRONG_STYLE}>Assignment Scope</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
                                         <Radio.Group
                                           value={formData.assignmentType || 'DISTRICT_BRANCH'}
                                           onChange={(e) => {
@@ -2670,7 +2725,7 @@ function CmdScreeningFormCard(props) {
                                       {/* District Department Option */}
                                       {formData.assignmentType === 'DISTRICT_DEPARTMENT' && (
                                         <>
-                                          <Form.Item label={<span style={{ color: '#475569', fontSize: '14px', fontWeight: 500 }}>District <span style={{ color: '#ef4444' }}>*</span></span>} required style={{ marginBottom: '24px' }}>
+                                          <Form.Item label={<CmdFormLabel required>Complaint District</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
                                             <Select
                                               placeholder="Select District"
                                               value={formData.district || undefined}
@@ -2690,7 +2745,7 @@ function CmdScreeningFormCard(props) {
                                             </Select>
                                           </Form.Item>
 
-                                          <Form.Item label={<span style={{ color: '#475569', fontSize: '14px', fontWeight: 500 }}>Department <span style={{ color: '#ef4444' }}>*</span></span>} required style={{ marginBottom: '24px' }}>
+                                          <Form.Item label={<CmdFormLabel required>Department</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
                                             <Select
                                               placeholder={formData.district ? "Select Department" : "Select District first"}
                                               value={formData.department || undefined}
@@ -2715,7 +2770,7 @@ function CmdScreeningFormCard(props) {
                                       {/* Branch Option */}
                                       {(formData.assignmentType === 'DISTRICT_BRANCH' || !formData.assignmentType) && (
                                         <>
-                                          <Form.Item label={<span style={{ color: '#475569', fontSize: '14px', fontWeight: 500 }}>District <span style={{ color: '#ef4444' }}>*</span></span>} required style={{ marginBottom: '24px' }}>
+                                          <Form.Item label={<CmdFormLabel required>Complaint District</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
                                             <Select
                                               placeholder="Select District"
                                               value={formData.district || undefined}
@@ -2728,7 +2783,7 @@ function CmdScreeningFormCard(props) {
                                             </Select>
                                           </Form.Item>
 
-                                          <Form.Item label={<span style={{ color: '#475569', fontSize: '14px', fontWeight: 500 }}>Branch <span style={{ color: '#ef4444' }}>*</span></span>} required style={{ marginBottom: '24px' }}>
+                                          <Form.Item label={<CmdFormLabel required>Complaint Branch</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
                                             <Select
                                               placeholder={formData.district ? "Select Branch" : "Select District first"}
                                               value={formData.branch || undefined}
@@ -2746,7 +2801,7 @@ function CmdScreeningFormCard(props) {
 
                                       {/* Head Office Department Option */}
                                       {formData.assignmentType === 'HQ_DEPARTMENT' && (
-                                          <Form.Item label={<span style={{ color: '#475569', fontSize: '14px', fontWeight: 500 }}>Department <span style={{ color: '#ef4444' }}>*</span></span>} required style={{ marginBottom: '24px' }}>
+                                          <Form.Item label={<CmdFormLabel required>Department</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
                                             <Select
                                               placeholder="Select Department"
                                               value={formData.department || undefined}
@@ -2771,7 +2826,7 @@ function CmdScreeningFormCard(props) {
 
                                 <div style={{ borderTop: '1px solid #e2e8f0', margin: '28px 0' }} />
 
-                                <Form.Item label={<span style={{ color: '#475569', fontSize: '14px', fontWeight: 500 }}>Complaint Classification</span>} required style={{ marginBottom: '24px' }}>
+                                <Form.Item label={<CmdFormLabel>Complaint Classification</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
                                   <Select
                                     value={formData.complaintClassification}
                                     onChange={(value) => handleSelectChange('complaintClassification', value)}
@@ -3043,8 +3098,9 @@ function CmdDashboardView(props) {
             </div>
 
             <div>
-              <Text strong style={{ fontSize: '13px', display: 'block', marginBottom: '6px', color: '#1e293b' }}>
-                Select Customer Care Officer or Team Leader <span style={{ color: '#ef4444' }}>*</span>
+              <Text strong style={CMD_OFFICER_LABEL_STYLE}>
+                Select Customer Care Officer or Team Leader{' '}
+                <span style={CMD_REQUIRED_MARK_STYLE}>*</span>
               </Text>
               <Select
                 showSearch
@@ -3122,17 +3178,7 @@ function CmdDashboardView(props) {
               <Row gutter={[16, 16]}>
                 <Col xs={24} sm={12}>
                   <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Unique ID No</Text>
-                  <span style={{
-                    fontFamily: 'monospace',
-                    fontSize: '12px',
-                    color: '#111827',
-                    fontWeight: 600,
-                    background: '#f3f4f6',
-                    padding: '3px 8px',
-                    borderRadius: '4px',
-                    whiteSpace: 'nowrap',
-                    display: 'inline-block'
-                  }}>
+                  <span style={CMD_FOLLOWUP_TICKET_STYLE}>
                     {selectedFollowup.ticketNumber || selectedFollowup.ticketId || '-'}
                   </span>
                 </Col>

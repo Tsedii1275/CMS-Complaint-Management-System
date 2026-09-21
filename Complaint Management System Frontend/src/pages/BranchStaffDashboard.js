@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Typography, Button, Form, Input, Select, Alert, Row, Col, Space, Checkbox, Table, Tag, Modal, Tooltip, Tabs, DatePicker, message as antMessage } from 'antd';
-import { PlusCircleOutlined, PaperClipOutlined, EyeOutlined, AudioOutlined } from '@ant-design/icons';
+import { PlusCircleOutlined, PaperClipOutlined, EyeOutlined, AudioOutlined, SearchOutlined } from '@ant-design/icons';
 import DashboardLayout from '../components/DashboardLayout';
 import { formatUniqueId, formatIntakeId, UniqueIdDisplay } from '../components/TaskTable';
 import ApiService from '../services/api';
@@ -42,6 +42,14 @@ const sectionHeadingStyle = {
 };
 const complaintSectionHeadingStyle = { ...sectionHeadingStyle, marginTop: '12px' };
 const fieldLabelStyle = { fontWeight: 600, color: '#444', fontSize: '14px' };
+const customerProfileBoxStyle = {
+  background: '#f8fafc',
+  border: '1px solid #e2e8f0',
+  borderRadius: '8px',
+  padding: '16px',
+  marginBottom: '24px'
+};
+const customerProfileHeadingStyle = { ...fieldLabelStyle, display: 'block', marginBottom: '12px' };
 const controlStyle = { height: '42px', borderRadius: '4px', fontSize: '15px', border: '1px solid #dcdcdc' };
 const selectControlStyle = { height: '42px', borderRadius: '4px', fontSize: '15px' };
 const datePickerStyle = {
@@ -118,6 +126,10 @@ const rowMargin16Style = { marginBottom: '16px' };
 const rowMargin24Style = { marginBottom: '24px' };
 const eyeIconStyle = { color: PRIMARY, fontSize: '16px' };
 const audioIconStyle = { color: '#0284c7' };
+
+function StaffFormLabel({ children }) {
+  return <span style={fieldLabelStyle}>{children}</span>;
+}
 const linkGapStyle = { marginTop: '6px' };
 const secondary13Style = { fontSize: '13px' };
 const secondary12Style = { fontSize: '12px' };
@@ -152,6 +164,8 @@ function BranchStaffDashboard() {
   const [voiceUrl, setVoiceUrl] = useState('');
   const [voiceName, setVoiceName] = useState('');
   const [isUploadingVoice, setIsUploadingVoice] = useState(false);
+  const [cbsProfile, setCbsProfile] = useState(null);
+  const [lookingUpAccount, setLookingUpAccount] = useState(false);
 
   const userRole = (user?.role || '').toUpperCase();
   const isManager = userRole.includes('MANAGER') || userRole.includes('DIRECTOR') || userRole.includes('LEADER') ||
@@ -274,6 +288,31 @@ function BranchStaffDashboard() {
     return clean;
   };
 
+  const handleAccountLookup = async () => {
+    const accountNumber = String(form.getFieldValue('accountNumber') || '').trim();
+    if (!/^\d{13}$/.test(accountNumber)) {
+      antMessage.error('Enter a 13-digit account number first');
+      return;
+    }
+    setLookingUpAccount(true);
+    try {
+      const profile = await ApiService.getCustomerByAccount(accountNumber);
+      setCbsProfile(profile);
+      const currentPhone = form.getFieldValue('phone');
+      form.setFieldsValue({
+        customerName: profile.name || form.getFieldValue('customerName'),
+        email: form.getFieldValue('email') || profile.email,
+        phone: currentPhone || profile.registeredPhone
+      });
+      antMessage.success('Customer profile loaded from Core Banking');
+    } catch (error) {
+      setCbsProfile(null);
+      antMessage.error(error.message || 'Customer not found for this account number');
+    } finally {
+      setLookingUpAccount(false);
+    }
+  };
+
   const handleSubmit = async (values) => {
     setIsSubmitting(true);
     setMessage('');
@@ -286,6 +325,7 @@ function BranchStaffDashboard() {
           name: values.customerName,
           email: values.email || '',
           phone: phone,
+          currentContactPhone: phone,
           accountNumber: values.accountNumber,
           preferredContactMethod: values.preferredContactMethod || 'Email'
         },
@@ -296,8 +336,8 @@ function BranchStaffDashboard() {
           serviceType: values.serviceType || 'Deposit Account',
           category: values.complaintCategory || 'Customer Service Issues',
           description: values.complaintDescription,
-          branch: values.branch || user?.branch || '',
-          district: values.district || '',
+          complaintBranch: values.branch || user?.branch || '',
+          complaintDistrict: values.district || '',
           date: values.date ? values.date.format('YYYY-MM-DD') : '',
           isFcr: fcrChecked,
           fcrNotes: fcrChecked ? values.resolutionNotes : '',
@@ -325,6 +365,7 @@ function BranchStaffDashboard() {
       setEvidenceName('');
       setVoiceUrl('');
       setVoiceName('');
+      setCbsProfile(null);
       setIsRegisterModalOpen(false);
       loadComplaintsData();
     } catch (error) {
@@ -428,6 +469,8 @@ function BranchStaffDashboard() {
     }
   ];
 
+  const fcrBoxStyle = fcrChecked ? fcrCheckedWrapStyle : fcrWrapStyle;
+
   return (
     <DashboardLayout userRole="branch-staff">
       <Space direction="vertical" size="large" style={pageStackStyle}>
@@ -522,7 +565,10 @@ function BranchStaffDashboard() {
         <Modal
           title={<span style={modalTitleStyle}>Register Customer Complaint</span>}
           open={isRegisterModalOpen}
-          onCancel={() => setIsRegisterModalOpen(false)}
+          onCancel={() => {
+            setIsRegisterModalOpen(false);
+            setCbsProfile(null);
+          }}
           footer={null}
           width="100%"
           style={modalWideStyle}
@@ -554,12 +600,12 @@ function BranchStaffDashboard() {
 
             <Row gutter={32} style={rowMargin16Style}>
               <Col xs={24} md={12}>
-                <Form.Item name="customerName" label={<span style={fieldLabelStyle}>Customer Name</span>} rules={[{ required: true, message: 'Please enter customer name' }]}>
+                <Form.Item name="customerName" label={<StaffFormLabel>Customer Name</StaffFormLabel>} rules={[{ required: true, message: 'Please enter customer name' }]}>
                   <Input style={controlStyle} />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <Form.Item name="email" label={<span style={fieldLabelStyle}>Email Address</span>} rules={[{ type: 'email', message: 'Valid email required' }]}>
+                <Form.Item name="email" label={<StaffFormLabel>Email Address</StaffFormLabel>} rules={[{ type: 'email', message: 'Valid email required' }]}>
                   <Input style={controlStyle} />
                 </Form.Item>
               </Col>
@@ -569,9 +615,9 @@ function BranchStaffDashboard() {
               <Col xs={24} md={12}>
                 <Form.Item
                   name="phone"
-                  label={<span style={fieldLabelStyle}>Contact Phone Number</span>}
+                  label={<StaffFormLabel>Current Contact Phone</StaffFormLabel>}
                   rules={[
-                    { required: true, message: 'Please enter contact number' },
+                    { required: true, message: 'Please enter current contact phone' },
                     { pattern: /^(\+?2510?[79]\d{8}|0?[79]\d{8})$/, message: 'Valid phone number required' }
                   ]}
                 >
@@ -579,7 +625,7 @@ function BranchStaffDashboard() {
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <Form.Item name="date" label={<span style={fieldLabelStyle}>Complaint Date</span>} rules={[{ required: true, message: 'Please select complaint date' }]}>
+                <Form.Item name="date" label={<StaffFormLabel>Complaint Date</StaffFormLabel>} rules={[{ required: true, message: 'Please select complaint date' }]}>
                   <DatePicker format="DD/MM/YYYY" placeholder="DD/MM/YYYY" style={datePickerStyle} />
                 </Form.Item>
               </Col>
@@ -589,19 +635,26 @@ function BranchStaffDashboard() {
               <Col xs={24} md={8}>
                 <Form.Item
                   name="accountNumber"
-                  label={<span style={fieldLabelStyle}>Account Number</span>}
+                  label={<StaffFormLabel>Account Number</StaffFormLabel>}
                   rules={[
                     { required: true, message: 'Please enter account number' },
                     { len: 13, message: 'Account Number must be 13 digits' }
                   ]}
                 >
-                  <Input maxLength={13} style={controlStyle} />
+                  <Input.Search
+                    maxLength={13}
+                    style={controlStyle}
+                    enterButton={<SearchOutlined />}
+                    loading={lookingUpAccount}
+                    onSearch={handleAccountLookup}
+                    placeholder="13-digit account"
+                  />
                 </Form.Item>
               </Col>
               <Col xs={24} md={8}>
                 <Form.Item
                   name="district"
-                  label={<span style={fieldLabelStyle}>District</span>}
+                  label={<StaffFormLabel>Complaint District</StaffFormLabel>}
                 >
                   <Select
                     placeholder="— Select District —"
@@ -623,7 +676,7 @@ function BranchStaffDashboard() {
               <Col xs={24} md={8}>
                 <Form.Item
                   name="branch"
-                  label={<span style={fieldLabelStyle}>Branch</span>}
+                  label={<StaffFormLabel>Complaint Branch</StaffFormLabel>}
                 >
                   <Select
                     placeholder={selectedDistrict ? "— Select Branch —" : "— Select District or Choose Branch —"}
@@ -644,12 +697,33 @@ function BranchStaffDashboard() {
               </Col>
             </Row>
 
+            {cbsProfile && (
+              <div style={customerProfileBoxStyle}>
+                <Text style={customerProfileHeadingStyle}>Customer Profile</Text>
+                <Row gutter={[16, 12]}>
+                  <Col xs={24} md={8}><Text type="secondary">Customer Name</Text><div><Text strong>{cbsProfile.name || 'N/A'}</Text></div></Col>
+                  <Col xs={24} md={8}><Text type="secondary">Customer Segment</Text><div><Text strong>{cbsProfile.customerSegment || 'N/A'}</Text></div></Col>
+                  <Col xs={24} md={8}><Text type="secondary">Customer Home Branch</Text><div><Text strong>{cbsProfile.customerHomeBranch || cbsProfile.homeBranch || 'N/A'}</Text></div></Col>
+                  <Col xs={24} md={8}><Text type="secondary">Customer Home District</Text><div><Text strong>{cbsProfile.customerHomeDistrict || cbsProfile.district || 'N/A'}</Text></div></Col>
+                  <Col xs={24} md={8}><Text type="secondary">Registered Phone</Text><div><Text strong>{cbsProfile.registeredPhone || cbsProfile.coreBankingPhone || 'N/A'}</Text></div></Col>
+                  <Col xs={24} md={8}>
+                    <Text type="secondary">Current Contact Phone</Text>
+                    <div>
+                      <Text strong>
+                        {form.getFieldValue('phone') || cbsProfile.registeredPhone || 'Enter above'}
+                      </Text>
+                    </div>
+                  </Col>
+                </Row>
+              </div>
+            )}
+
             <div style={complaintSectionHeadingStyle}>
               Complaint Details
             </div>
             <Row gutter={[16, 16]} style={rowMargin16Style}>
               <Col xs={24} md={6}>
-                <Form.Item name="complaintCategory" label={<span style={fieldLabelStyle}>Category</span>} rules={[{ required: true }]}>
+                <Form.Item name="complaintCategory" label={<StaffFormLabel>Category</StaffFormLabel>} rules={[{ required: true }]}>
                   <Select style={selectControlStyle}>
                     <Select.Option value="Customer Service Issues">Customer Service Issues</Select.Option>
                     <Select.Option value="Transaction Error">Transaction Error</Select.Option>
@@ -666,7 +740,7 @@ function BranchStaffDashboard() {
                 </Form.Item>
               </Col>
               <Col xs={24} md={6}>
-                <Form.Item name="serviceType" label={<span style={fieldLabelStyle}>Service Type</span>} rules={[{ required: true, message: 'Please select service type' }]}>
+                <Form.Item name="serviceType" label={<StaffFormLabel>Service Type</StaffFormLabel>} rules={[{ required: true, message: 'Please select service type' }]}>
                   <Select style={selectControlStyle}>
                     <Select.Option value="Deposit Account">Deposit Account</Select.Option>
                     <Select.Option value="Credit/Financing">Credit/Financing</Select.Option>
@@ -684,7 +758,7 @@ function BranchStaffDashboard() {
                 </Form.Item>
               </Col>
               <Col xs={24} md={6}>
-                <Form.Item name="channel" label={<span style={fieldLabelStyle}>Received By</span>} rules={[{ required: true }]}>
+                <Form.Item name="channel" label={<StaffFormLabel>Received By</StaffFormLabel>} rules={[{ required: true }]}>
                   <Select style={selectControlStyle}>
                     <Select.Option value="Customer Care-Telephone">Customer Care-Telephone</Select.Option>
                     <Select.Option value="Customer Care-In person">Customer Care-In person</Select.Option>
@@ -698,7 +772,7 @@ function BranchStaffDashboard() {
                 </Form.Item>
               </Col>
               <Col xs={24} md={6}>
-                <Form.Item name="complaintMadeOn" label={<span style={fieldLabelStyle}>Complaint Made on</span>} rules={[{ required: true, message: 'Please select Complaint Made on' }]}>
+                <Form.Item name="complaintMadeOn" label={<StaffFormLabel>Complaint Made on</StaffFormLabel>} rules={[{ required: true, message: 'Please select Complaint Made on' }]}>
                   <Select style={selectControlStyle}>
                     <Select.Option value="Agent">Agent</Select.Option>
                     <Select.Option value="ATM">ATM</Select.Option>
@@ -712,7 +786,7 @@ function BranchStaffDashboard() {
               </Col>
             </Row>
 
-            <Form.Item name="complaintDescription" label={<span style={fieldLabelStyle}>Details of the Complaint</span>} rules={[{ required: true, message: 'Please enter complaint details' }]}>
+            <Form.Item name="complaintDescription" label={<StaffFormLabel>Details of the Complaint</StaffFormLabel>} rules={[{ required: true, message: 'Please enter complaint details' }]}>
               <Input.TextArea rows={4} style={textareaStyle} />
             </Form.Item>
 
@@ -769,13 +843,13 @@ function BranchStaffDashboard() {
               )}
             </div>
 
-            <div style={fcrChecked ? fcrCheckedWrapStyle : fcrWrapStyle}>
+            <div style={fcrBoxStyle}>
               <Checkbox checked={fcrChecked} onChange={(e) => setFcrChecked(e.target.checked)}>
                 <strong style={fcrLabelStyle}>First Contact Resolution (FCR) Notes</strong>
               </Checkbox>
 
               {fcrChecked && (
-                <Form.Item name="resolutionNotes" label={<span style={fieldLabelStyle}>FCR Resolution Notes</span>} rules={[{ required: true, message: 'Provide resolution notes' }]} style={fcrNotesItemStyle}>
+                <Form.Item name="resolutionNotes" label={<StaffFormLabel>FCR Resolution Notes</StaffFormLabel>} rules={[{ required: true, message: 'Provide resolution notes' }]} style={fcrNotesItemStyle}>
                   <Input.TextArea rows={3} style={fcrTextareaStyle} />
                 </Form.Item>
               )}

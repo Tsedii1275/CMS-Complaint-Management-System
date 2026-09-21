@@ -19,10 +19,15 @@ services:
       - .env.${APP_ENV:-dev}
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./hardening.cnf:/opt/hardening.cnf:ro
+    entrypoint:
+      - bash
+      - -ec
+      - install -m 644 /opt/hardening.cnf /etc/mysql/conf.d/hardening.cnf && exec docker-entrypoint.sh mysqld
     ports:
       - "3306:3306"
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --ssl-mode=REQUIRED -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -55,7 +60,7 @@ services:
       - .env.${APP_ENV:-dev}
     environment:
       APP_ENV: ${APP_ENV:-dev}
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-cms_db}?sslMode=${MYSQL_SSL_MODE:-DISABLED}&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-cms_db}?sslMode=${MYSQL_SSL_MODE:-REQUIRED}&serverTimezone=UTC&allowPublicKeyRetrieval=true
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: "false"
       SPRING_FLYWAY_OUT_OF_ORDER: "true"
       SPRING_JPA_HIBERNATE_DDL_AUTO: none

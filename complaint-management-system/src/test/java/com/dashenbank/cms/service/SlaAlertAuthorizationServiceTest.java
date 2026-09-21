@@ -150,14 +150,14 @@ class SlaAlertAuthorizationServiceTest {
         ComplaintSlaMetrics committee = metrics("COMMITTEE_REVIEW", "BREACHED", null, null);
         ComplaintSlaMetrics cxo = metrics("CHIEF_EXPERIENCE_REVIEW", "BREACHED", null, null);
 
-        assertTrue(service.isStageSlaAlertVisible("ROLE_CHIEF_COMMITTEE",
-                user(Role.ROLE_CHIEF_COMMITTEE, null, null), SlaAlertScope.TASK_COMMITTEE, committee));
+        assertTrue(service.isStageSlaAlertVisible("ROLE_COMMITTEE_SECRETARY",
+                user(Role.ROLE_COMMITTEE_SECRETARY, null, null), SlaAlertScope.TASK_COMMITTEE, committee));
         assertFalse(service.isStageSlaAlertVisible("ROLE_CHIEF_EXPERIENCE_OFFICER",
                 user(Role.ROLE_CHIEF_EXPERIENCE_OFFICER, null, null), SlaAlertScope.TASK_COMMITTEE, committee));
         assertTrue(service.isStageSlaAlertVisible("ROLE_CHIEF_EXPERIENCE_OFFICER",
                 user(Role.ROLE_CHIEF_EXPERIENCE_OFFICER, null, null), SlaAlertScope.TASK_CXO, cxo));
-        assertFalse(service.isStageSlaAlertVisible("ROLE_CHIEF_COMMITTEE",
-                user(Role.ROLE_CHIEF_COMMITTEE, null, null), SlaAlertScope.TASK_CXO, cxo));
+        assertFalse(service.isStageSlaAlertVisible("ROLE_COMMITTEE_SECRETARY",
+                user(Role.ROLE_COMMITTEE_SECRETARY, null, null), SlaAlertScope.TASK_CXO, cxo));
     }
 
     @Test

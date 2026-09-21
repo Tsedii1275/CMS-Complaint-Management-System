@@ -30,12 +30,14 @@ public class SlaConfigService {
     private static final String GROUP_STAGE_SLA = "STAGE_SLA";
     private static final String GROUP_CUSTOMER_NOTIFICATION = "CUSTOMER_NOTIFICATION";
     private static final String GROUP_OVERALL_SLA = "OVERALL_SLA";
-    private static final String GROUP_ESCALATION_SLA = "ESCALATION_SLA";
 
     private static final String PRIORITY_HIGHLY_SENSITIVE = "HIGHLY_SENSITIVE";
-    private static final String PRIORITY_SENSITIVE = "SENSITIVE";
     private static final String PRIORITY_GENERAL = "GENERAL";
     private static final String PRIORITY_ALL = "ALL";
+
+    private static final String KEY_RESOLUTION_NO_INVESTIGATION_HS_S = "RESOLUTION_NO_INVESTIGATION_HS_S";
+    private static final String KEY_OVERALL_INVESTIGATION_HS_S = "OVERALL_INVESTIGATION_HS_S";
+    private static final String KEY_OVERALL_NO_INVESTIGATION_HS_S = "OVERALL_NO_INVESTIGATION_HS_S";
 
     private static final String TYPE_PUBLIC_HOLIDAY = "PUBLIC_HOLIDAY";
 
@@ -59,17 +61,15 @@ public class SlaConfigService {
      * canonical matrix keys used by the Java SLA engine.
      */
     private static final Map<String, String> LEGACY_KEY_MIGRATIONS = Map.ofEntries(
-            Map.entry("WORKUNIT_RESOLUTION_HS", "RESOLUTION_NO_INVESTIGATION_HS_S"),
-            Map.entry("WORKUNIT_RESOLUTION_SENSITIVE", "RESOLUTION_NO_INVESTIGATION_HS_S"),
+            Map.entry("WORKUNIT_RESOLUTION_HS", KEY_RESOLUTION_NO_INVESTIGATION_HS_S),
+            Map.entry("WORKUNIT_RESOLUTION_SENSITIVE", KEY_RESOLUTION_NO_INVESTIGATION_HS_S),
             Map.entry("WORKUNIT_RESOLUTION_GENERAL", "RESOLUTION_NO_INVESTIGATION_GENERAL"),
-            Map.entry("OVERALL_HS_INVESTIGATION", "OVERALL_INVESTIGATION_HS_S"),
-            Map.entry("OVERALL_SENSITIVE_INVESTIGATION", "OVERALL_INVESTIGATION_HS_S"),
+            Map.entry("OVERALL_HS_INVESTIGATION", KEY_OVERALL_INVESTIGATION_HS_S),
+            Map.entry("OVERALL_SENSITIVE_INVESTIGATION", KEY_OVERALL_INVESTIGATION_HS_S),
             Map.entry("OVERALL_GENERAL_INVESTIGATION", "OVERALL_INVESTIGATION_GENERAL"),
-            Map.entry("OVERALL_HS_NO_INVESTIGATION", "OVERALL_NO_INVESTIGATION_HS_S"),
-            Map.entry("OVERALL_SENSITIVE_NO_INVESTIGATION", "OVERALL_NO_INVESTIGATION_HS_S"),
-            Map.entry("OVERALL_GENERAL_NO_INVESTIGATION", "OVERALL_NO_INVESTIGATION_GENERAL"),
-            Map.entry("ESCALATION_CM_MANAGER", "ESCALATION_L1"),
-            Map.entry("ESCALATION_DEPARTMENT_DIRECTOR", "ESCALATION_L2"));
+            Map.entry("OVERALL_HS_NO_INVESTIGATION", KEY_OVERALL_NO_INVESTIGATION_HS_S),
+            Map.entry("OVERALL_SENSITIVE_NO_INVESTIGATION", KEY_OVERALL_NO_INVESTIGATION_HS_S),
+            Map.entry("OVERALL_GENERAL_NO_INVESTIGATION", "OVERALL_NO_INVESTIGATION_GENERAL"));
 
     @PostConstruct
     @Transactional
@@ -136,10 +136,10 @@ public class SlaConfigService {
             SlaConfig.builder().configKey("SUGGESTION_BOX_INTAKE").configGroup(GROUP_INTAKE_SLA).displayName("Physical Suggestion Box Collection").allowedMinutes(240).priority(PRIORITY_ALL).description("Timeframe allowed for clearing physical branch suggestion boxes and registering entries").build(),
             SlaConfig.builder().configKey("CMD_SCREENING").configGroup(GROUP_STAGE_SLA).displayName("CMD Initial Screening & Acknowledgment").allowedMinutes(240).priority(PRIORITY_ALL).description("Initial screening, case verification, and customer acknowledgment notification").build(),
             SlaConfig.builder().configKey("CMD_FORWARDING").configGroup(GROUP_STAGE_SLA).displayName("Work Unit Assignment & Forwarding").allowedMinutes(240).priority(PRIORITY_ALL).description("Timeframe permitted for transferring classified complaints to target resolution units").build(),
-            SlaConfig.builder().configKey("SERVICE_QUALITY_REVIEW").configGroup(GROUP_STAGE_SLA).displayName("Service Quality Governance Audit").allowedMinutes(180).priority(PRIORITY_ALL).description("Governance review by Service Quality officers for sensitive case resolutions").build(),
+            SlaConfig.builder().configKey("SERVICE_QUALITY_REVIEW").configGroup(GROUP_STAGE_SLA).displayName("Service Quality Governance Audit").allowedMinutes(180).priority(PRIORITY_ALL).description("Governance review by the Service Quality Director for sensitive case resolutions").build(),
             SlaConfig.builder().configKey("CXO_REVIEW").configGroup(GROUP_STAGE_SLA).displayName("Chief Experience Officer Review").allowedMinutes(180).priority(PRIORITY_ALL).description("Executive review window for high-value or systemic complaint directions").build(),
             SlaConfig.builder().configKey("CEO_DIRECTION").configGroup(GROUP_STAGE_SLA).displayName("Executive Leadership Directive").allowedMinutes(1440).priority(PRIORITY_ALL).description("Strategic directive timeframe for executive-level case resolutions").build(),
-            SlaConfig.builder().configKey("RESOLUTION_NO_INVESTIGATION_HS_S").configGroup(GROUP_STAGE_SLA).displayName("Direct Resolution: Highly Sensitive / Sensitive").allowedMinutes(1920).priority(PRIORITY_HIGHLY_SENSITIVE).description("Resolution timeframe for high-impact complaints handled directly by work units without investigation").build(),
+            SlaConfig.builder().configKey(KEY_RESOLUTION_NO_INVESTIGATION_HS_S).configGroup(GROUP_STAGE_SLA).displayName("Direct Resolution: Highly Sensitive / Sensitive").allowedMinutes(1920).priority(PRIORITY_HIGHLY_SENSITIVE).description("Resolution timeframe for high-impact complaints handled directly by work units without investigation").build(),
             SlaConfig.builder().configKey("RESOLUTION_NO_INVESTIGATION_GENERAL").configGroup(GROUP_STAGE_SLA).displayName("Direct Resolution: General Category").allowedMinutes(2880).priority(PRIORITY_GENERAL).description("Standard resolution SLA for general banking inquiries handled directly by work units").build(),
             SlaConfig.builder().configKey("INVESTIGATION_CUSTOMER_ACCOUNT").configGroup(GROUP_STAGE_SLA).displayName("Investigation: Customer Accounts & Ledger").allowedMinutes(5280).priority(PRIORITY_ALL).description("Formal investigation period for account reconciliation, ledger, and transaction disputes").build(),
             SlaConfig.builder().configKey("INVESTIGATION_LOAN").configGroup(GROUP_STAGE_SLA).displayName("Investigation: Credit & Facilities").allowedMinutes(7680).priority(PRIORITY_ALL).description("Detailed audit window for loan processing, collateral, and credit facility disputes").build(),
@@ -147,13 +147,11 @@ public class SlaConfigService {
             SlaConfig.builder().configKey("INVESTIGATION_DIGITAL_BANKING").configGroup(GROUP_STAGE_SLA).displayName("Investigation: Digital Channels & Payment Systems").allowedMinutes(7680).priority(PRIORITY_ALL).description("Technical investigation period for mobile banking, ATM, POS, and electronic payment issues").build(),
             SlaConfig.builder().configKey("COMMITTEE_REVIEW_HS_S").configGroup(GROUP_STAGE_SLA).displayName("Standing Committee Review (Sensitive / HS)").allowedMinutes(1440).priority(PRIORITY_HIGHLY_SENSITIVE).description("Standing Complaint Committee review window for sensitive and high-risk cases").build(),
             SlaConfig.builder().configKey("COMMITTEE_REVIEW_GENERAL").configGroup(GROUP_STAGE_SLA).displayName("Standing Committee Review (General Category)").allowedMinutes(2400).priority(PRIORITY_GENERAL).description("Standing Complaint Committee review window for general category appeals").build(),
-            SlaConfig.builder().configKey("CUSTOMER_NOTIFICATION").configGroup(GROUP_CUSTOMER_NOTIFICATION).displayName("Customer Final Resolution Dispatch").allowedMinutes(240).priority(PRIORITY_ALL).description("Timeframe allowed for dispatching final written resolution notice to customer via SMS & Email").build(),
-            SlaConfig.builder().configKey("OVERALL_INVESTIGATION_HS_S").configGroup(GROUP_OVERALL_SLA).displayName("Total Lifecycle: Highly Sensitive / Sensitive (With Inv)").allowedMinutes(13440).priority(PRIORITY_HIGHLY_SENSITIVE).description("Maximum end-to-end complaint lifecycle including formal investigation").build(),
+            SlaConfig.builder().configKey(GROUP_CUSTOMER_NOTIFICATION).configGroup(GROUP_CUSTOMER_NOTIFICATION).displayName("Customer Final Resolution Dispatch").allowedMinutes(240).priority(PRIORITY_ALL).description("Timeframe allowed for dispatching final written resolution notice to customer via SMS & Email").build(),
+            SlaConfig.builder().configKey(KEY_OVERALL_INVESTIGATION_HS_S).configGroup(GROUP_OVERALL_SLA).displayName("Total Lifecycle: Highly Sensitive / Sensitive (With Inv)").allowedMinutes(13440).priority(PRIORITY_HIGHLY_SENSITIVE).description("Maximum end-to-end complaint lifecycle including formal investigation").build(),
             SlaConfig.builder().configKey("OVERALL_INVESTIGATION_GENERAL").configGroup(GROUP_OVERALL_SLA).displayName("Total Lifecycle: General (With Inv)").allowedMinutes(14400).priority(PRIORITY_GENERAL).description("Maximum total complaint lifecycle for general category cases requiring formal investigation").build(),
-            SlaConfig.builder().configKey("OVERALL_NO_INVESTIGATION_HS_S").configGroup(GROUP_OVERALL_SLA).displayName("Total Lifecycle: Highly Sensitive / Sensitive (No Inv)").allowedMinutes(3840).priority(PRIORITY_HIGHLY_SENSITIVE).description("Total allowable lifecycle without formal investigation").build(),
-            SlaConfig.builder().configKey("OVERALL_NO_INVESTIGATION_GENERAL").configGroup(GROUP_OVERALL_SLA).displayName("Total Lifecycle: General (No Inv)").allowedMinutes(4800).priority(PRIORITY_GENERAL).description("Total allowable lifecycle for general category complaints resolved without investigation").build(),
-            SlaConfig.builder().configKey("ESCALATION_L1").configGroup(GROUP_ESCALATION_SLA).displayName("Management Escalation: CM Division Head").allowedMinutes(720).priority(PRIORITY_ALL).description("Allocated timeframe for CM Division Manager oversight intervention following an SLA breach").build(),
-            SlaConfig.builder().configKey("ESCALATION_L2").configGroup(GROUP_ESCALATION_SLA).displayName("Executive Escalation: Department Director").allowedMinutes(960).priority(PRIORITY_ALL).description("Timeframe permitted for Department Director / Regional Director intervention upon tier-2 escalation").build()
+            SlaConfig.builder().configKey(KEY_OVERALL_NO_INVESTIGATION_HS_S).configGroup(GROUP_OVERALL_SLA).displayName("Total Lifecycle: Highly Sensitive / Sensitive (No Inv)").allowedMinutes(3840).priority(PRIORITY_HIGHLY_SENSITIVE).description("Total allowable lifecycle without formal investigation").build(),
+            SlaConfig.builder().configKey("OVERALL_NO_INVESTIGATION_GENERAL").configGroup(GROUP_OVERALL_SLA).displayName("Total Lifecycle: General (No Inv)").allowedMinutes(4800).priority(PRIORITY_GENERAL).description("Total allowable lifecycle for general category complaints resolved without investigation").build()
         );
     }
 

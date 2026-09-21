@@ -2,6 +2,7 @@ package com.dashenbank.cms.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
@@ -18,7 +19,7 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
-import java.util.Date;
+import java.time.Instant;
 
 @Component
 public class JwtUtils {
@@ -65,21 +66,20 @@ public class JwtUtils {
     }
 
     public String generateJwtToken(String username, String role) {
-        return Jwts.builder()
+        return sign(Jwts.builder()
                 .subject(username)
-                .claim(CLAIM_ROLE, role)
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
-                .signWith(getSigningKey())
-                .compact();
+                .claim(CLAIM_ROLE, role));
     }
 
     public String generatePasswordChangeToken(String username) {
-        return Jwts.builder()
+        return sign(Jwts.builder()
                 .subject(username)
-                .claim(CLAIM_PURPOSE, PURPOSE_PASSWORD_CHANGE)
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
+                .claim(CLAIM_PURPOSE, PURPOSE_PASSWORD_CHANGE));
+    }
+
+    private String sign(JwtBuilder builder) {
+        Instant issuedAt = Instant.now();
+        return JwtValidity.apply(builder, issuedAt, jwtExpirationMs)
                 .signWith(getSigningKey())
                 .compact();
     }

@@ -51,13 +51,13 @@ public class DataInitializer implements CommandLineRunner {
         // Operational users are managed strictly through the Admin Dashboard.
         // Seed Simulated Core Banking Customers
         seedCustomer("1234567890123", "CIF10001", "Abyssinia Corporates", "info@abyssinia.com", "+251912345678",
-                "Corporate", "None", "LOW", true);
+                "Corporate", "None", "LOW", true, "Main Branch", "Central District");
         seedCustomer("5555666677778", "CIF10002", "Abebe Bekele", "abebe.b@gmail.com", "+251911223344", RETAIL_SEGMENT,
-                "Pensioner", "LOW", false);
+                "Pensioner", "LOW", false, "Bole Branch", "Central District");
         seedCustomer("8888999900000", "CIF10003", "Negash Welde", "negash.w@gmail.com", "+251915556677", RETAIL_SEGMENT,
-                "Standard", "High Risk", false);
+                "Standard", "High Risk", false, "Adama Branch", "Eastern District");
         seedCustomer("1111222233334", "CIF10004", "Tigist Girma", "tigist.g@gmail.com", "+251919998877", RETAIL_SEGMENT,
-                "Standard", "LOW", false);
+                "Standard", "LOW", false, "Mekelle Branch", "Northern District");
 
         // Core Users and Banking Customers initialized cleanly.
     }
@@ -91,7 +91,7 @@ public class DataInitializer implements CommandLineRunner {
 
     @SuppressWarnings("java:S107")
     private void seedCustomer(String accountNumber, String cifNumber, String name, String email, String phoneNumber,
-            String segment, String subSegment, String riskRating, boolean isVip) {
+            String segment, String subSegment, String riskRating, boolean isVip, String homeBranch, String district) {
         Customer customer = customerRepository.findByAccountNumber(accountNumber).orElse(null);
         if (customer == null) {
             customer = Customer.builder()
@@ -107,9 +107,14 @@ public class DataInitializer implements CommandLineRunner {
                     .customerType("RETAIL")
                     .customerSince(LocalDate.now(ZoneId.systemDefault()).minusYears(2))
                     .relationshipManager("Relationship Manager " + name)
+                    .homeBranch(homeBranch)
+                    .district(district)
                     .build();
             log.info("Seeding new simulated customer: {}", name);
-            customerRepository.save(customer);
+        } else {
+            customer.setHomeBranch(homeBranch);
+            customer.setDistrict(district);
         }
+        customerRepository.save(customer);
     }
 }

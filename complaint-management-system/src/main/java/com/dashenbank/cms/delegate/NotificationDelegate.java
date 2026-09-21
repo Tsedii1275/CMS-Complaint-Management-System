@@ -1,6 +1,7 @@
 package com.dashenbank.cms.delegate;
 
 import com.dashenbank.cms.config.AppHttpProperties;
+import com.dashenbank.cms.customer.CustomerContactPhones;
 import com.dashenbank.cms.repository.ComplaintSlaMetricsRepository;
 import com.dashenbank.cms.model.CustomerFeedback;
 import com.dashenbank.cms.repository.CustomerFeedbackRepository;
@@ -100,7 +101,7 @@ public class NotificationDelegate implements JavaDelegate, TaskListener {
         }
 
         String email = (String) customerMap.get("email");
-        String phone = (String) customerMap.get("phone");
+        String phone = CustomerContactPhones.currentContact(customerMap);
         String customerName = (String) customerMap.getOrDefault("name", "Valued Customer");
         String preferredLanguage = (String) processVars.getOrDefault(VAR_PREFERRED_LANGUAGE,
                 customerMap.getOrDefault(VAR_PREFERRED_LANGUAGE, "english"));
@@ -163,7 +164,7 @@ public class NotificationDelegate implements JavaDelegate, TaskListener {
         String processInstanceId = extractProcessInstanceId(execution);
 
         String email = customer != null ? (String) customer.get("email") : null;
-        String phone = customer != null ? (String) customer.get("phone") : null;
+        String phone = CustomerContactPhones.currentContact(customer);
         String customerName = customer != null ? (String) customer.get("name") : "Valued Customer";
         String preferredLanguage = resolvePreferredLanguage(execution, customer);
 

@@ -221,6 +221,10 @@ class ApiService {
     return this.post('/api/complaints/staff-submit', complaintData);
   }
 
+  async getCustomerByAccount(accountNumber) {
+    return this.get(`/api/customers/by-account/${encodeURIComponent(accountNumber)}`);
+  }
+
   // Staff resolves complaint at First Contact Resolution (no workflow started)
   async fcrResolveComplaint(complaintData) {
     return this.post('/api/complaints/fcr-resolve', complaintData);

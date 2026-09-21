@@ -1,0 +1,40 @@
+[mysqld]
+# Plugin (underscore vars). Dotted validate_password.length is the component.
+plugin-load-add = validate_password.so
+
+# TLS
+require_secure_transport = ON
+tls_version = TLSv1.2,TLSv1.3
+
+# Authentication & Password Security
+default_password_lifetime = 90
+password_history = 4
+password_reuse_interval = 365
+validate_password_length = 12
+
+# Connection & Idle Session Timeout
+wait_timeout = 900
+interactive_timeout = 900
+connect_timeout = 10
+max_connections = 250
+max_connect_errors = 6
+
+# Access Control
+local_infile = OFF
+symbolic_links = OFF
+skip_external_locking = ON
+
+# Logging
+log_error_verbosity = 3
+slow_query_log = ON
+slow_query_log_file = /var/lib/mysql/mysql-slow.log
+long_query_time = 2
+log_queries_not_using_indexes = OFF
+
+# Binary Logging
+log_bin = /var/lib/mysql/mysql-bin
+binlog_format = ROW
+binlog_expire_logs_seconds = 604800
+
+# InnoDB
+innodb_default_row_format = DYNAMIC

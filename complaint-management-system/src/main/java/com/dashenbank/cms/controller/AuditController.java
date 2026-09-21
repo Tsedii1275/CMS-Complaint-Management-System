@@ -1,5 +1,6 @@
 package com.dashenbank.cms.controller;
 
+import com.dashenbank.cms.customer.CustomerContactPhones;
 import com.dashenbank.cms.model.AuditLog;
 import com.dashenbank.cms.model.ComplaintSlaMetrics;
 import com.dashenbank.cms.model.TaskTimeTracking;
@@ -400,8 +401,11 @@ public class AuditController {
 
             String acc = (String) vars.getOrDefault(ACCOUNT_NUMBER,
                     cust.getOrDefault(ACCOUNT_NUMBER, comp.getOrDefault(ACCOUNT_NUMBER, "")));
-            String phone = (String) vars.getOrDefault(PHONE, cust.getOrDefault(PHONE,
-                    cust.getOrDefault("contactPhone", comp.getOrDefault("contactPhone", ""))));
+            String phone = CustomerContactPhones.currentContact(cust);
+            if (phone == null) {
+                phone = (String) vars.getOrDefault(PHONE, cust.getOrDefault("contactPhone",
+                        comp.getOrDefault("contactPhone", "")));
+            }
             String desc = (String) vars.getOrDefault(DESCRIPTION,
                     vars.getOrDefault("complaintDescription", comp.getOrDefault(DESCRIPTION, "")));
             String evUrl = (String) vars.getOrDefault(EVIDENCE_URL, comp.getOrDefault(EVIDENCE_URL, ""));

@@ -110,8 +110,7 @@ public class ComplaintSlaMetrics {
     private Integer remainingMinutes;
 
     @Column(name = "sla_status", length = 30)
-    private String slaStatus; // ON_TRACK, APPROACHING, BREACHED, ESCALATED, RESOLVED_WITHIN_SLA,
-                              // RESOLVED_AFTER_SLA
+    private String slaStatus; // ON_TRACK, APPROACHING, BREACHED, RESOLVED_WITHIN_SLA, RESOLVED_AFTER_SLA
 
     @Column(name = "breached")
     @Builder.Default
@@ -130,14 +129,6 @@ public class ComplaintSlaMetrics {
     @Column(name = "breached_at")
     private LocalDateTime breachedAt;
 
-    @Column(name = "escalated_at")
-    private LocalDateTime escalatedAt;
-
-    @Column(name = "escalation_level")
-    @Builder.Default
-    private Integer escalationLevel = 0; // 0=Work Unit, 1=Dept Manager/CMD Manager, 2=Director, 3=Chief Officer,
-                                         // 4=Executive
-
     @Column(name = "breach_reason", length = 255)
     private String breachReason;
 
@@ -152,7 +143,7 @@ public class ComplaintSlaMetrics {
 
     @Column(name = "reminder_3_sent")
     @Builder.Default
-    private Boolean reminder3Sent = false; // Breach & Escalation
+    private Boolean reminder3Sent = false;
 
     // Duration in business minutes spent in each lane/department
     @Column(name = "branch_staff_duration")

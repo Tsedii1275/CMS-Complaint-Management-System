@@ -39,9 +39,6 @@ public class SlaBreachRecord {
     @Column(name = "responsible_work_unit", length = 100)
     private String responsibleWorkUnit;
 
-    @Column(name = "escalation_level")
-    private Integer escalationLevel;
-
     @Column(name = "escalation_actions_taken", length = 500)
     private String escalationActionsTaken;
 

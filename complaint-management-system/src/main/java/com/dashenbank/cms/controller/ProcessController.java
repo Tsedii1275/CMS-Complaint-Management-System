@@ -1,5 +1,9 @@
 package com.dashenbank.cms.controller;
 
+import com.dashenbank.cms.customer.CustomerContactPhones;
+import com.dashenbank.cms.customer.LocationKeys;
+import com.dashenbank.cms.integration.corebanking.CoreBankingClient;
+import com.dashenbank.cms.integration.corebanking.CoreBankingProfile;
 import com.dashenbank.cms.model.AuditLog;
 import com.dashenbank.cms.model.ComplaintSlaMetrics;
 import com.dashenbank.cms.model.OverallComplaintStatus;
@@ -66,7 +70,12 @@ public class ProcessController {
     private static final String KEY_CUSTOMER = "customer";
     private static final String KEY_COMPLAINT = "complaint";
     private static final String KEY_EMAIL = "email";
-    private static final String KEY_PHONE = "phone";
+    private static final String KEY_CORE_BANKING_PHONE = CustomerContactPhones.CORE_BANKING_PHONE;
+    private static final String KEY_CIF_NUMBER = "cifNumber";
+    private static final String KEY_PROFILE_SOURCE = "profileSource";
+    private static final String KEY_CBS_LOOKUP_STATUS = "cbsLookupStatus";
+    private static final String VAL_MANUAL = "MANUAL";
+    private static final String VAL_CORE_BANKING = "CORE_BANKING";
     private static final String KEY_ACCOUNT_NUMBER = "accountNumber";
     private static final String KEY_CHANNEL = "channel";
     private static final String KEY_DESCRIPTION = "description";
@@ -104,7 +113,6 @@ public class ProcessController {
     private static final String KEY_FCR_COMMENTS = "fcrComments";
     private static final String KEY_NOTES = "notes";
     private static final String KEY_COMPLAINT_CATEGORY = "complaintCategory";
-    private static final String DIR_UPLOADS = "uploads";
     private static final String CAT_GENERAL = "General";
     private static final String CAT_CUSTOMER_SERVICE_ISSUES = "Customer Service Issues";
     private static final String KEY_GENERAL_TICKET_ID = "generalTicketId";
@@ -185,6 +193,8 @@ public class ProcessController {
     private SlaAlertAuthorizationService slaAlertAuthorizationService;
     @Autowired
     private com.dashenbank.cms.security.FileSecurityService fileSecurityService;
+    @Autowired
+    private CoreBankingClient coreBankingClient;
     private final NotificationDelegate notificationDelegate;
 
     @SuppressWarnings("java:S107")
@@ -308,7 +318,7 @@ public class ProcessController {
 
             String name = (String) customer.get(KEY_NAME);
             String email = (String) customer.get(KEY_EMAIL);
-            String phone = (String) customer.get(KEY_PHONE);
+            String phone = CustomerContactPhones.fromRequest(customer);
             String accountNumber = (String) customer.get(KEY_ACCOUNT_NUMBER);
             String channel = (String) complaint.get(KEY_CHANNEL);
             String description = (String) complaint.get(KEY_DESCRIPTION);
@@ -405,7 +415,7 @@ public class ProcessController {
             }
 
             tryInitializeSlaForNewComplaint(instance.getId(), ticket, category,
-                    (String) complaintVars.get(KEY_BRANCH), channel, (String) customerVars.get(KEY_NAME));
+                    LocationKeys.complaintBranch(vars, complaintVars), channel, (String) customerVars.get(KEY_NAME));
             tryAuditComplaintCreated(ticket, instance.getId(), name, category, description);
 
             Map<String, Object> response = new HashMap<>();
@@ -427,7 +437,7 @@ public class ProcessController {
         Map<String, Object> customerVars = new HashMap<>();
         customerVars.put(KEY_NAME, name);
         customerVars.put(KEY_EMAIL, email);
-        customerVars.put(KEY_PHONE, phone);
+        CustomerContactPhones.applyCurrentContact(customerVars, phone);
         customerVars.put(KEY_ACCOUNT_NUMBER, accountNumber != null && !accountNumber.isBlank() ? accountNumber : "");
 
         String preferredContactMethod = (String) customer.get(KEY_PREFERRED_CONTACT_METHOD);
@@ -443,30 +453,51 @@ public class ProcessController {
     }
 
     private void populateCrmDetails(Map<String, Object> customerVars, String accountNumber) {
-        Customer dbCustomer = null;
-        if (accountNumber != null && !accountNumber.isBlank()) {
-            try {
-                dbCustomer = customerRepository.findByAccountNumber(accountNumber.trim()).orElse(null);
-            } catch (Exception e) {
-                log.warn("Could not query customer by account number {}: {}", accountNumber, e.getMessage());
-            }
-        }
+        applyCoreBankingSnapshot(customerVars, accountNumber);
+    }
 
-        if (dbCustomer != null) {
-            customerVars.put("customerSegment",
-                    dbCustomer.getCustomerSegment() != null ? dbCustomer.getCustomerSegment() : "Retail");
-            customerVars.put("customerSubSegment",
-                    dbCustomer.getCustomerSubSegment() != null ? dbCustomer.getCustomerSubSegment() : "Standard");
-            customerVars.put("riskRating", dbCustomer.getRiskRating() != null ? dbCustomer.getRiskRating() : "LOW");
-            customerVars.put("isVip", dbCustomer.isVip());
-            customerVars.put(KEY_NAME, dbCustomer.getName());
-            customerVars.put(KEY_EMAIL, dbCustomer.getEmail());
-            customerVars.put(KEY_PHONE, dbCustomer.getPhoneNumber());
-        } else {
-            customerVars.put("customerSegment", "Retail");
-            customerVars.put("customerSubSegment", "Standard");
-            customerVars.put("riskRating", "LOW");
-            customerVars.put("isVip", false);
+    private void applyCoreBankingSnapshot(Map<String, Object> customerVars, String accountNumber) {
+        if (customerVars == null) {
+            return;
+        }
+        if (accountNumber == null || accountNumber.isBlank() || coreBankingClient == null) {
+            customerVars.put(KEY_PROFILE_SOURCE, VAL_MANUAL);
+            customerVars.put(KEY_CBS_LOOKUP_STATUS, "SKIPPED");
+            return;
+        }
+        try {
+            Optional<CoreBankingProfile> found = coreBankingClient.findByAccountNumber(accountNumber.trim());
+            if (found.isEmpty()) {
+                customerVars.put(KEY_PROFILE_SOURCE, VAL_MANUAL);
+                customerVars.put(KEY_CBS_LOOKUP_STATUS, "NOT_FOUND");
+                return;
+            }
+            CoreBankingProfile profile = found.get();
+            putIfHasText(customerVars, KEY_CIF_NUMBER, profile.cifNumber());
+            putIfHasText(customerVars, KEY_NAME, profile.name());
+            if (!hasText(customerVars.get(KEY_EMAIL))) {
+                putIfHasText(customerVars, KEY_EMAIL, profile.email());
+            }
+            putIfHasText(customerVars, KEY_CORE_BANKING_PHONE, profile.registeredPhone());
+            LocationKeys.applyCustomerHome(customerVars, profile.homeBranch(), profile.district());
+            putIfHasText(customerVars, "customerSegment", profile.customerSegment());
+            putIfHasText(customerVars, "customerSubSegment", profile.customerSubSegment());
+            customerVars.put(KEY_PROFILE_SOURCE, VAL_CORE_BANKING);
+            customerVars.put(KEY_CBS_LOOKUP_STATUS, "FOUND");
+        } catch (Exception e) {
+            log.warn("Could not query customer by account number {}: {}", accountNumber, e.getMessage());
+            customerVars.put(KEY_PROFILE_SOURCE, VAL_MANUAL);
+            customerVars.put(KEY_CBS_LOOKUP_STATUS, "FAILED");
+        }
+    }
+
+    private static boolean hasText(Object value) {
+        return value != null && !value.toString().isBlank();
+    }
+
+    private static void putIfHasText(Map<String, Object> target, String key, String value) {
+        if (hasText(value)) {
+            target.put(key, value);
         }
     }
 
@@ -476,8 +507,8 @@ public class ProcessController {
         complaintVars.put(KEY_CHANNEL, channel);
         complaintVars.put(KEY_DESCRIPTION, description);
         complaintVars.put(KEY_CATEGORY, category);
-        if (complaint.get(KEY_BRANCH) != null)
-            complaintVars.put(KEY_BRANCH, complaint.get(KEY_BRANCH));
+        LocationKeys.applyComplaintLocation(complaintVars,
+                LocationKeys.fromRequestBranch(complaint), LocationKeys.fromRequestDistrict(complaint));
         if (complaint.get(KEY_ACCOUNT_NUMBER) != null)
             complaintVars.put(KEY_ACCOUNT_NUMBER, complaint.get(KEY_ACCOUNT_NUMBER));
         if (complaint.get("date") != null)
@@ -598,7 +629,10 @@ public class ProcessController {
         String description = (String) complaint.get(KEY_DESCRIPTION);
         String category = (String) complaint.get(KEY_CATEGORY);
         String resolutionNotes = (String) complaint.getOrDefault(KEY_RESOLUTION_NOTES, "");
-        String branch = (String) complaint.getOrDefault(KEY_BRANCH, "");
+        String branch = LocationKeys.fromRequestBranch(complaint);
+        if (branch == null) {
+            branch = "";
+        }
         String preferredLanguage = (String) customer.getOrDefault(KEY_PREFERRED_LANGUAGE, LANG_ENGLISH);
 
         if (name == null || name.isBlank() || description == null || description.isBlank()) {
@@ -1075,9 +1109,10 @@ public class ProcessController {
     public ResponseEntity<Map<String, Object>> completeTask(@PathVariable String taskId,
             @RequestBody Map<String, Object> body) {
         try {
-            Map<String, Object> variables = body.containsKey(KEY_VARIABLES) && body.get(KEY_VARIABLES) instanceof Map
-                    ? new HashMap<>(castToMap(body.get(KEY_VARIABLES)))
-                    : new HashMap<>(body);
+            Map<String, Object> variables = new HashMap<>(
+                    body.containsKey(KEY_VARIABLES) && body.get(KEY_VARIABLES) instanceof Map
+                            ? castToMap(body.get(KEY_VARIABLES))
+                            : body);
 
             Task task = slaAlertAuthorizationService.requireAuthorizedTask(taskId,
                     SlaAlertAuthorizationService.TaskAction.COMPLETE);
@@ -2306,7 +2341,8 @@ public class ProcessController {
         row.put("resolvedDate", resolvedDate);
 
         row.put("complainantName", customer.getOrDefault(KEY_NAME, "N/A"));
-        row.put("mobile", customer.getOrDefault(KEY_PHONE, "N/A"));
+        String nbeMobile = CustomerContactPhones.currentContact(customer);
+        row.put("mobile", nbeMobile != null ? nbeMobile : "N/A");
         row.put(KEY_EMAIL, customer.getOrDefault(KEY_EMAIL, "N/A"));
 
         row.put("issuesRaised", resolveCategoryValue(vars, complaint));
@@ -2327,7 +2363,7 @@ public class ProcessController {
         row.put(KEY_STATUS, overallStatus);
         row.put("reportStatus", "");
 
-        row.put("staffHandling", resolveStaffHandling(vars, complaint, customer));
+        row.put("staffHandling", resolveStaffHandling(vars, complaint));
         row.put("reasonForNonResolution", "");
         row.put("additionalComments", "");
         return row;
@@ -2468,21 +2504,13 @@ public class ProcessController {
         return String.format("CM-%03d/%s", nextSeq, fiscalYear);
     }
 
-    private String resolveStaffHandling(Map<String, Object> vars, Map<String, Object> complaint,
-            Map<String, Object> customer) {
-        if (vars.containsKey(KEY_BRANCH) && vars.get(KEY_BRANCH) != null
-                && !vars.get(KEY_BRANCH).toString().isEmpty()) {
-            String b = vars.get(KEY_BRANCH).toString();
+    private String resolveStaffHandling(Map<String, Object> vars, Map<String, Object> complaint) {
+        String complaintBranch = LocationKeys.complaintBranch(vars, complaint);
+        if (complaintBranch != null && !complaintBranch.isBlank()) {
             String d = (vars.containsKey(KEY_DEPARTMENT) && vars.get(KEY_DEPARTMENT) != null)
                     ? vars.get(KEY_DEPARTMENT).toString()
                     : "";
-            return !d.isEmpty() ? b + " / " + d : b;
-        }
-        if (complaint.get(KEY_BRANCH) != null) {
-            return complaint.get(KEY_BRANCH).toString();
-        }
-        if (customer.get(KEY_BRANCH) != null) {
-            return customer.get(KEY_BRANCH).toString();
+            return !d.isEmpty() ? complaintBranch + " / " + d : complaintBranch;
         }
         return "CMD Screening";
     }
@@ -2594,8 +2622,18 @@ public class ProcessController {
                 }
             }
 
-            String branch = (String) payload.getOrDefault(KEY_BRANCH, payload.getOrDefault("complaintBranch", ""));
-            String district = (String) payload.getOrDefault(KEY_DISTRICT, "");
+            String branch = LocationKeys.firstNonBlank(
+                    textOrNull(payload.get(LocationKeys.COMPLAINT_BRANCH)),
+                    textOrNull(payload.get(KEY_BRANCH)));
+            if (branch == null) {
+                branch = "";
+            }
+            String district = LocationKeys.firstNonBlank(
+                    textOrNull(payload.get(LocationKeys.COMPLAINT_DISTRICT)),
+                    textOrNull(payload.get(KEY_DISTRICT)));
+            if (district == null) {
+                district = "";
+            }
             String category = (String) payload.getOrDefault(KEY_COMPLAINT_CATEGORY, payload.getOrDefault(KEY_CATEGORY, ""));
             String serviceType = (String) payload.getOrDefault(KEY_SERVICE_TYPE, "");
             String channel = (String) payload.getOrDefault(KEY_COMPLAINT_MADE_ON, payload.getOrDefault(KEY_CHANNEL, ""));
@@ -2610,9 +2648,9 @@ public class ProcessController {
             if (!classification.isBlank())
                 varsToSet.put(KEY_CLASSIFICATION, classification);
             if (!branch.isBlank())
-                varsToSet.put(KEY_BRANCH, branch);
+                varsToSet.put(LocationKeys.COMPLAINT_BRANCH, branch);
             if (!district.isBlank())
-                varsToSet.put(KEY_DISTRICT, district);
+                varsToSet.put(LocationKeys.COMPLAINT_DISTRICT, district);
             if (!category.isBlank())
                 varsToSet.put(KEY_COMPLAINT_CATEGORY, category);
             if (!serviceType.isBlank())
@@ -2637,10 +2675,8 @@ public class ProcessController {
                     Object rawComplaint = runtimeService.getVariable(procInstId, KEY_COMPLAINT);
                     if (rawComplaint instanceof Map<?, ?> rawMap) {
                         Map<String, Object> complaintMap = new HashMap<>((Map<String, Object>) rawMap);
-                        if (!branch.isBlank())
-                            complaintMap.put(KEY_BRANCH, branch);
-                        if (!district.isBlank())
-                            complaintMap.put(KEY_DISTRICT, district);
+                        if (!branch.isBlank() || !district.isBlank())
+                            LocationKeys.applyComplaintLocation(complaintMap, branch, district);
                         if (!category.isBlank())
                             complaintMap.put(KEY_CATEGORY, category);
                         if (!serviceType.isBlank())
@@ -2659,8 +2695,10 @@ public class ProcessController {
                     Object rawCustomer = runtimeService.getVariable(procInstId, KEY_CUSTOMER);
                     if (rawCustomer instanceof Map<?, ?> rawCustMap) {
                         Map<String, Object> custMap = new HashMap<>((Map<String, Object>) rawCustMap);
-                        if (!accNum.isBlank())
+                        if (!accNum.isBlank()) {
                             custMap.put(KEY_ACCOUNT_NUMBER, accNum);
+                            applyCoreBankingSnapshot(custMap, accNum);
+                        }
                         runtimeService.setVariable(procInstId, KEY_CUSTOMER, custMap);
                     }
                 } catch (Exception e) {
@@ -2752,10 +2790,14 @@ public class ProcessController {
             }
             String customerName = resolveVarString(vars, customer, KEY_CUSTOMER_NAME, KEY_NAME, null);
             String accountNumber = resolveVarString(vars, customer, KEY_ACCOUNT_NUMBER, "account_number", null);
-            String contactNumber = resolveVarString(vars, customer, "preferredContactNumber", KEY_PHONE, null);
+            String contactNumber = CustomerContactPhones.currentContact(customer);
+            String coreBankingPhone = CustomerContactPhones.coreBanking(customer);
+            String cifNumber = textOrNull(customer.get(KEY_CIF_NUMBER));
+            String customerHomeBranch = LocationKeys.customerHomeBranch(customer);
+            String customerDistrict = LocationKeys.customerHomeDistrict(customer);
             String contactMethod = resolveVarString(vars, customer, KEY_PREFERRED_CONTACT_METHOD, "contactMethod", null);
-            String district = resolveVarString(vars, complaint, KEY_DISTRICT, "assignedDistrict", null);
-            String branch = resolveVarString(vars, complaint, KEY_BRANCH, "homeBranch", null);
+            String district = LocationKeys.complaintDistrict(vars, complaint);
+            String branch = LocationKeys.complaintBranch(vars, complaint);
             String description = resolveVarString(vars, complaint, KEY_DESCRIPTION, KEY_COMPLAINT_DESCRIPTION, null);
             String category = resolveVarString(vars, complaint, KEY_COMPLAINT_CATEGORY, KEY_CATEGORY, null);
             String serviceType = resolveVarString(vars, complaint, KEY_SERVICE_TYPE, "service_type", null);
@@ -2771,15 +2813,12 @@ public class ProcessController {
                 return;
             }
 
-            // Dynamic Entity Lookup for Customer
+            // Fill missing name from CBS cache only. Never copy CBS phone onto current contact.
             if (accountNumber != null && !accountNumber.isBlank()) {
                 try {
                     Optional<Customer> custOpt = customerRepository.findByAccountNumber(accountNumber.trim());
-                    if (custOpt.isPresent()) {
-                        if (customerName == null)
-                            customerName = custOpt.get().getName();
-                        if (contactNumber == null)
-                            contactNumber = custOpt.get().getPhoneNumber();
+                    if (custOpt.isPresent() && customerName == null) {
+                        customerName = custOpt.get().getName();
                     }
                 } catch (Exception e) {
                     log.warn("Customer lookup info for account {}: {}", accountNumber, e.getMessage());
@@ -2787,28 +2826,32 @@ public class ProcessController {
             }
 
             String sql = "INSERT INTO complaints (" +
-                    "general_ticket_id, ticket_number, customer_name, preferred_contact_number, preferred_contact_method, "
+                    "general_ticket_id, ticket_number, customer_name, preferred_contact_number, core_banking_phone, preferred_contact_method, "
                     +
-                    "home_branch, district, complaint_detail, complaint_category, service_type, " +
-                    "complaint_made_on, received_by, account_number, classification, complaint_classification, status) "
+                    "home_branch, customer_home_branch, district, customer_district, complaint_detail, complaint_category, service_type, " +
+                    "complaint_made_on, received_by, account_number, cif_number, classification, complaint_classification, status) "
                     +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
                     "ON DUPLICATE KEY UPDATE " +
                     "ticket_number = COALESCE(VALUES(ticket_number), ticket_number), " +
                     "general_ticket_id = VALUES(general_ticket_id), " +
                     "customer_name = COALESCE(VALUES(customer_name), customer_name), " +
                     "preferred_contact_number = COALESCE(VALUES(preferred_contact_number), preferred_contact_number), "
                     +
+                    "core_banking_phone = COALESCE(VALUES(core_banking_phone), core_banking_phone), " +
                     "preferred_contact_method = COALESCE(VALUES(preferred_contact_method), preferred_contact_method), "
                     +
                     "home_branch = COALESCE(VALUES(home_branch), home_branch), " +
+                    "customer_home_branch = COALESCE(VALUES(customer_home_branch), customer_home_branch), " +
                     "district = COALESCE(VALUES(district), district), " +
+                    "customer_district = COALESCE(VALUES(customer_district), customer_district), " +
                     "complaint_detail = COALESCE(VALUES(complaint_detail), complaint_detail), " +
                     "complaint_category = COALESCE(VALUES(complaint_category), complaint_category), " +
                     "service_type = COALESCE(VALUES(service_type), service_type), " +
                     "complaint_made_on = COALESCE(VALUES(complaint_made_on), complaint_made_on), " +
                     "received_by = COALESCE(VALUES(received_by), received_by), " +
                     "account_number = COALESCE(VALUES(account_number), account_number), " +
+                    "cif_number = COALESCE(VALUES(cif_number), cif_number), " +
                     "classification = COALESCE(VALUES(classification), classification), " +
                     "complaint_classification = COALESCE(VALUES(complaint_classification), complaint_classification), "
                     +
@@ -2817,9 +2860,9 @@ public class ProcessController {
             String complaintClass = resolveVarString(processVars, null, KEY_COMPLAINT_CLASSIFICATION, KEY_PRIORITY_LEVEL,
                     CAT_GENERAL);
             jdbcTemplate.update(sql,
-                    generalId, formalDbcId, customerName, contactNumber, contactMethod,
-                    branch, district, description, category, serviceType,
-                    channel, receivedBy, accountNumber, VAL_COMPLAINT, complaintClass,
+                    generalId, formalDbcId, customerName, contactNumber, coreBankingPhone, contactMethod,
+                    branch, customerHomeBranch, district, customerDistrict, description, category, serviceType,
+                    channel, receivedBy, accountNumber, cifNumber, VAL_COMPLAINT, complaintClass,
                     OverallComplaintStatus.resolve(vars, false));
 
             log.info(
@@ -2843,6 +2886,14 @@ public class ProcessController {
                 return nestedMap.get(key2).toString();
         }
         return defaultVal;
+    }
+
+    private static String textOrNull(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String text = value.toString();
+        return text.isBlank() ? null : text;
     }
 
     @SuppressWarnings("java:S3776")

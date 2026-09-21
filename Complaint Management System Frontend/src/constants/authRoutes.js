@@ -37,6 +37,12 @@ export const getRouteForRole = (role) => {
   if (key === 'ROLE_BRANCH_STAFF') {
     return ROLE_ROUTES.ROLE_CONTACT_CENTER_AGENT;
   }
+  if (key === 'ROLE_SERVICE_QUALITY') {
+    return ROLE_ROUTES.ROLE_CUSTOMER_CARE_OFFICER;
+  }
+  if (key === 'ROLE_CHIEF_COMMITTEE') {
+    return ROLE_ROUTES.ROLE_COMMITTEE_SECRETARY;
+  }
   return ROLE_ROUTES[role] || ROLE_ROUTES[key] || '/staff-login';
 };
 
@@ -78,6 +84,9 @@ export function canAccessPath(pathname, role) {
   }
   if (pathname === '/branch-staff') {
     if (r === 'ROLE_CONTACT_CENTER_MANAGER') {
+      return true;
+    }
+    if (r === 'ROLE_SERVICE_QUALITY') {
       return true;
     }
     if (r === 'ROLE_CUSTOMER_CARE_SENIOR_MANAGER' || r === 'ROLE_SERVICE_QUALITY_DIRECTOR') {

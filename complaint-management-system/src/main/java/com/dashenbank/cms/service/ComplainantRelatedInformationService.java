@@ -1,5 +1,7 @@
 package com.dashenbank.cms.service;
 
+import com.dashenbank.cms.customer.CustomerContactPhones;
+import com.dashenbank.cms.customer.LocationKeys;
 import com.dashenbank.cms.model.AuditLog;
 import com.dashenbank.cms.model.ComplainantRelatedInformation;
 import com.dashenbank.cms.model.ComplaintSlaMetrics;
@@ -48,7 +50,6 @@ public class ComplainantRelatedInformationService {
     private static final String KEY_ACCOUNT_NUMBER = "accountNumber";
     private static final String KEY_ACCOUNT_NUMBER_SNAKE = "account_number";
     private static final String KEY_PHONE = "phone";
-    private static final String KEY_PHONE_NUMBER = "phoneNumber";
     private static final String KEY_PREFERRED_CONTACT_NUMBER = "preferredContactNumber";
     private static final String KEY_EMAIL = "email";
     private static final String KEY_SERVICE_TYPE = "serviceType";
@@ -308,18 +309,21 @@ public class ComplainantRelatedInformationService {
                 nestedOrVar(customerObj, vars, KEY_ACCOUNT_NUMBER, KEY_ACCOUNT_NUMBER),
                 nestedOrVar(customerObj, vars, KEY_ACCOUNT_NUMBER_SNAKE, KEY_ACCOUNT_NUMBER_SNAKE));
         String phone = firstNonBlank(
+                nestedOrVar(customerObj, vars, CustomerContactPhones.CURRENT_CONTACT_PHONE,
+                        CustomerContactPhones.CURRENT_CONTACT_PHONE),
                 nestedOrVar(customerObj, vars, KEY_PHONE, KEY_PHONE),
-                nestedOrVar(customerObj, vars, KEY_PHONE_NUMBER, KEY_PREFERRED_CONTACT_NUMBER));
+                nestedOrVar(customerObj, vars, KEY_PREFERRED_CONTACT_NUMBER, KEY_PREFERRED_CONTACT_NUMBER));
         String email = nestedOrVar(customerObj, vars, KEY_EMAIL, KEY_EMAIL);
         String category = nestedOrVar(complaintObj, vars, "category", "complaintCategory");
         String serviceType = nestedOrVar(complaintObj, vars, KEY_SERVICE_TYPE, KEY_SERVICE_TYPE);
         String description = nestedOrVar(complaintObj, vars, "description", "complaintDescription");
-        String district = nestedOrVar(complaintObj, vars, "district", "district");
+        String district = LocationKeys.complaintDistrict(vars, complaintObj);
         String channel = nestedOrVar(complaintObj, vars, "channel", "channel");
         String evidence = nestedOrVar(complaintObj, vars, KEY_EVIDENCE_NAME, KEY_EVIDENCE_NAME);
 
         String assignee = firstVar(vars, "assignee", "assignedUser");
-        String forwardedTo = firstVar(vars, "department", KEY_BRANCH);
+        String forwardedTo = firstNonBlank(firstVar(vars, "department", KEY_BRANCH),
+                LocationKeys.complaintBranch(vars, complaintObj));
 
         if (!isManual) {
             setIfNotNull(info::setNameOfComplainant, custName);
@@ -373,8 +377,9 @@ public class ComplainantRelatedInformationService {
                 nestedOrVar(customer, vars, KEY_ACCOUNT_NUMBER, KEY_ACCOUNT_NUMBER),
                 nestedOrVar(customer, vars, KEY_ACCOUNT_NUMBER_SNAKE, KEY_ACCOUNT_NUMBER_SNAKE));
         String phone = firstNonBlank(
+                nestedOrVar(customer, vars, CustomerContactPhones.CURRENT_CONTACT_PHONE,
+                        CustomerContactPhones.CURRENT_CONTACT_PHONE),
                 nestedOrVar(customer, vars, KEY_PHONE, KEY_PHONE),
-                nestedOrVar(customer, vars, KEY_PHONE_NUMBER, KEY_PHONE_NUMBER),
                 nestedOrVar(customer, vars, KEY_PREFERRED_CONTACT_NUMBER, KEY_PREFERRED_CONTACT_NUMBER));
         String email = firstNonBlank(nestedOrVar(customer, vars, KEY_EMAIL, KEY_EMAIL));
         String receivedBy = firstNonBlank(
@@ -409,7 +414,6 @@ public class ComplainantRelatedInformationService {
             try {
                 Optional<Customer> cust = customerRepository.findByAccountNumber(account);
                 if (cust.isPresent()) {
-                    phone = firstNonBlank(phone, cust.get().getPhoneNumber());
                     email = firstNonBlank(email, cust.get().getEmail());
                 }
             } catch (Exception e) {

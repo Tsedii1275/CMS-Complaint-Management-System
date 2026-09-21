@@ -25,7 +25,7 @@ public class SlaConfig {
     private String configKey;
 
     @Column(name = "config_group", length = 50, nullable = false)
-    private String configGroup; // STAGE_SLA, OVERALL_SLA, ESCALATION_SLA, REMINDER_CONFIG, PRIORITY_SLA
+    private String configGroup; // INTAKE_SLA, STAGE_SLA, OVERALL_SLA, CUSTOMER_NOTIFICATION
 
     @Column(name = "display_name", length = 150, nullable = false)
     private String displayName;

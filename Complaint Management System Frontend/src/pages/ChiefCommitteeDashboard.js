@@ -6,6 +6,7 @@ import { formatUniqueId, formatIntakeId, matchesTicketSearch } from '../componen
 import ApiService from '../services/api';
 import { BRAND_COLORS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
+import { complaintBranch } from '../utils/locationKeys';
 
 const { Title, Text } = Typography;
 
@@ -128,8 +129,8 @@ function CommitteeDecisionWorkspace({
                 <Tag color="blue">{(complaint.category || 'General').toUpperCase()}</Tag>
               </Col>
               <Col span={12}>
-                <FieldLabel>Branch / Unit</FieldLabel>
-                <FieldValue>{complaint.branch || 'Main Branch'}</FieldValue>
+                <FieldLabel>Complaint Branch</FieldLabel>
+                <FieldValue>{complaintBranch(recordVars(selectedTask), complaint) || 'Main Branch'}</FieldValue>
               </Col>
               {accountNumber ? (
                 <Col span={12}>

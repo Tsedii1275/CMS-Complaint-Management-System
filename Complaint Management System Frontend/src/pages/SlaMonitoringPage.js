@@ -171,11 +171,10 @@ function SlaMonitoringPage() {
     filteredMetrics.forEach(m => {
       const dist = m.district || 'Unassigned District';
       if (!map[dist]) {
-        map[dist] = { name: dist, total: 0, breached: 0, escalated: 0, totalRespMins: 0, totalResMins: 0 };
+        map[dist] = { name: dist, total: 0, breached: 0, totalRespMins: 0, totalResMins: 0 };
       }
       map[dist].total++;
       if (isSlaBreached(m)) map[dist].breached++;
-      if (m.slaStatus === 'ESCALATED' || (m.escalationLevel && m.escalationLevel > 0)) map[dist].escalated++;
       map[dist].totalRespMins += m.responseMinutes || 15;
       map[dist].totalResMins += m.totalElapsedMinutes || 120;
     });
@@ -197,11 +196,10 @@ function SlaMonitoringPage() {
     filteredMetrics.forEach(m => {
       const br = m.branch || 'Head Office / Direct';
       if (!map[br]) {
-        map[br] = { name: br, total: 0, breached: 0, escalated: 0, totalRespMins: 0, totalResMins: 0 };
+        map[br] = { name: br, total: 0, breached: 0, totalRespMins: 0, totalResMins: 0 };
       }
       map[br].total++;
       if (isSlaBreached(m)) map[br].breached++;
-      if (m.slaStatus === 'ESCALATED' || (m.escalationLevel && m.escalationLevel > 0)) map[br].escalated++;
       map[br].totalRespMins += m.responseMinutes || 20;
       map[br].totalResMins += m.totalElapsedMinutes || 180;
     });
@@ -223,11 +221,10 @@ function SlaMonitoringPage() {
     filteredMetrics.forEach(m => {
       const dept = m.department || 'General Customer Service';
       if (!map[dept]) {
-        map[dept] = { name: dept, total: 0, breached: 0, escalated: 0, totalResMins: 0 };
+        map[dept] = { name: dept, total: 0, breached: 0, totalResMins: 0 };
       }
       map[dept].total++;
       if (isSlaBreached(m)) map[dept].breached++;
-      if (m.slaStatus === 'ESCALATED' || (m.escalationLevel && m.escalationLevel > 0)) map[dept].escalated++;
       map[dept].totalResMins += m.totalElapsedMinutes || 240;
     });
     return Object.values(map).map(d => {
@@ -342,7 +339,6 @@ function SlaMonitoringPage() {
           { header: 'Total Complaints', key: 'total' },
           { header: 'Within SLA', key: 'withinSla' },
           { header: 'Breached', key: 'breached' },
-          { header: 'Escalated', key: 'escalated' },
           { header: 'SLA Compliance %', key: 'complianceRate', type: 'percent' },
           { header: 'Avg Response Time', accessor: (b) => formatMins(b.avgResponseMins) },
           { header: 'Avg Resolution Time', accessor: (b) => formatMins(b.avgResolutionMins) }
@@ -357,7 +353,6 @@ function SlaMonitoringPage() {
           { header: 'Total Complaints', key: 'total' },
           { header: 'Within SLA', key: 'withinSla' },
           { header: 'Breached', key: 'breached' },
-          { header: 'Escalated', key: 'escalated' },
           { header: 'SLA Compliance %', key: 'complianceRate', type: 'percent' },
           { header: 'Avg Response Time', accessor: (d) => formatMins(d.avgResponseMins) },
           { header: 'Avg Resolution Time', accessor: (d) => formatMins(d.avgResolutionMins) }
@@ -372,7 +367,6 @@ function SlaMonitoringPage() {
           { header: 'Total Complaints', key: 'total' },
           { header: 'Within SLA', key: 'withinSla' },
           { header: 'Breached', key: 'breached' },
-          { header: 'Escalated', key: 'escalated' },
           { header: 'SLA Compliance %', key: 'complianceRate', type: 'percent' },
           { header: 'Avg Resolution Time', accessor: (d) => formatMins(d.avgResolutionMins) }
         ],

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Button, Card, Col, Modal, Row, Space, Statistic, Table, Tooltip, Typography } from 'antd';
+import { Alert, Button, Card, Col, Modal, Row, Space, Table, Tooltip, Typography } from 'antd';
 import { EyeOutlined } from '@ant-design/icons';
 import DashboardLayout from '../components/DashboardLayout';
 import Pagination from '../components/Pagination';
@@ -333,13 +333,6 @@ function RcaDashboardPage() {
         </div>
 
         {error ? <Alert type="error" message={error} showIcon /> : null}
-
-        <Row gutter={[16, 16]}>
-          <Col xs={24} sm={12} md={6}><Card style={cardStyle}><Statistic title="Total Complaints" value={analysis?.totalComplaints || 0} /></Card></Col>
-          <Col xs={24} sm={12} md={6}><Card style={cardStyle}><Statistic title="Complaint Natures" value={analysis?.totalNatures || 0} /></Card></Col>
-          <Col xs={24} sm={12} md={6}><Card style={cardStyle}><Statistic title="Most Common Nature" value={analysis?.mostCommonNature || '—'} valueStyle={{ fontSize: 16 }} /></Card></Col>
-          <Col xs={24} sm={12} md={6}><Card style={cardStyle}><Statistic title="Highest Escalation/Resolution" value={analysis?.highestEscalationResolutionNature || '—'} valueStyle={{ fontSize: 16 }} /></Card></Col>
-        </Row>
 
         <Row gutter={[16, 16]}>
           <Col xs={24} lg={12}>

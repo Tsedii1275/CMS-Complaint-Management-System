@@ -1,5 +1,6 @@
 package com.dashenbank.cms.delegate;
 
+import com.dashenbank.cms.customer.CustomerContactPhones;
 import com.dashenbank.cms.service.NotificationService;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.flowable.engine.delegate.JavaDelegate;
@@ -14,6 +15,7 @@ import java.util.Map;
 public class SendAcknowledgmentDelegate implements JavaDelegate {
 
     private static final ZoneId SYSTEM_ZONE = ZoneId.systemDefault();
+    private static final String VAR_CASE_HISTORY = "caseHistory";
     private final NotificationService notificationService;
 
     public SendAcknowledgmentDelegate(NotificationService notificationService) {
@@ -40,7 +42,7 @@ public class SendAcknowledgmentDelegate implements JavaDelegate {
 
         String ticketId = complaint.containsKey("id") ? (String) complaint.get("id") : "unknown";
         String email = (String) customer.get("email");
-        String phone = (String) customer.get("phone");
+        String phone = CustomerContactPhones.currentContact(customer);
 
         String customerName = (String) customer.getOrDefault("name", "Valued Customer");
 
@@ -97,11 +99,11 @@ public class SendAcknowledgmentDelegate implements JavaDelegate {
     }
 
     private void appendHistory(DelegateExecution execution, String event) {
-        Object historyVar = execution.getVariable("caseHistory");
+        Object historyVar = execution.getVariable(VAR_CASE_HISTORY);
         if (historyVar == null) {
-            execution.setVariable("caseHistory", event);
+            execution.setVariable(VAR_CASE_HISTORY, event);
         } else {
-            execution.setVariable("caseHistory", historyVar.toString() + "\n" + event);
+            execution.setVariable(VAR_CASE_HISTORY, historyVar.toString() + "\n" + event);
         }
     }
 }

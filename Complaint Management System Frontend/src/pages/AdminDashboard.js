@@ -1173,12 +1173,12 @@ function AdminDashboard() {
             />
           </Tabs.TabPane>
 
-          <Tabs.TabPane tab="Automated Alerts & Escalation Policy" key="escalations">
+          <Tabs.TabPane tab="SLA Alerts" key="alerts">
             <Card title="SLA Breach Alert Thresholds & Notification Rules" style={{ marginBottom: '16px' }}>
               <Table
                 dataSource={[
-                  { level: 'Reminder Level 1 (Approaching SLA)', threshold: '80% Business Time Elapsed', action: 'Automated notification & Dashboard SLA Warning indicator to assigned officer.' },
-                  { level: 'Reminder Level 2 (SLA Breach)', threshold: '100% Business Time Elapsed', action: 'Automated breach alert dispatched to assigned Work Unit.' }
+                  { level: '80% Reminder (Approaching SLA)', threshold: '80% Business Time Elapsed', action: 'Automated notification & Dashboard SLA Warning indicator to assigned officer.' },
+                  { level: '100% Breach Alert', threshold: '100% Business Time Elapsed', action: 'Automated breach alert dispatched to assigned Work Unit.' }
                 ]}
                 rowKey="level"
                 pagination={false}

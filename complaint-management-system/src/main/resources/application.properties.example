@@ -3,10 +3,10 @@ spring.application.name=complaint-management-system
 # suffix, so [.properties] tells Spring how to parse them).
 spring.config.import=optional:file:.env[.properties],optional:file:.env.${APP_ENV:dev}[.properties]
 
-# MySQL. sslMode=DISABLED for local servers without TLS.
+# MySQL. sslMode=REQUIRED when the server has require_secure_transport=ON.
 # Production: MYSQL_SSL_MODE=REQUIRED or VERIFY_IDENTITY.
 # Optional trust store (REQUIRED/VERIFY_*): MYSQL_SSL_TRUSTSTORE_URL, MYSQL_SSL_TRUSTSTORE_PASSWORD
-spring.datasource.url=jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:cms_db}?sslMode=${MYSQL_SSL_MODE:DISABLED}&serverTimezone=UTC&allowPublicKeyRetrieval=${MYSQL_ALLOW_PUBLIC_KEY_RETRIEVAL:true}
+spring.datasource.url=jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:cms_db}?sslMode=${MYSQL_SSL_MODE:REQUIRED}&serverTimezone=UTC&allowPublicKeyRetrieval=${MYSQL_ALLOW_PUBLIC_KEY_RETRIEVAL:true}
 spring.datasource.username=${SPRING_DATASOURCE_USERNAME}
 spring.datasource.password=${SPRING_DATASOURCE_PASSWORD}
 spring.datasource.driverClassName=com.mysql.cj.jdbc.Driver

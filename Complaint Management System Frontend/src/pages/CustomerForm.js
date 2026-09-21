@@ -137,6 +137,7 @@ async function submitPublicComplaint(e, ctx) {
         name: formData.customerName,
         email: formData.email,
         phone: phone,
+        currentContactPhone: phone,
         accountNumber: formData.accountNumber,
         preferredLanguage: language
       },
@@ -144,8 +145,8 @@ async function submitPublicComplaint(e, ctx) {
         channel: 'web',
         category: formData.complaintCategory,
         description: formData.complaintDescription,
-        branch: formData.branch,
-        district: formData.district,
+        complaintBranch: formData.branch,
+        complaintDistrict: formData.district,
         date: formData.date,
         preferredContactMethod: formData.preferredContactMethod,
         evidenceUrl: evidenceUrl || undefined,
@@ -256,6 +257,45 @@ function publicSubmitButtonLabel(t, isSubmitting, language) {
   return t.submitButton;
 }
 
+function publicPageClassName(language) {
+  return language === 'amharic' ? 'cms-public-page amharic-lightweight' : 'cms-public-page';
+}
+
+function syncEthiopianFormDate(language, ethMonth, ethDay, ethYear, setFormData) {
+  if (language !== 'amharic') {
+    return;
+  }
+  setFormData(prev => ({
+    ...prev,
+    date: `${ethMonth} ${ethDay}, ${ethYear} (Ethiopian)`
+  }));
+}
+
+function applyEvidenceChooserHover(e, isUploadingEvidence, isHighlight) {
+  if (isUploadingEvidence) {
+    return;
+  }
+  e.currentTarget.style.borderColor = isHighlight ? BRAND_COLORS.primary : '#dcdcdc';
+  e.currentTarget.style.color = isHighlight ? BRAND_COLORS.primary : '#444';
+}
+
+function applyTrackButtonHover(e, isHighlight) {
+  e.currentTarget.style.backgroundColor = isHighlight ? BRAND_COLORS.primary : 'white';
+  e.currentTarget.style.color = isHighlight ? 'white' : BRAND_COLORS.primary;
+}
+
+function applyConsentCheckedChange(checked, setConsentChecked, setErrors) {
+  setConsentChecked(checked);
+  if (!checked) {
+    return;
+  }
+  setErrors(prev => {
+    const next = { ...prev };
+    delete next.consent;
+    return next;
+  });
+}
+
 function CustomerForm() {
   const [formData, setFormData] = useState({
     customerName: '',
@@ -330,12 +370,12 @@ function CustomerForm() {
       phoneNumber: 'Mobile number you currently use',
       phoneHelper: 'Please provide the phone number currently in use so we can contact you regarding your complaint.',
       accountNumber: 'Account Number',
-      district: 'District',
-      selectDistrict: '— Select or enter District —',
+      district: 'Complaint District',
+      selectDistrict: '— Select or enter Complaint District —',
       complaintDescription: 'Details of the Complaint',
       complaintCategory: 'Complaint Category',
-      branch: 'Branch',
-      selectBranch: 'Branch name',
+      branch: 'Complaint Branch',
+      selectBranch: 'Complaint Branch name',
 
       complaintDate: 'Complaint Date',
       submitButton: 'Submit Complaint',
@@ -377,12 +417,12 @@ function CustomerForm() {
       phoneNumber: 'አሁን የሚጠቀሙበት የሞባይል ስልክ ቁጥር',
       phoneHelper: 'ቅሬታዎን በተመለከተ እንድንገናኝዎት እባክዎ በአሁኑ ጊዜ አገልግሎት ላይ ያለውን ስልክ ቁጥር ያቅርቡ።',
       accountNumber: 'የአካውንት ቁጥር',
-      district: 'ዲስትሪክት',
-      selectDistrict: 'ዲስትሪክት ይምረጡ ወይም ያስገቡ',
+      district: 'የቅሬታ ዲስትሪክት',
+      selectDistrict: 'የቅሬታ ዲስትሪክት ይምረጡ ወይም ያስገቡ',
       complaintDescription: 'የቅሬታው ዝርዝር መግለጫ',
       complaintCategory: 'የቅሬታ አይነት',
-      branch: 'ቅርንጫፍ',
-      selectBranch: 'ቅርንጫፍዎን ይምረጡ ወይም ያስገቡ',
+      branch: 'የቅሬታ ቅርንጫፍ',
+      selectBranch: 'የቅሬታ ቅርንጫፍ ይምረጡ ወይም ያስገቡ',
       complaintDate: 'የቅሬታ ቀን',
       submitButton: 'ቅሬታውን ያስገቡ',
       checkStatusTitle: 'የቅሬታዎን ሁኔታ ያረጋግጡ',
@@ -441,12 +481,7 @@ function CustomerForm() {
 
   // Synchronize Ethiopian date states to formData.date
   useEffect(() => {
-    if (language === 'amharic') {
-      setFormData(prev => ({
-        ...prev,
-        date: `${ethMonth} ${ethDay}, ${ethYear} (Ethiopian)`
-      }));
-    }
+    syncEthiopianFormDate(language, ethMonth, ethDay, ethYear, setFormData);
   }, [ethMonth, ethDay, ethYear, language]);
 
   const handleInputChange = (e) => {
@@ -472,39 +507,16 @@ function CustomerForm() {
   const evidenceButtonLabel = publicEvidenceButtonLabel(t, isUploadingEvidence, evidenceUrl);
   const submitButtonLabel = publicSubmitButtonLabel(t, isSubmitting, language);
 
-  const highlightEvidenceChooser = (e) => {
-    if (!isUploadingEvidence) {
-      e.currentTarget.style.borderColor = BRAND_COLORS.primary;
-      e.currentTarget.style.color = BRAND_COLORS.primary;
-    }
-  };
-  const resetEvidenceChooser = (e) => {
-    if (!isUploadingEvidence) {
-      e.currentTarget.style.borderColor = '#dcdcdc';
-      e.currentTarget.style.color = '#444';
-    }
-  };
-  const highlightTrackButton = (e) => {
-    e.currentTarget.style.backgroundColor = BRAND_COLORS.primary;
-    e.currentTarget.style.color = 'white';
-  };
-  const resetTrackButton = (e) => {
-    e.currentTarget.style.backgroundColor = 'white';
-    e.currentTarget.style.color = BRAND_COLORS.primary;
-  };
+  const highlightEvidenceChooser = (e) => applyEvidenceChooserHover(e, isUploadingEvidence, true);
+  const resetEvidenceChooser = (e) => applyEvidenceChooserHover(e, isUploadingEvidence, false);
+  const highlightTrackButton = (e) => applyTrackButtonHover(e, true);
+  const resetTrackButton = (e) => applyTrackButtonHover(e, false);
 
   return (
-    <div className={`cms-public-page${language === 'amharic' ? ' amharic-lightweight' : ''}`} style={{ minHeight: '100vh', backgroundColor: '#fcfcfc', display: 'flex', flexDirection: 'column' }}>
-      {language === 'amharic' && (
-        <style>
-          {`
-            .amharic-lightweight, 
-            .amharic-lightweight * {
-              font-weight: 300 !important;
-            }
-          `}
-        </style>
-      )}
+    <div
+      className={publicPageClassName(language)}
+      style={{ minHeight: '100vh', backgroundColor: '#fcfcfc', display: 'flex', flexDirection: 'column' }}
+    >
       {/* Header - Left Aligned */}
       <div className="cms-public-header" style={{
         backgroundColor: '#fff',
@@ -1020,12 +1032,7 @@ function CustomerForm() {
                 <input
                   type="checkbox"
                   checked={consentChecked}
-                  onChange={(e) => {
-                    setConsentChecked(e.target.checked);
-                    if (e.target.checked) {
-                      setErrors(prev => { const n = { ...prev }; delete n.consent; return n; });
-                    }
-                  }}
+                  onChange={(e) => applyConsentCheckedChange(e.target.checked, setConsentChecked, setErrors)}
                   style={{ accentColor: '#012169', width: '18px', height: '18px', marginTop: '2px', cursor: 'pointer', flexShrink: 0 }}
                 />
                 <span style={{ fontSize: '13px', color: '#444', lineHeight: 1.6 }}>
