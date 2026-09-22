@@ -71,8 +71,8 @@ services:
       FILE_UPLOAD_DIR: /app/uploads
     volumes:
       - cms_uploads:/app/uploads
-    expose:
-      - "8080"
+    ports:
+      - "8080:8080"
     networks:
       - default
 
@@ -89,6 +89,8 @@ services:
       CMS_BACKEND: complaint-management-system:8080
     depends_on:
       - complaint-management-system
+    volumes:
+      - "./Complaint Management System Frontend/nginx.dev.conf.template:/etc/nginx/templates/default.conf.template:ro"
     ports:
       - "80:8080"
     networks:

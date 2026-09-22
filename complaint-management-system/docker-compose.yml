@@ -68,7 +68,7 @@ services:
     volumes:
       - cms_uploads:/app/uploads
     ports:
-      - "8080:8080"
+      - "8082:8080"
 
 volumes:
   mysql_data:

@@ -21,5 +21,8 @@ services:
       APP_ENV: ${APP_ENV:-dev}
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    volumes:
+      - /etc/ssl/dashen:/etc/nginx/ssl:ro,z
     ports:
-      - "80:8080"
+      - "8084:8080"
+      - "443:8443"
