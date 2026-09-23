@@ -5,8 +5,11 @@ import com.dashenbank.cms.customer.CustomerContactPhones;
 import com.dashenbank.cms.repository.ComplaintSlaMetricsRepository;
 import com.dashenbank.cms.model.CustomerFeedback;
 import com.dashenbank.cms.repository.CustomerFeedbackRepository;
-import com.dashenbank.cms.service.AuditService;
-import com.dashenbank.cms.service.NotificationService;
+import com.dashenbank.cms.notification.CustomerNotifications;
+import com.dashenbank.cms.notification.NotificationEventType;
+import com.dashenbank.cms.notification.NotificationQueueResult;
+import com.dashenbank.cms.notification.NotificationRequest;
+import com.dashenbank.cms.notification.NotificationService;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.flowable.engine.delegate.JavaDelegate;
 import org.flowable.task.service.delegate.DelegateTask;
@@ -29,19 +32,16 @@ import java.util.UUID;
 public class NotificationDelegate implements JavaDelegate, TaskListener {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationDelegate.class);
-    private static final String LANG_AMHARIC = "amharic";
     private static final String VAR_CASE_HISTORY = "caseHistory";
     private static final String VAR_STATUS = "status";
     private static final String VAR_DECISION = "decision";
     private static final String VAR_PREFERRED_LANGUAGE = "preferredLanguage";
     private static final String STATUS_DECLINED = "DECLINED";
     private static final String STATUS_CLOSED = "CLOSED";
-    private static final String ACTOR_SYSTEM = "system";
-    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final DateTimeFormatter DATE_FMT = CustomerNotifications.DATE;
     private static final ZoneId SYSTEM_ZONE = ZoneId.systemDefault();
 
     private final NotificationService notificationService;
-    private final AuditService auditService;
     private final CustomerFeedbackRepository feedbackRepository;
     private final ComplaintSlaMetricsRepository slaMetricsRepository;
     private final AppHttpProperties appHttpProperties;
@@ -49,12 +49,10 @@ public class NotificationDelegate implements JavaDelegate, TaskListener {
     @Autowired
     public NotificationDelegate(
             NotificationService notificationService,
-            AuditService auditService,
             CustomerFeedbackRepository feedbackRepository,
             ComplaintSlaMetricsRepository slaMetricsRepository,
             AppHttpProperties appHttpProperties) {
         this.notificationService = notificationService;
-        this.auditService = auditService;
         this.feedbackRepository = feedbackRepository;
         this.slaMetricsRepository = slaMetricsRepository;
         this.appHttpProperties = appHttpProperties;
@@ -100,32 +98,45 @@ public class NotificationDelegate implements JavaDelegate, TaskListener {
             return;
         }
 
-        String email = (String) customerMap.get("email");
-        String phone = CustomerContactPhones.currentContact(customerMap);
-        String customerName = (String) customerMap.getOrDefault("name", "Valued Customer");
         String preferredLanguage = (String) processVars.getOrDefault(VAR_PREFERRED_LANGUAGE,
                 customerMap.getOrDefault(VAR_PREFERRED_LANGUAGE, "english"));
 
+        queueResolutionNotice(ticketId, processInstanceId, customerMap, preferredLanguage, processVars, null);
+    }
+
+    /**
+     * Pre-creates the {@link CustomerFeedback} row that the survey link in a
+     * resolution notification points to, and returns its secure token.
+     */
+    public String issueFeedbackToken(String ticketId, String processInstanceId, String preferredLanguage) {
+        return createFeedbackRecord(ticketId, processInstanceId, preferredLanguage);
+    }
+
+    public String feedbackLink(String token) {
+        return appHttpProperties.pageUrl("/customer-feedback?token=" + token);
+    }
+
+    private NotificationQueueResult queueResolutionNotice(String ticketId, String processInstanceId,
+            Map<String, Object> customer, String preferredLanguage, Map<String, Object> vars, String customMessage) {
         String token = createFeedbackRecord(ticketId, processInstanceId, preferredLanguage);
-        String feedbackLink = appHttpProperties.pageUrl("/customer-feedback?token=" + token);
-
-        String subDate = extractSubmissionDate(processVars);
-        String resDate = LocalDateTime.now(SYSTEM_ZONE).format(DATE_FMT);
-        String resSummary = extractResolutionSummary(processVars, null);
-
-        String[] composed = composeResolutionMessage(
-                preferredLanguage, customerName, ticketId, subDate, resDate, resSummary, feedbackLink);
-        String subject = composed[0];
-        String message = composed[1];
-
-        if (email != null && !email.isBlank()) {
-            notificationService.sendEmail(email, subject, message);
-        }
-        if (phone != null && !phone.isBlank()) {
-            notificationService.sendSms(phone, message);
-        }
-        auditService.log(ticketId, processInstanceId, null, "NOTIFICATION_SENT", ACTOR_SYSTEM, ACTOR_SYSTEM,
-                "Resolution notification sent to customer: " + subject);
+        String customerName = customer != null && customer.get("name") != null
+                ? customer.get("name").toString()
+                : "Valued Customer";
+        return notificationService.notifyCustomer(NotificationRequest.builder()
+                .eventType(NotificationEventType.COMPLAINT_RESOLVED)
+                .complaintRef(ticketId)
+                .processInstanceId(processInstanceId)
+                .preferredLanguage(preferredLanguage)
+                .email(customer != null ? (String) customer.get("email") : null)
+                .phone(CustomerContactPhones.currentContact(customer))
+                .occurrenceKey(token)
+                .variable(CustomerNotifications.CUSTOMER_NAME, customerName)
+                .variable(CustomerNotifications.TICKET_ID, ticketId)
+                .variable(CustomerNotifications.SUBMISSION_DATE, extractSubmissionDate(vars))
+                .variable(CustomerNotifications.RESOLUTION_DATE, LocalDateTime.now(SYSTEM_ZONE).format(DATE_FMT))
+                .variable(CustomerNotifications.RESOLUTION_SUMMARY, extractResolutionSummary(vars, customMessage))
+                .variable(CustomerNotifications.FEEDBACK_LINK, feedbackLink(token))
+                .build());
     }
 
     @SuppressWarnings("unchecked")
@@ -162,39 +173,17 @@ public class NotificationDelegate implements JavaDelegate, TaskListener {
 
         String ticketId = resolveTicketId(execution, complaint);
         String processInstanceId = extractProcessInstanceId(execution);
-
-        String email = customer != null ? (String) customer.get("email") : null;
-        String phone = CustomerContactPhones.currentContact(customer);
-        String customerName = customer != null ? (String) customer.get("name") : "Valued Customer";
         String preferredLanguage = resolvePreferredLanguage(execution, customer);
 
-        String token = createFeedbackRecord(ticketId, processInstanceId, preferredLanguage);
-        String feedbackLink = appHttpProperties.pageUrl("/customer-feedback?token=" + token);
+        NotificationQueueResult queued = queueResolutionNotice(ticketId, processInstanceId, customer,
+                preferredLanguage, execution.getVariables(), customMessage);
 
-        Map<String, Object> vars = execution.getVariables();
-        String subDate = extractSubmissionDate(vars);
-        String resDate = LocalDateTime.now(SYSTEM_ZONE).format(DATE_FMT);
-        String resSummary = extractResolutionSummary(vars, customMessage);
-
-        String[] composed = composeResolutionMessage(
-                preferredLanguage, customerName, ticketId, subDate, resDate, resSummary, feedbackLink);
-        String subject = composed[0];
-        String message = composed[1];
-
-        if (email != null && !email.isBlank()) {
-            notificationService.sendEmail(email, subject, message);
-            execution.setVariable("notification.emailSent", true);
-        }
-        if (phone != null && !phone.isBlank()) {
-            notificationService.sendSms(phone, message);
-            execution.setVariable("notification.smsSent", true);
-        }
+        execution.setVariable("notification.resolutionEmailQueued", queued.emailQueued());
+        execution.setVariable("notification.resolutionSmsQueued", queued.smsQueued());
         execution.setVariable("resolution.notification.sent", true);
-        execution.setVariable("notification.sentAt", LocalDateTime.now(SYSTEM_ZONE).toString());
+        execution.setVariable("notification.queuedAt", LocalDateTime.now(SYSTEM_ZONE).toString());
 
-        appendHistory(execution, "Resolution notification sent for ticket=" + ticketId);
-        auditService.log(ticketId, processInstanceId, null, "NOTIFICATION_SENT", ACTOR_SYSTEM, ACTOR_SYSTEM,
-                "Resolution notification sent to customer.");
+        appendHistory(execution, "Resolution notification queued for ticket=" + ticketId);
     }
 
     private boolean isDeclinedStatus(String status, String decision, String classification) {
@@ -230,43 +219,6 @@ public class NotificationDelegate implements JavaDelegate, TaskListener {
             preferredLanguage = (String) customer.getOrDefault(VAR_PREFERRED_LANGUAGE, "english");
         }
         return preferredLanguage;
-    }
-
-    private String[] composeResolutionMessage(String preferredLanguage, String customerName, String ticketId,
-            String subDate, String resDate, String resSummary, String feedbackLink) {
-        if (LANG_AMHARIC.equalsIgnoreCase(preferredLanguage)) {
-            return new String[] {
-                    "የቅሬታ መፍትሄ መረጃ",
-                    String.format(
-                            "ውድ %s፣%n%n" +
-                                    "በ %s ያቀረቡት ቅሬታ (%s) መፍትሄ አግኝቷል።%n%n" +
-                                    "የመፍትሄ ማጠቃለያ:%n%s%n%n" +
-                                    "የተፈታበት ቀን:%n%s%n%n" +
-                                    "የእርስዎ ተሞክሮ ለእኛ አስፈላጊ ነው።%n%n" +
-                                    "እባክዎን ከታች ያለውን ሊንክ በመጠቀም በአገልግሎታችን ላይ ያለዎትን እርካታ ይመዝኑ:%n%n" +
-                                    "%s%n%n" +
-                                    "አገልግሎታችንን እንድናሻሽል ስለረዱን እናመሰግናለን።%n%n" +
-                                    "ዳሽን ባንክ%n" +
-                                    "የደንበኞች አገልግሎት ቡድን",
-                            customerName, subDate, ticketId, resSummary, resDate, feedbackLink)
-            };
-        }
-        return new String[] {
-                "Complaint Resolution Update",
-                String.format(
-                        "Dear %s,%n%n" +
-                                "Your complaint (%s) submitted on %s has been resolved.%n%n" +
-                                "Resolution:%n%s%n%n" +
-                                "Resolution Date:%n%s%n%n" +
-                                "Your experience matters to us.%n%n" +
-                                "Please take a moment to rate your satisfaction with our service using the link below:%n%n"
-                                +
-                                "%s%n%n" +
-                                "Thank you for helping us improve our services.%n%n" +
-                                "Dashen Bank%n" +
-                                "Customer Care Team",
-                        customerName, ticketId, subDate, resSummary, resDate, feedbackLink)
-        };
     }
 
     private String extractSubmissionDate(Map<String, Object> vars) {

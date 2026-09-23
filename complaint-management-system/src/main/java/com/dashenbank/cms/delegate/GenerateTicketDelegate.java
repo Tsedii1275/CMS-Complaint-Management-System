@@ -1,15 +1,16 @@
 package com.dashenbank.cms.delegate;
 
 import com.dashenbank.cms.customer.CustomerContactPhones;
+import com.dashenbank.cms.notification.CustomerNotifications;
+import com.dashenbank.cms.notification.NotificationQueueResult;
+import com.dashenbank.cms.notification.NotificationService;
 import com.dashenbank.cms.service.AuditService;
-import com.dashenbank.cms.service.NotificationService;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.flowable.engine.delegate.JavaDelegate;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -18,7 +19,6 @@ public class GenerateTicketDelegate implements JavaDelegate {
 
     private static final ZoneId SYSTEM_ZONE = ZoneId.systemDefault();
     private static final String KEY_CASE_HISTORY = "caseHistory";
-    private static final String LANG_AMHARIC = "amharic";
 
     private final NotificationService notificationService;
     private final AuditService auditService;
@@ -79,34 +79,24 @@ public class GenerateTicketDelegate implements JavaDelegate {
     }
 
     private void sendRegistrationConfirmationIfNeeded(DelegateExecution execution, String ticket) {
-        Boolean ackSent = (Boolean) execution.getVariable("ack.sent");
-        Boolean ticketEmailSent = (Boolean) execution.getVariable("notification.ticketEmailSent");
-
         // Per requirement: Only ONE Complaint Registration Confirmation notification
         // per complaint lifecycle
-        if (Boolean.TRUE.equals(ackSent) || Boolean.TRUE.equals(ticketEmailSent)) {
+        if (Boolean.TRUE.equals(execution.getVariable("ack.sent"))) {
             return;
         }
 
         Map<String, Object> customer = castToMap(execution.getVariable("customer"));
-        String customerName = (String) customer.getOrDefault("name", "Valued Customer");
-        String email = (String) customer.get("email");
-        String phone = CustomerContactPhones.currentContact(customer);
-        String preferredLanguage = resolvePreferredLanguage(execution, customer);
+        NotificationQueueResult queued = notificationService.notifyCustomer(CustomerNotifications.registration(
+                ticket,
+                execution.getProcessInstanceId(),
+                (String) customer.getOrDefault("name", "Valued Customer"),
+                (String) customer.get("email"),
+                CustomerContactPhones.currentContact(customer),
+                resolvePreferredLanguage(execution, customer),
+                LocalDateTime.now(SYSTEM_ZONE)));
 
-        LocalDateTime now = LocalDateTime.now(SYSTEM_ZONE);
-        String subDate = now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        String subTime = now.format(DateTimeFormatter.ofPattern("HH:mm:ss"));
-        NotificationCopy copy = buildRegistrationCopy(preferredLanguage, customerName, subDate, subTime, ticket);
-
-        if (email != null && !email.isBlank()) {
-            notificationService.sendEmail(email, copy.subject, copy.emailMessage);
-            execution.setVariable("notification.ticketEmailSent", true);
-        }
-        if (phone != null && !phone.isBlank()) {
-            notificationService.sendSms(phone, copy.emailMessage);
-            execution.setVariable("notification.ticketSmsSent", true);
-        }
+        execution.setVariable("notification.ticketEmailQueued", queued.emailQueued());
+        execution.setVariable("notification.ticketSmsQueued", queued.smsQueued());
         execution.setVariable("ack.sent", true);
     }
 
@@ -118,35 +108,6 @@ public class GenerateTicketDelegate implements JavaDelegate {
         return preferredLanguage;
     }
 
-    private NotificationCopy buildRegistrationCopy(String preferredLanguage, String customerName, String subDate,
-            String subTime, String ticket) {
-        if (LANG_AMHARIC.equalsIgnoreCase(preferredLanguage)) {
-            return new NotificationCopy(
-                    "የቅሬታ ምዝገባ ማረጋገጫ",
-                    String.format(
-                            "ውድ %s፣%n%n" +
-                                    "በ %s በ %s ያቀረቡት ቅሬታ በተሳካ ሁኔታ ተመዝግቧል።%n%n" +
-                                    "የቲኬት ቁጥር: %s%n%n" +
-                                    "ቅሬታዎ በአሁኑ ጊዜ እየተገመገመ እና በሂደት ላይ ይገኛል። ከላይ ያለውን የቲኬት ቁጥር በመጠቀም ሂደቱን መከታተል ይችላሉ።%n%n" +
-                                    "ዳሽን ባንክን ስላነጋገሩ እናመሰግናለን።%n%n" +
-                                    "ዳሽን ባንክ%n" +
-                                    "የደንበኞች አገልግሎት ቡድን",
-                            customerName, subDate, subTime, ticket));
-        }
-        return new NotificationCopy(
-                "Complaint Registration Confirmation",
-                String.format(
-                        "Dear %s,%n%n" +
-                                "Your complaint submitted on %s at %s has been successfully registered.%n%n" +
-                                "Ticket ID: %s%n%n" +
-                                "Your complaint is currently under review and processing. You may track its progress using the ticket ID above.%n%n"
-                                +
-                                "Thank you for contacting Dashen Bank.%n%n" +
-                                "Dashen Bank%n" +
-                                "Customer Care Team",
-                        customerName, subDate, subTime, ticket));
-    }
-
     private void appendHistory(DelegateExecution execution, String event) {
         Object historyVar = execution.getVariable(KEY_CASE_HISTORY);
         if (historyVar == null) {
@@ -154,8 +115,5 @@ public class GenerateTicketDelegate implements JavaDelegate {
         } else {
             execution.setVariable(KEY_CASE_HISTORY, historyVar.toString() + "\n" + event);
         }
-    }
-
-    private record NotificationCopy(String subject, String emailMessage) {
     }
 }

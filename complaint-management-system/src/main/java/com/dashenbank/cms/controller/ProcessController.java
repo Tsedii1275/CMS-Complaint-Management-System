@@ -14,8 +14,12 @@ import com.dashenbank.cms.delegate.NotificationDelegate;
 import com.dashenbank.cms.service.AttachmentService;
 import com.dashenbank.cms.service.AuditService;
 import com.dashenbank.cms.service.ComplainantRelatedInformationService;
+import com.dashenbank.cms.notification.CustomerNotifications;
+import com.dashenbank.cms.notification.NotificationEventType;
+import com.dashenbank.cms.notification.NotificationQueueResult;
+import com.dashenbank.cms.notification.NotificationRequest;
+import com.dashenbank.cms.notification.NotificationService;
 import com.dashenbank.cms.service.NbeComplianceReportService;
-import com.dashenbank.cms.service.NotificationService;
 import com.dashenbank.cms.service.SlaAlertAuthorizationService;
 import com.dashenbank.cms.service.SlaAlertScope;
 import com.dashenbank.cms.service.SlaTrackingService;
@@ -87,8 +91,8 @@ public class ProcessController {
     private static final String KEY_EVIDENCE_URL = "evidenceUrl";
     private static final String KEY_EVIDENCE_NAME = "evidenceName";
     private static final String KEY_INITIATOR = "initiator";
-    private static final String KEY_NOTIFICATION_EMAIL_SENT = "notification.ticketEmailSent";
-    private static final String KEY_NOTIFICATION_SMS_SENT = "notification.ticketSmsSent";
+    private static final String KEY_NOTIFICATION_EMAIL_QUEUED = "notification.ticketEmailQueued";
+    private static final String KEY_NOTIFICATION_SMS_QUEUED = "notification.ticketSmsQueued";
     private static final String KEY_PROCESS_INSTANCE_ID = "processInstanceId";
     private static final String KEY_SYSTEM = "system";
     private static final String KEY_MESSAGE = "message";
@@ -548,49 +552,15 @@ public class ProcessController {
     private void sendRegistrationNotification(String name, String email, String phone, String ticket,
             String preferredLanguage, Map<String, Object> vars) {
         try {
-            LocalDateTime now = LocalDateTime.now(SYSTEM_ZONE);
-            String subDate = now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-            String subTime = now.format(DateTimeFormatter.ofPattern("HH:mm:ss"));
-
-            String emailMessage;
-            String subject;
-            if (LANG_AMHARIC.equalsIgnoreCase(preferredLanguage)) {
-                subject = "የቅሬታ ምዝገባ ማረጋገጫ";
-                emailMessage = String.format(
-                        "ውድ %s፣%n%n" +
-                                "በ %s በ %s ያቀረቡት ቅሬታ በተሳካ ሁኔታ ተመዝግቧል።%n%n" +
-                                "የቲኬት ቁጥር: %s%n%n" +
-                                "ቅሬታዎ በአሁኑ ጊዜ እየተገመገመ እና በሂደት ላይ ይገኛል። ከላይ ያለውን የቲኬት ቁጥር በመጠቀም ሂደቱን መከታተል ይችላሉ።%n%n" +
-                                "ዳሽን ባንክን ስላነጋገሩ እናመሰግናለን።%n%n" +
-                                "ዳሽን ባንክ%n" +
-                                "የደንበኞች አገልግሎት ቡድን",
-                        name, subDate, subTime, ticket);
-            } else {
-                subject = "Complaint Registration Confirmation";
-                emailMessage = String.format(
-                        "Dear %s,%n%n" +
-                                "Your complaint submitted on %s at %s has been successfully registered.%n%n" +
-                                "Ticket ID: %s%n%n" +
-                                "Your complaint is currently under review and processing. You may track its progress using the ticket ID above.%n%n"
-                                +
-                                "Thank you for contacting Dashen Bank.%n%n" +
-                                "Dashen Bank%n" +
-                                "Customer Care Team",
-                        name, subDate, subTime, ticket);
-            }
-            if (email != null && !email.isBlank()) {
-                notificationService.sendEmail(email, subject, emailMessage);
-            }
-            if (phone != null && !phone.isBlank()) {
-                notificationService.sendSms(phone, emailMessage);
-            }
-            vars.put(KEY_NOTIFICATION_EMAIL_SENT, true);
-            vars.put(KEY_NOTIFICATION_SMS_SENT, true);
+            NotificationQueueResult queued = notificationService.notifyCustomer(CustomerNotifications.registration(
+                    ticket, null, name, email, phone, preferredLanguage, LocalDateTime.now(SYSTEM_ZONE)));
+            vars.put(KEY_NOTIFICATION_EMAIL_QUEUED, queued.emailQueued());
+            vars.put(KEY_NOTIFICATION_SMS_QUEUED, queued.smsQueued());
             vars.put("ack.sent", true);
         } catch (Exception e) {
-            log.error("Failed to send registration notification: {}", e.getMessage());
-            vars.put(KEY_NOTIFICATION_EMAIL_SENT, false);
-            vars.put(KEY_NOTIFICATION_SMS_SENT, false);
+            log.error("Failed to queue registration notification: {}", e.getClass().getSimpleName());
+            vars.put(KEY_NOTIFICATION_EMAIL_QUEUED, false);
+            vars.put(KEY_NOTIFICATION_SMS_QUEUED, false);
         }
     }
 
@@ -664,49 +634,24 @@ public class ProcessController {
     private void sendFcrNotification(String name, String email, String ticket, String preferredLanguage,
             String resolutionNotes) {
         try {
-            String subDate = LocalDateTime.now(SYSTEM_ZONE).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-            String resDate = subDate;
+            String today = LocalDateTime.now(SYSTEM_ZONE).format(CustomerNotifications.DATE);
             String resSummary = resolutionNotes.isBlank() ? "Resolved at first contact by staff." : resolutionNotes;
-
-            String subject;
-            String emailMessage;
-            if (LANG_AMHARIC.equalsIgnoreCase(preferredLanguage)) {
-                subject = "የቅሬታ መፍትሄ መረጃ";
-                emailMessage = String.format(
-                        "ውድ %s፣%n%n" +
-                                "በ %s ያቀረቡት ቅሬታ (%s) መፍትሄ አግኝቷል።%n%n" +
-                                "የመፍትሄ ማጠቃለያ:%n%s%n%n" +
-                                "የተፈታበት ቀን:%n%s%n%n" +
-                                "የእርስዎ ተሞክሮ ለእኛ አስፈላጊ ነው።%n%n" +
-                                "እባክዎን ከታች ያለውን ሊንክ በመጠቀም በአገልግሎታችን ላይ ያለዎትን እርካታ ይመዝኑ:%n%n" +
-                                "%s%n%n" +
-                                "አገልግሎታችንን እንድናሻሽል ስለረዱን እናመሰግናለን።%n%n" +
-                                "ዳሽን ባንክ%n" +
-                                "የደንበኞች አገልግሎት ቡድን",
-                        name, subDate, ticket, resSummary, resDate,
-                        appHttpProperties.pageUrl("/customer-feedback?token=" + UUID.randomUUID()));
-            } else {
-                subject = "Complaint Resolution Update";
-                emailMessage = String.format(
-                        "Dear %s,%n%n" +
-                                "Your complaint (%s) submitted on %s has been resolved.%n%n" +
-                                "Resolution:%n%s%n%n" +
-                                "Resolution Date:%n%s%n%n" +
-                                "Your experience matters to us.%n%n" +
-                                "Please take a moment to rate your satisfaction with our service using the link below:%n%n"
-                                +
-                                "%s%n%n" +
-                                "Thank you for helping us improve our services.%n%n" +
-                                "Dashen Bank%n" +
-                                "Customer Care Team",
-                        name, ticket, subDate, resSummary, resDate,
-                        appHttpProperties.pageUrl("/customer-feedback?token=" + UUID.randomUUID()));
-            }
-            if (email != null && !email.isBlank()) {
-                notificationService.sendEmail(email, subject, emailMessage);
-            }
+            String token = notificationDelegate.issueFeedbackToken(ticket, null, preferredLanguage);
+            notificationService.notifyCustomer(NotificationRequest.builder()
+                    .eventType(NotificationEventType.FCR_RESOLVED)
+                    .complaintRef(ticket)
+                    .preferredLanguage(preferredLanguage)
+                    .email(email)
+                    .occurrenceKey(token)
+                    .variable(CustomerNotifications.CUSTOMER_NAME, name)
+                    .variable(CustomerNotifications.TICKET_ID, ticket)
+                    .variable(CustomerNotifications.SUBMISSION_DATE, today)
+                    .variable(CustomerNotifications.RESOLUTION_DATE, today)
+                    .variable(CustomerNotifications.RESOLUTION_SUMMARY, resSummary)
+                    .variable(CustomerNotifications.FEEDBACK_LINK, notificationDelegate.feedbackLink(token))
+                    .build());
         } catch (Exception e) {
-            log.error("FCR notification failed: {}", e.getMessage());
+            log.error("FCR notification could not be queued: {}", e.getClass().getSimpleName());
         }
     }
 
@@ -915,10 +860,10 @@ public class ProcessController {
 
     private Map<String, Object> buildNotificationStatusMap(Map<String, Object> vars) {
         Map<String, Object> notification = new HashMap<>();
-        notification.put("ticketEmailSent", vars.getOrDefault(KEY_NOTIFICATION_EMAIL_SENT, false));
-        notification.put("ticketSmsSent", vars.getOrDefault(KEY_NOTIFICATION_SMS_SENT, false));
-        notification.put("resolutionEmailSent", vars.getOrDefault("notification.resolutionEmailSent", false));
-        notification.put("resolutionSmsSent", vars.getOrDefault("notification.resolutionSmsSent", false));
+        notification.put("ticketEmailQueued", vars.getOrDefault(KEY_NOTIFICATION_EMAIL_QUEUED, false));
+        notification.put("ticketSmsQueued", vars.getOrDefault(KEY_NOTIFICATION_SMS_QUEUED, false));
+        notification.put("resolutionEmailQueued", vars.getOrDefault("notification.resolutionEmailQueued", false));
+        notification.put("resolutionSmsQueued", vars.getOrDefault("notification.resolutionSmsQueued", false));
         return notification;
     }
 
