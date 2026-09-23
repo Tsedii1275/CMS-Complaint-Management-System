@@ -27,6 +27,19 @@ public class GlobalExceptionHandler {
     private static final String KEY_TIMESTAMP = "timestamp";
     private static final ZoneId SYSTEM_ZONE = ZoneId.systemDefault();
 
+    @ExceptionHandler(CbsException.class)
+    public ResponseEntity<Map<String, Object>> handleCbsException(CbsException ex, HttpServletRequest request) {
+        log.warn("CBS lookup [{} {}]: {} {}", request.getMethod(), request.getRequestURI(), ex.getCode(),
+                ex.getMessage());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put(KEY_SUCCESS, false);
+        body.put("code", ex.getCode());
+        body.put(KEY_MESSAGE, ex.getMessage());
+        body.put("error", ex.getMessage());
+        body.put(KEY_TIMESTAMP, currentTimestamp());
+        return new ResponseEntity<>(body, ex.getStatus());
+    }
+
     @ExceptionHandler(FeedbackTokenException.class)
     public ResponseEntity<Map<String, Object>> handleFeedbackTokenException(FeedbackTokenException ex,
             HttpServletRequest request) {

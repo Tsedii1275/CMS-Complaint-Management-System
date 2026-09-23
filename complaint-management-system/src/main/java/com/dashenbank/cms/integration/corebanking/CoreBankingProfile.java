@@ -1,17 +1,13 @@
 package com.dashenbank.cms.integration.corebanking;
 
 /**
- * Official customer profile retrieved from Core Banking (or the local mock).
- * {@code registeredPhone} is the CBS number and is never an SMS destination.
+ * Official customer profile retrieved in real time from Core Banking.
+ * {@code phoneNumber} is the CBS account-opening number and is never an SMS destination.
  */
 public record CoreBankingProfile(
-        String cifNumber,
-        String accountNumber,
-        String name,
-        String email,
-        String registeredPhone,
+        String customerName,
+        String phoneNumber,
         String homeBranch,
-        String district,
-        String customerSegment,
-        String customerSubSegment) {
+        String homeDistrict,
+        String customerSegment) {
 }

@@ -138,8 +138,7 @@ function parseStoredUser() {
   }
   try {
     return JSON.parse(userStr);
-  } catch (error) {
-    void error;
+  } catch {
     return null;
   }
 }
@@ -205,7 +204,7 @@ function SlaTimelineComponent({ complaintId }) {
   const formatDuration = (mins) => {
     if (mins === null || mins === undefined) return '—';
     const num = Number(mins);
-    if (num !== num) return '—';
+    if (Number.isNaN(num)) return '—';
     if (num <= 0) return '0 sec';
     if (num < 1) {
       const secs = Math.round(num * 60);

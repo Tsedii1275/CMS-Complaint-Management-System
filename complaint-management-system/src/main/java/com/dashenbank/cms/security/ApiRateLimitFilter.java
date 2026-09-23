@@ -61,7 +61,8 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
         if (path.startsWith("/api/complaints/status")) {
             return 30;
         }
-        if ("GET".equalsIgnoreCase(method) && path.startsWith("/api/customers/by-account/")) {
+        if ("GET".equalsIgnoreCase(method) && (path.startsWith("/api/customer-profile/")
+                || path.startsWith("/api/customers/by-account/"))) {
             return 30;
         }
         if ("POST".equalsIgnoreCase(method) && (path.equals("/api/complaints/upload-evidence")

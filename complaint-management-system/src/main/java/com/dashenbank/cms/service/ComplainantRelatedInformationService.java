@@ -5,12 +5,10 @@ import com.dashenbank.cms.customer.LocationKeys;
 import com.dashenbank.cms.model.AuditLog;
 import com.dashenbank.cms.model.ComplainantRelatedInformation;
 import com.dashenbank.cms.model.ComplaintSlaMetrics;
-import com.dashenbank.cms.model.Customer;
 import com.dashenbank.cms.model.OverallComplaintStatus;
 import com.dashenbank.cms.repository.AuditLogRepository;
 import com.dashenbank.cms.repository.ComplainantRelatedInformationRepository;
 import com.dashenbank.cms.repository.ComplaintSlaMetricsRepository;
-import com.dashenbank.cms.repository.CustomerRepository;
 import com.dashenbank.cms.util.TicketNumberSort;
 import org.flowable.engine.HistoryService;
 import org.flowable.engine.RuntimeService;
@@ -67,7 +65,6 @@ public class ComplainantRelatedInformationService {
     private final ComplaintSlaMetricsRepository slaMetricsRepository;
     private final AuditLogRepository auditLogRepository;
     private final BusinessHoursService businessHoursService;
-    private final CustomerRepository customerRepository;
     private final RuntimeService runtimeService;
     private final HistoryService historyService;
 
@@ -80,14 +77,12 @@ public class ComplainantRelatedInformationService {
             ComplaintSlaMetricsRepository slaMetricsRepository,
             AuditLogRepository auditLogRepository,
             BusinessHoursService businessHoursService,
-            CustomerRepository customerRepository,
             ObjectProvider<RuntimeService> runtimeServiceProvider,
             ObjectProvider<HistoryService> historyServiceProvider) {
         this.repository = repository;
         this.slaMetricsRepository = slaMetricsRepository;
         this.auditLogRepository = auditLogRepository;
         this.businessHoursService = businessHoursService;
-        this.customerRepository = customerRepository;
         this.runtimeService = runtimeServiceProvider.getIfAvailable();
         this.historyService = historyServiceProvider.getIfAvailable();
     }
@@ -409,17 +404,6 @@ public class ComplainantRelatedInformationService {
         serviceType = firstNonBlank(serviceType, fromComplaints.get(KEY_SERVICE_TYPE));
         details = firstNonBlank(details, fromComplaints.get("details"));
         classification = firstNonBlank(classification, fromComplaints.get(KEY_CLASSIFICATION));
-
-        if (account != null && customerRepository != null) {
-            try {
-                Optional<Customer> cust = customerRepository.findByAccountNumber(account);
-                if (cust.isPresent()) {
-                    email = firstNonBlank(email, cust.get().getEmail());
-                }
-            } catch (Exception e) {
-                log.debug("Customer lookup skipped for account {}: {}", account, e.getMessage());
-            }
-        }
 
         fillMissing(info::setAccountNo, info.getAccountNo(), account);
         String contact = formatContactAddress(phone, email);

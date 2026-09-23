@@ -69,23 +69,11 @@ CREATE TABLE IF NOT EXISTS `users` (
 -- 2. CUSTOMER & ACCOUNT COMPLIANCE TABLES
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS `customers` (
-    `customer_id` bigint NOT NULL AUTO_INCREMENT,
-    `cif_number` varchar(20) NOT NULL,
-    `account_number` varchar(30) NOT NULL,
-    `name` varchar(255) NOT NULL,
-    `email` varchar(255) DEFAULT NULL,
-    `phone_number` varchar(20) DEFAULT NULL,
-    `customer_type` varchar(50) NOT NULL DEFAULT 'RETAIL',
-    `customer_segment` varchar(50) DEFAULT NULL,
-    `is_vip` bit(1) NOT NULL DEFAULT b'0',
-    `risk_rating` varchar(20) DEFAULT 'LOW',
-    `customer_since` date DEFAULT NULL,
-    `relationship_manager` varchar(255) DEFAULT NULL,
-    PRIMARY KEY (`customer_id`),
-    UNIQUE KEY `UK_cif_number` (`cif_number`),
-    UNIQUE KEY `UK_account_number` (`account_number`)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+-- ============================================================================
+-- 2. CUSTOMER PROFILE
+-- Customer master is not stored in CMS. Live lookup is Oracle CBS
+-- RTVSCBS_CUST_PROFILE by ACCOUNT_NO. Complaint rows keep snapshot fields only.
+-- ============================================================================
 
 -- ============================================================================
 -- 3. COMPLAINT & WORKFLOW PATHWAY TABLES
@@ -98,7 +86,6 @@ DROP TABLE IF EXISTS `complaint_priorities`;
 CREATE TABLE IF NOT EXISTS `complaints` (
     `complaint_id` bigint NOT NULL AUTO_INCREMENT,
     `ticket_number` varchar(50) NOT NULL,
-    `customer_id` bigint NOT NULL,
     `account_number` varchar(30) DEFAULT NULL,
     `account_status` varchar(20) DEFAULT NULL,
     `home_branch` varchar(100) DEFAULT NULL,
@@ -111,9 +98,7 @@ CREATE TABLE IF NOT EXISTS `complaints` (
     `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `resolved_at` timestamp NULL DEFAULT NULL,
     PRIMARY KEY (`complaint_id`),
-    UNIQUE KEY `UK_ticket_number` (`ticket_number`),
-    KEY `FK_complaints_customer` (`customer_id`),
-    CONSTRAINT `FK_complaints_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`customer_id`) ON DELETE CASCADE
+    UNIQUE KEY `UK_ticket_number` (`ticket_number`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
 -- ============================================================================

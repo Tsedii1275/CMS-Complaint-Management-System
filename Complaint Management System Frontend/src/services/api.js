@@ -8,6 +8,8 @@ const HTTP_ERROR_MESSAGES = {
   403: 'Access denied.',
   404: 'The requested resource or link was not found.',
   409: 'This request has already been submitted or completed.',
+  503: 'Core Banking is currently unavailable. Please try again later.',
+  504: 'Core Banking lookup timed out. Please try again later.',
 };
 
 function parseJsonOrNull(bodyText) {
@@ -222,7 +224,7 @@ class ApiService {
   }
 
   async getCustomerByAccount(accountNumber) {
-    return this.get(`/api/customers/by-account/${encodeURIComponent(accountNumber)}`);
+    return this.get(`/api/customer-profile/${encodeURIComponent(accountNumber)}`);
   }
 
   // Staff resolves complaint at First Contact Resolution (no workflow started)
@@ -415,7 +417,7 @@ class ApiService {
   }
 
   // Upload audio file/blob
-  async uploadAudio(file, fileName = 'recording.wav', complaintId) {
+  async uploadAudio(file, complaintId, fileName = 'recording.wav') {
     const formData = new FormData();
     formData.append('file', file, fileName);
     if (complaintId) {

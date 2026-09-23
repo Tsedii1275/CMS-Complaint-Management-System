@@ -300,9 +300,8 @@ function BranchStaffDashboard() {
       setCbsProfile(profile);
       const currentPhone = form.getFieldValue('phone');
       form.setFieldsValue({
-        customerName: profile.name || form.getFieldValue('customerName'),
-        email: form.getFieldValue('email') || profile.email,
-        phone: currentPhone || profile.registeredPhone
+        customerName: profile.customerName || form.getFieldValue('customerName'),
+        phone: currentPhone || profile.phoneNumber
       });
       antMessage.success('Customer profile loaded from Core Banking');
     } catch (error) {
@@ -327,7 +326,11 @@ function BranchStaffDashboard() {
           phone: phone,
           currentContactPhone: phone,
           accountNumber: values.accountNumber,
-          preferredContactMethod: values.preferredContactMethod || 'Email'
+          preferredContactMethod: values.preferredContactMethod || 'Email',
+          customerHomeBranch: cbsProfile?.homeBranch || '',
+          customerHomeDistrict: cbsProfile?.homeDistrict || '',
+          customerSegment: cbsProfile?.customerSegment || '',
+          coreBankingPhone: cbsProfile?.phoneNumber || ''
         },
         complaint: {
           channel: values.channel || 'branch',
@@ -701,19 +704,11 @@ function BranchStaffDashboard() {
               <div style={customerProfileBoxStyle}>
                 <Text style={customerProfileHeadingStyle}>Customer Profile</Text>
                 <Row gutter={[16, 12]}>
-                  <Col xs={24} md={8}><Text type="secondary">Customer Name</Text><div><Text strong>{cbsProfile.name || 'N/A'}</Text></div></Col>
+                  <Col xs={24} md={8}><Text type="secondary">Customer Name</Text><div><Text strong>{cbsProfile.customerName || 'N/A'}</Text></div></Col>
+                  <Col xs={24} md={8}><Text type="secondary">Phone Number</Text><div><Text strong>{cbsProfile.phoneNumber || 'N/A'}</Text></div></Col>
+                  <Col xs={24} md={8}><Text type="secondary">Home Branch</Text><div><Text strong>{cbsProfile.homeBranch || 'N/A'}</Text></div></Col>
+                  <Col xs={24} md={8}><Text type="secondary">Home District</Text><div><Text strong>{cbsProfile.homeDistrict || 'N/A'}</Text></div></Col>
                   <Col xs={24} md={8}><Text type="secondary">Customer Segment</Text><div><Text strong>{cbsProfile.customerSegment || 'N/A'}</Text></div></Col>
-                  <Col xs={24} md={8}><Text type="secondary">Customer Home Branch</Text><div><Text strong>{cbsProfile.customerHomeBranch || cbsProfile.homeBranch || 'N/A'}</Text></div></Col>
-                  <Col xs={24} md={8}><Text type="secondary">Customer Home District</Text><div><Text strong>{cbsProfile.customerHomeDistrict || cbsProfile.district || 'N/A'}</Text></div></Col>
-                  <Col xs={24} md={8}><Text type="secondary">Registered Phone</Text><div><Text strong>{cbsProfile.registeredPhone || cbsProfile.coreBankingPhone || 'N/A'}</Text></div></Col>
-                  <Col xs={24} md={8}>
-                    <Text type="secondary">Current Contact Phone</Text>
-                    <div>
-                      <Text strong>
-                        {form.getFieldValue('phone') || cbsProfile.registeredPhone || 'Enter above'}
-                      </Text>
-                    </div>
-                  </Col>
                 </Row>
               </div>
             )}

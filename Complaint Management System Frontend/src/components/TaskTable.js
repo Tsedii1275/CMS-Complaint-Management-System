@@ -66,7 +66,7 @@ export const compareTicketNumbersAsc = (left, right) => {
     if (!raw || raw === '-' || raw === '—') {
       return { prefixRank: 99, year: Number.MAX_SAFE_INTEGER, sequence: Number.MAX_SAFE_INTEGER, raw };
     }
-    const match = raw.match(/^(DBC|FCR|CM)-(\d+)(?:\/(\d{4})-(\d{2}))?$/i);
+    const match = /^(DBC|FCR|CM)-(\d+)(?:\/(\d{4})-(\d{2}))?$/i.exec(raw);
     if (!match) {
       return { prefixRank: 50, year: Number.MAX_SAFE_INTEGER, sequence: Number.MAX_SAFE_INTEGER, raw };
     }

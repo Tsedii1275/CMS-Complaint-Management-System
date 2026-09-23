@@ -19,7 +19,7 @@ class NbeReportStatusTest {
 
     @BeforeEach
     void setUp() {
-        processController = new ProcessController(null, null, null, null, null, null, null, null, null, null, null);
+        processController = new ProcessController(null, null, null, null, null, null, null, null, null, null);
         mockProcessInstance = Mockito.mock(HistoricProcessInstance.class);
     }
 

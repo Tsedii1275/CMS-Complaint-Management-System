@@ -49,3 +49,7 @@ yarn-error.log*
 *.jks
 *.keystore
 
+# CBS Oracle credentials — never commit
+.env.*.local
+.env.local
+

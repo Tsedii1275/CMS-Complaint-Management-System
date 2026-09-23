@@ -7,10 +7,8 @@ import com.dashenbank.cms.integration.corebanking.CoreBankingProfile;
 import com.dashenbank.cms.model.AuditLog;
 import com.dashenbank.cms.model.ComplaintSlaMetrics;
 import com.dashenbank.cms.model.OverallComplaintStatus;
-import com.dashenbank.cms.model.Customer;
 import com.dashenbank.cms.model.User;
 import com.dashenbank.cms.repository.ComplaintSlaMetricsRepository;
-import com.dashenbank.cms.repository.CustomerRepository;
 import com.dashenbank.cms.repository.UserRepository;
 import com.dashenbank.cms.delegate.NotificationDelegate;
 import com.dashenbank.cms.service.AttachmentService;
@@ -177,7 +175,6 @@ public class ProcessController {
     private final NotificationService notificationService;
     private final AuditService auditService;
     private final SlaTrackingService slaTrackingService;
-    private final CustomerRepository customerRepository;
     private final UserRepository userRepository;
     private final JdbcTemplate jdbcTemplate;
     private final ComplaintSlaMetricsRepository slaMetricsRepository;
@@ -204,7 +201,6 @@ public class ProcessController {
             NotificationService notificationService,
             AuditService auditService,
             SlaTrackingService slaTrackingService,
-            CustomerRepository customerRepository,
             UserRepository userRepository,
             JdbcTemplate jdbcTemplate,
             ComplaintSlaMetricsRepository slaMetricsRepository,
@@ -215,7 +211,6 @@ public class ProcessController {
         this.notificationService = notificationService;
         this.auditService = auditService;
         this.slaTrackingService = slaTrackingService;
-        this.customerRepository = customerRepository;
         this.userRepository = userRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.slaMetricsRepository = slaMetricsRepository;
@@ -473,15 +468,10 @@ public class ProcessController {
                 return;
             }
             CoreBankingProfile profile = found.get();
-            putIfHasText(customerVars, KEY_CIF_NUMBER, profile.cifNumber());
-            putIfHasText(customerVars, KEY_NAME, profile.name());
-            if (!hasText(customerVars.get(KEY_EMAIL))) {
-                putIfHasText(customerVars, KEY_EMAIL, profile.email());
-            }
-            putIfHasText(customerVars, KEY_CORE_BANKING_PHONE, profile.registeredPhone());
-            LocationKeys.applyCustomerHome(customerVars, profile.homeBranch(), profile.district());
+            putIfHasText(customerVars, KEY_NAME, profile.customerName());
+            putIfHasText(customerVars, KEY_CORE_BANKING_PHONE, profile.phoneNumber());
+            LocationKeys.applyCustomerHome(customerVars, profile.homeBranch(), profile.homeDistrict());
             putIfHasText(customerVars, "customerSegment", profile.customerSegment());
-            putIfHasText(customerVars, "customerSubSegment", profile.customerSubSegment());
             customerVars.put(KEY_PROFILE_SOURCE, VAL_CORE_BANKING);
             customerVars.put(KEY_CBS_LOOKUP_STATUS, "FOUND");
         } catch (Exception e) {
@@ -2813,15 +2803,16 @@ public class ProcessController {
                 return;
             }
 
-            // Fill missing name from CBS cache only. Never copy CBS phone onto current contact.
-            if (accountNumber != null && !accountNumber.isBlank()) {
+            // Fill missing name from live CBS only. Never copy CBS phone onto current contact.
+            if (accountNumber != null && !accountNumber.isBlank() && customerName == null
+                    && coreBankingClient != null) {
                 try {
-                    Optional<Customer> custOpt = customerRepository.findByAccountNumber(accountNumber.trim());
-                    if (custOpt.isPresent() && customerName == null) {
-                        customerName = custOpt.get().getName();
+                    Optional<CoreBankingProfile> profile = coreBankingClient.findByAccountNumber(accountNumber.trim());
+                    if (profile.isPresent()) {
+                        customerName = profile.get().customerName();
                     }
                 } catch (Exception e) {
-                    log.warn("Customer lookup info for account {}: {}", accountNumber, e.getMessage());
+                    log.warn("CBS customer lookup for account {}: {}", accountNumber, e.getMessage());
                 }
             }
 

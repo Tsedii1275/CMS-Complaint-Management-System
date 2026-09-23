@@ -110,7 +110,6 @@ function CustomerExperienceDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [rawFeedbackList, setRawFeedbackList] = useState([]);
-  const [, setInvestigationTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState(null);
   const [cxRemarks, setCxRemarks] = useState('');
   const [cxFileList, setCxFileList] = useState([]);
@@ -129,31 +128,9 @@ function CustomerExperienceDashboard() {
       setLoading(true);
       setError('');
 
-      const [listData, enrichedTasks] = await Promise.all([
-        ApiService.getCustomerFeedbackList().catch(() => []),
-        ApiService.getEnrichedTasks().catch(() => [])
-      ]);
+      const listData = await ApiService.getCustomerFeedbackList().catch(() => []);
 
       setRawFeedbackList(listData || []);
-
-      // Filter tasks requiring Chief Experience review before escalation to Chief Operation Audit
-      const cxTasks = (enrichedTasks || []).filter(task => {
-        if (task.definitionKey === 'FormTask_43') return false;
-        const currentStage = task.variables?.currentStage || task.variables?.stage;
-        if (['CHIEF_OPERATION_AUDIT', 'AUDIT_INVESTIGATION', 'COMMITTEE_REVIEW', 'COMPLETED', 'RESOLVED', 'CLOSED'].includes(currentStage)) {
-          return false;
-        }
-        const isInvestigationRequired = task.variables?.requiresInvestigation === true;
-        return (
-          isInvestigationRequired && (
-            currentStage === 'CHIEF_EXPERIENCE_REVIEW' ||
-            currentStage === 'CHIEF_EXPERIENCE' ||
-            task.definitionKey === 'FormTask_CEX' ||
-            !currentStage
-          )
-        );
-      });
-      setInvestigationTasks(cxTasks);
     } catch (err) {
       setError(err.message || 'Failed to load customer experience metrics.');
       console.error('Error loading CX dashboard data:', err);

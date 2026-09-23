@@ -14,6 +14,7 @@ class ApiRateLimitFilterTest {
         assertEquals(30, ApiRateLimitFilter.limitFor("/api/complaints/status", "GET"));
         assertEquals(30, ApiRateLimitFilter.limitFor("/api/complaints/status/CM-1", "GET"));
         assertEquals(30, ApiRateLimitFilter.limitFor("/api/customers/by-account/5555666677778", "GET"));
+        assertEquals(30, ApiRateLimitFilter.limitFor("/api/customer-profile/5555666677778", "GET"));
         assertEquals(10, ApiRateLimitFilter.limitFor("/api/complaints/upload-evidence", "POST"));
         assertEquals(10, ApiRateLimitFilter.limitFor("/api/complaints/upload-audio", "POST"));
         assertEquals(10, ApiRateLimitFilter.limitFor("/api/attachments/upload", "POST"));
