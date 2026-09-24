@@ -26,7 +26,8 @@ public class PasswordChangeService {
         CURRENT_INCORRECT,
         CONFIRM_MISMATCH,
         INVALID_NEW,
-        HISTORY_REUSE
+        HISTORY_REUSE,
+        DIRECTORY_MANAGED
     }
 
     private static final Logger log = LoggerFactory.getLogger(PasswordChangeService.class);
@@ -68,6 +69,9 @@ public class PasswordChangeService {
     private Result changePasswordForUser(User user, PasswordChangeRequest request, SecurityAuditEvent event) {
         if (user == null) {
             return Result.UNAUTHENTICATED;
+        }
+        if (user.getAuthSource() == com.dashenbank.cms.model.AuthSource.AD) {
+            return Result.DIRECTORY_MANAGED;
         }
 
         String currentPassword = request == null ? null : request.getCurrentPassword();

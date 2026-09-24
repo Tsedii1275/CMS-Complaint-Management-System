@@ -122,6 +122,7 @@ public class UserController {
                 .password(passwordEncoder.encode(password))
                 .fullName(fullName != null ? fullName.trim() : username)
                 .role(role)
+                .authSource(com.dashenbank.cms.model.AuthSource.LOCAL)
                 .district(district)
                 .branch(branch)
                 .department(department)
@@ -198,6 +199,11 @@ public class UserController {
         String newPassword = payload.getNewPassword();
 
         User user = userOpt.get();
+        if (user.getAuthSource() == com.dashenbank.cms.model.AuthSource.AD) {
+            return ResponseEntity.badRequest().body(Map.of(KEY_ERROR,
+                    "This account uses Active Directory. Reset the password in AD."));
+        }
+
         PasswordPolicyService.Validation validation = passwordPolicyService.validateNewPassword(user, newPassword);
         if (validation == PasswordPolicyService.Validation.INVALID_POLICY) {
             return ResponseEntity.badRequest()

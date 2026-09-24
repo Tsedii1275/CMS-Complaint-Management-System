@@ -66,6 +66,7 @@ public class DataSeeder implements CommandLineRunner {
                 .email("admin@dashenbank.com")
                 .password(passwordEncoder.encode(initialPassword))
                 .role(Role.ROLE_ADMIN)
+                .authSource(com.dashenbank.cms.model.AuthSource.LOCAL)
                 .fullName("System Administrator")
                 .department("System Administration")
                 .enabled(true)

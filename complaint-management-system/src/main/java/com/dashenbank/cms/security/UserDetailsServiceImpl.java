@@ -39,13 +39,14 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
         accountLockoutService.unlockIfElapsed(user, currentIp());
 
+        boolean directoryUser = user.getAuthSource() == com.dashenbank.cms.model.AuthSource.AD;
         return new org.springframework.security.core.userdetails.User(
                 user.getUsername(),
                 user.getPassword(),
                 user.isEnabled(),
                 true,
-                !passwordPolicyService.isExpired(user),
-                !accountLockoutService.isLocked(user),
+                directoryUser || !passwordPolicyService.isExpired(user),
+                directoryUser || !accountLockoutService.isLocked(user),
                 Collections.singletonList(new SimpleGrantedAuthority(user.getRole().name())));
     }
 

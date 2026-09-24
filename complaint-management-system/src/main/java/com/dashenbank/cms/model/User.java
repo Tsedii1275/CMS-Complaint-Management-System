@@ -35,6 +35,20 @@ public class User {
     private Role role;
 
     @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auth_source", nullable = false, length = 20)
+    private AuthSource authSource = AuthSource.LOCAL;
+
+    @Column(name = "object_guid", length = 64, unique = true)
+    private String objectGuid;
+
+    @Column(name = "ad_job_title")
+    private String adJobTitle;
+
+    @Column(name = "last_ldap_sync_at")
+    private LocalDateTime lastLdapSyncAt;
+
+    @Builder.Default
     private boolean enabled = true;
 
     @Builder.Default

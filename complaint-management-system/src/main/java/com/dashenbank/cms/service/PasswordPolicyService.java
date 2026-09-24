@@ -46,7 +46,8 @@ public class PasswordPolicyService {
     }
 
     public boolean isExpired(User user) {
-        if (user == null || user.getPasswordExpiryDate() == null) {
+        if (user == null || user.getAuthSource() == com.dashenbank.cms.model.AuthSource.AD
+                || user.getPasswordExpiryDate() == null) {
             return false;
         }
         return !user.getPasswordExpiryDate().isAfter(LocalDateTime.now(SYSTEM_ZONE));

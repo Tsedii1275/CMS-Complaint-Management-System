@@ -239,6 +239,12 @@ function UserManagementPage() {
       )
     },
     {
+      title: 'Source',
+      dataIndex: 'authSource',
+      key: 'authSource',
+      render: source => <Tag>{source === 'AD' ? 'Active Directory' : 'Local'}</Tag>
+    },
+    {
       title: 'District / Branch / Department',
       key: 'location',
       render: (_, record) => (

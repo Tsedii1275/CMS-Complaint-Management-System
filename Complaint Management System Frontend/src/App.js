@@ -17,6 +17,7 @@ import SlaConfigPage from './pages/SlaConfigPage';
 import SlaMonitoringPage from './pages/SlaMonitoringPage';
 import ExecutiveDashboard from './pages/ExecutiveDashboard';
 import UserManagementPage from './pages/UserManagementPage';
+import LdapMaintenancePage from './pages/LdapMaintenancePage';
 import Unauthorized from './pages/Unauthorized';
 import { RequireAuth, RequireRole } from './components/RoleGuard';
 import { AuthProvider } from './contexts/AuthContext';
@@ -42,6 +43,7 @@ function AppRoutes() {
       <Route path="/chief-committee" element={guarded(<ChiefCommitteeDashboard />)} />
       <Route path="/admin" element={guarded(<AdminDashboard />)} />
       <Route path="/admin/users" element={guarded(<UserManagementPage />)} />
+      <Route path="/admin/ldap" element={guarded(<LdapMaintenancePage />)} />
       <Route path="/admin/sla-monitoring" element={guarded(<SlaMonitoringPage />)} />
       <Route path="/admin/sla-config" element={guarded(<SlaConfigPage />)} />
       <Route path="/admin/nbe-reports" element={guarded(<NBEReports />)} />

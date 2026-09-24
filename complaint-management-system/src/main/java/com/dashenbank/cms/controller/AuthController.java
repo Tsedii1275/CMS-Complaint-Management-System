@@ -3,12 +3,19 @@ package com.dashenbank.cms.controller;
 import com.dashenbank.cms.dto.ExpiredPasswordChangeRequest;
 import com.dashenbank.cms.dto.LoginRequest;
 import com.dashenbank.cms.dto.PasswordChangeRequest;
+import com.dashenbank.cms.model.AuthSource;
 import com.dashenbank.cms.model.SecurityAuditEvent;
 import com.dashenbank.cms.model.User;
 import com.dashenbank.cms.repository.UserRepository;
 import com.dashenbank.cms.security.ClientIp;
 import com.dashenbank.cms.security.JwtUtils;
 import com.dashenbank.cms.security.SecurityPolicy;
+import com.dashenbank.cms.security.ldap.ActiveDirectoryAuthService;
+import com.dashenbank.cms.security.ldap.DirectoryAccountDisabledException;
+import com.dashenbank.cms.security.ldap.DirectoryAuthenticationException;
+import com.dashenbank.cms.security.ldap.DirectoryUnavailableException;
+import com.dashenbank.cms.security.ldap.LdapProperties;
+import com.dashenbank.cms.security.ldap.RoleNotMappedException;
 import com.dashenbank.cms.service.AccountLockoutService;
 import com.dashenbank.cms.service.PasswordChangeService;
 import com.dashenbank.cms.service.SecurityAuditService;
@@ -41,6 +48,12 @@ public class AuthController {
     private static final String KEY_ERROR = "error";
     private static final String KEY_CODE = "code";
     private static final String CODE_ACCOUNT_LOCKED = "ACCOUNT_LOCKED";
+    private static final String CODE_INVALID_CREDENTIALS = "INVALID_CREDENTIALS";
+    private static final String MSG_INVALID_CREDENTIALS = "Invalid username or password";
+    private static final String LOG_AUTH_FAILED = "Authentication failed for user: {}";
+    private static final String CODE_ROLE_NOT_MAPPED = "ROLE_NOT_MAPPED";
+    private static final String CODE_LDAP_UNAVAILABLE = "LDAP_UNAVAILABLE";
+    private static final String CODE_ACCOUNT_DISABLED = "ACCOUNT_DISABLED";
 
     private final AuthenticationManager authenticationManager;
     private final JwtUtils jwtUtils;
@@ -48,19 +61,25 @@ public class AuthController {
     private final PasswordChangeService passwordChangeService;
     private final AccountLockoutService accountLockoutService;
     private final SecurityAuditService securityAuditService;
+    private final LdapProperties ldapProperties;
+    private final ActiveDirectoryAuthService activeDirectoryAuthService;
 
     public AuthController(AuthenticationManager authenticationManager,
             JwtUtils jwtUtils,
             UserRepository userRepository,
             PasswordChangeService passwordChangeService,
             AccountLockoutService accountLockoutService,
-            SecurityAuditService securityAuditService) {
+            SecurityAuditService securityAuditService,
+            LdapProperties ldapProperties,
+            ActiveDirectoryAuthService activeDirectoryAuthService) {
         this.authenticationManager = authenticationManager;
         this.jwtUtils = jwtUtils;
         this.userRepository = userRepository;
         this.passwordChangeService = passwordChangeService;
         this.accountLockoutService = accountLockoutService;
         this.securityAuditService = securityAuditService;
+        this.ldapProperties = ldapProperties;
+        this.activeDirectoryAuthService = activeDirectoryAuthService;
     }
 
     @PostMapping("/login")
@@ -73,11 +92,15 @@ public class AuthController {
         String ip = ClientIp.from(httpRequest);
 
         var userOpt = userRepository.findByUsernameIgnoreCase(username);
-        if (userOpt.isPresent()) {
+        if (userOpt.isPresent() && userOpt.get().getAuthSource() != AuthSource.AD) {
             accountLockoutService.unlockIfElapsed(userOpt.get(), ip);
             if (accountLockoutService.isLocked(userOpt.get())) {
                 return lockedResponse();
             }
+        }
+
+        if (useDirectory(userOpt.orElse(null))) {
+            return authenticateWithDirectory(username, password);
         }
 
         String targetUsername = userOpt.map(User::getUsername).orElse(username);
@@ -121,14 +144,84 @@ public class AuthController {
             if (userOpt.isPresent() && accountLockoutService.isLocked(userOpt.get())) {
                 return lockedResponse();
             }
-            log.warn("Authentication failed for user: {}", username);
+            log.warn(LOG_AUTH_FAILED, username);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of(KEY_ERROR, "Invalid username or password", KEY_CODE, "INVALID_CREDENTIALS"));
+                    .body(Map.of(KEY_ERROR, MSG_INVALID_CREDENTIALS, KEY_CODE, CODE_INVALID_CREDENTIALS));
         } catch (Exception e) {
-            log.warn("Authentication failed for user: {}", username, e);
+            log.warn(LOG_AUTH_FAILED, username, e);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of(KEY_ERROR, "Invalid username or password", KEY_CODE, "INVALID_CREDENTIALS"));
+                    .body(Map.of(KEY_ERROR, MSG_INVALID_CREDENTIALS, KEY_CODE, CODE_INVALID_CREDENTIALS));
         }
+    }
+
+    private ResponseEntity<?> authenticateWithDirectory(String username, String password) {
+        try {
+            User user = activeDirectoryAuthService.login(username, password);
+            if (!user.isEnabled()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                        KEY_ERROR, "This account is disabled.",
+                        KEY_MESSAGE, "This account is disabled.",
+                        KEY_CODE, CODE_ACCOUNT_DISABLED));
+            }
+            accountLockoutService.recordSuccessfulLogin(user);
+            Authentication authentication = new UsernamePasswordAuthenticationToken(
+                    org.springframework.security.core.userdetails.User.builder()
+                            .username(user.getUsername())
+                            .password(user.getPassword())
+                            .disabled(!user.isEnabled())
+                            .accountExpired(false)
+                            .credentialsExpired(false)
+                            .accountLocked(false)
+                            .authorities(user.getRole().name())
+                            .build(),
+                    null,
+                    java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority(
+                            user.getRole().name())));
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            String jwt = jwtUtils.generateJwtToken(authentication);
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", jwt);
+            response.put(KEY_USERNAME, userDetails.getUsername());
+            response.put("role", userDetails.getAuthorities().iterator().next().getAuthority());
+            response.put("district", user.getDistrict());
+            response.put("branch", user.getBranch());
+            response.put("department", user.getDepartment());
+            response.put("fullName", user.getFullName());
+            response.put("mustChangePassword", false);
+            return ResponseEntity.ok(response);
+        } catch (RoleNotMappedException e) {
+            log.warn("AD login rejected: no CMS role mapping for user {}", username);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    KEY_ERROR, e.getMessage(),
+                    KEY_MESSAGE, e.getMessage(),
+                    KEY_CODE, CODE_ROLE_NOT_MAPPED));
+        } catch (DirectoryAccountDisabledException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    KEY_ERROR, e.getMessage(),
+                    KEY_MESSAGE, e.getMessage(),
+                    KEY_CODE, CODE_ACCOUNT_DISABLED));
+        } catch (DirectoryUnavailableException e) {
+            log.warn("LDAP unavailable during login");
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
+                    KEY_ERROR, "Active Directory is unavailable. Local accounts can still sign in.",
+                    KEY_MESSAGE, "Active Directory is unavailable. Local accounts can still sign in.",
+                    KEY_CODE, CODE_LDAP_UNAVAILABLE));
+        } catch (DirectoryAuthenticationException e) {
+            log.warn(LOG_AUTH_FAILED, username);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of(KEY_ERROR, MSG_INVALID_CREDENTIALS, KEY_CODE, CODE_INVALID_CREDENTIALS));
+        }
+    }
+
+    private boolean useDirectory(User existing) {
+        if (!ldapProperties.isEnabled()) {
+            return false;
+        }
+        if (existing == null) {
+            return true;
+        }
+        return existing.getAuthSource() == AuthSource.AD;
     }
 
     @PutMapping("/password")
@@ -159,6 +252,8 @@ public class AuthController {
                     .body(Map.of(KEY_MESSAGE, SecurityPolicy.PASSWORD_REQUIREMENTS_MESSAGE));
             case HISTORY_REUSE -> ResponseEntity.badRequest()
                     .body(Map.of(KEY_MESSAGE, SecurityPolicy.PASSWORD_HISTORY_MESSAGE));
+            case DIRECTORY_MANAGED -> ResponseEntity.badRequest()
+                    .body(Map.of(KEY_MESSAGE, "This account uses Active Directory. Change the password in AD."));
             case UNAUTHENTICATED -> ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of(KEY_MESSAGE, "Authentication is required."));
         };

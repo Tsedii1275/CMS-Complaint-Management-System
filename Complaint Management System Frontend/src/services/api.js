@@ -706,6 +706,18 @@ class ApiService {
     return this.delete(`/api/admin/users/${id}`);
   }
 
+  async getLdapStatus() {
+    return this.get('/api/admin/ldap/status');
+  }
+
+  async checkLdapHealth() {
+    return this.post('/api/admin/ldap/health', {});
+  }
+
+  async runLdapSync() {
+    return this.post('/api/admin/ldap/sync', {});
+  }
+
   // ─── CMD Analytics Methods ───
   async getCmdTeamWorkload() {
     return this.get('/api/cmd/analytics/team-workload');

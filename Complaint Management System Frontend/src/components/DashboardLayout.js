@@ -13,7 +13,8 @@ import {
   SettingOutlined,
   PieChartOutlined,
   ClockCircleOutlined,
-  LockOutlined
+  LockOutlined,
+  CloudServerOutlined
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { BRAND_COLORS } from '../constants/theme';
@@ -83,6 +84,11 @@ function SidebarMenu({ collapsed, userRole, user, onNavigate }) {
         key: '/admin/users',
         icon: <UserOutlined />,
         label: 'User & Role Management',
+      },
+      {
+        key: '/admin/ldap',
+        icon: <CloudServerOutlined />,
+        label: 'LDAP / Active Directory',
       },
       {
         key: '/admin/sla-config',
