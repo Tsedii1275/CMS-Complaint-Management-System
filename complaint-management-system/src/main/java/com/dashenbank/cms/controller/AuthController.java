@@ -7,6 +7,7 @@ import com.dashenbank.cms.model.AuthSource;
 import com.dashenbank.cms.model.SecurityAuditEvent;
 import com.dashenbank.cms.model.User;
 import com.dashenbank.cms.repository.UserRepository;
+import com.dashenbank.cms.security.ApiSessionRegistry;
 import com.dashenbank.cms.security.ClientIp;
 import com.dashenbank.cms.security.JwtUtils;
 import com.dashenbank.cms.security.SecurityPolicy;
@@ -63,6 +64,7 @@ public class AuthController {
     private final SecurityAuditService securityAuditService;
     private final LdapProperties ldapProperties;
     private final ActiveDirectoryAuthService activeDirectoryAuthService;
+    private final ApiSessionRegistry apiSessionRegistry;
 
     public AuthController(AuthenticationManager authenticationManager,
             JwtUtils jwtUtils,
@@ -71,7 +73,8 @@ public class AuthController {
             AccountLockoutService accountLockoutService,
             SecurityAuditService securityAuditService,
             LdapProperties ldapProperties,
-            ActiveDirectoryAuthService activeDirectoryAuthService) {
+            ActiveDirectoryAuthService activeDirectoryAuthService,
+            ApiSessionRegistry apiSessionRegistry) {
         this.authenticationManager = authenticationManager;
         this.jwtUtils = jwtUtils;
         this.userRepository = userRepository;
@@ -80,6 +83,7 @@ public class AuthController {
         this.securityAuditService = securityAuditService;
         this.ldapProperties = ldapProperties;
         this.activeDirectoryAuthService = activeDirectoryAuthService;
+        this.apiSessionRegistry = apiSessionRegistry;
     }
 
     @PostMapping("/login")
@@ -100,7 +104,7 @@ public class AuthController {
         }
 
         if (useDirectory(userOpt.orElse(null))) {
-            return authenticateWithDirectory(username, password);
+            return authenticateWithDirectory(username, password, httpRequest);
         }
 
         String targetUsername = userOpt.map(User::getUsername).orElse(username);
@@ -110,6 +114,9 @@ public class AuthController {
 
             User user = userRepository.findByUsernameIgnoreCase(targetUsername).orElse(null);
             accountLockoutService.recordSuccessfulLogin(user);
+            securityAuditService.log(userDetailsName(authentication), SecurityAuditEvent.SUCCESSFUL_LOGIN, ip);
+            apiSessionRegistry.opened(userDetailsName(authentication), roleOf(authentication), ip,
+                    httpRequest.getHeader("User-Agent"));
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
@@ -141,6 +148,9 @@ public class AuthController {
                     "passwordChangeToken", jwtUtils.generatePasswordChangeToken(expiredUser)));
         } catch (BadCredentialsException e) {
             userOpt.ifPresent(user -> accountLockoutService.recordFailedAttempt(user, ip));
+            if (userOpt.isEmpty()) {
+                securityAuditService.log(username, SecurityAuditEvent.FAILED_LOGIN, ip);
+            }
             if (userOpt.isPresent() && accountLockoutService.isLocked(userOpt.get())) {
                 return lockedResponse();
             }
@@ -154,7 +164,9 @@ public class AuthController {
         }
     }
 
-    private ResponseEntity<?> authenticateWithDirectory(String username, String password) {
+    private ResponseEntity<?> authenticateWithDirectory(String username, String password,
+            HttpServletRequest httpRequest) {
+        String ip = ClientIp.from(httpRequest);
         try {
             User user = activeDirectoryAuthService.login(username, password);
             if (!user.isEnabled()) {
@@ -178,6 +190,9 @@ public class AuthController {
                     java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority(
                             user.getRole().name())));
             SecurityContextHolder.getContext().setAuthentication(authentication);
+            securityAuditService.log(user.getUsername(), SecurityAuditEvent.SUCCESSFUL_LOGIN, ip);
+            apiSessionRegistry.opened(user.getUsername(), user.getRole().name(), ip,
+                    httpRequest.getHeader("User-Agent"));
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
             String jwt = jwtUtils.generateJwtToken(authentication);
             Map<String, Object> response = new HashMap<>();
@@ -208,6 +223,7 @@ public class AuthController {
                     KEY_MESSAGE, "Active Directory is unavailable. Local accounts can still sign in.",
                     KEY_CODE, CODE_LDAP_UNAVAILABLE));
         } catch (DirectoryAuthenticationException e) {
+            securityAuditService.log(username, SecurityAuditEvent.FAILED_LOGIN, ip);
             log.warn(LOG_AUTH_FAILED, username);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of(KEY_ERROR, MSG_INVALID_CREDENTIALS, KEY_CODE, CODE_INVALID_CREDENTIALS));
@@ -222,6 +238,15 @@ public class AuthController {
             return true;
         }
         return existing.getAuthSource() == AuthSource.AD;
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, String>> logout(Authentication authentication, HttpServletRequest httpRequest) {
+        String username = authentication == null ? "unknown" : authentication.getName();
+        securityAuditService.log(username, SecurityAuditEvent.LOGOUT, ClientIp.from(httpRequest));
+        apiSessionRegistry.closed(username);
+        SecurityContextHolder.clearContext();
+        return ResponseEntity.ok(Map.of(KEY_MESSAGE, "Logged out"));
     }
 
     @PutMapping("/password")
@@ -257,6 +282,17 @@ public class AuthController {
             case UNAUTHENTICATED -> ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of(KEY_MESSAGE, "Authentication is required."));
         };
+    }
+
+    private static String userDetailsName(Authentication authentication) {
+        return authentication.getName();
+    }
+
+    private static String roleOf(Authentication authentication) {
+        if (authentication.getAuthorities() == null || authentication.getAuthorities().isEmpty()) {
+            return "";
+        }
+        return authentication.getAuthorities().iterator().next().getAuthority();
     }
 
     private static ResponseEntity<Map<String, String>> lockedResponse() {

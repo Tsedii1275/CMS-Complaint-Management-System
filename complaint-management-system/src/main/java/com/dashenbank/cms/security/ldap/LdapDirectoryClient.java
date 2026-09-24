@@ -171,6 +171,7 @@ public class LdapDirectoryClient implements DirectoryOperations {
             AdUserProfile profile = toProfile(result.getAttributes());
             return new FoundUser(result.getNameInNamespace(), profile);
         } catch (NamingException e) {
+            log.warn("LDAP user search failed: {}", safeDetail(e));
             throw new DirectoryUnavailableException("Directory search failed", e);
         } finally {
             closeQuietly(ctx);
@@ -204,6 +205,7 @@ public class LdapDirectoryClient implements DirectoryOperations {
         env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
         env.put(Context.PROVIDER_URL, url);
         env.put(Context.SECURITY_AUTHENTICATION, "simple");
+        env.put(Context.REFERRAL, "ignore");
         env.put(Context.SECURITY_PRINCIPAL, principal);
         env.put(Context.SECURITY_CREDENTIALS, credentials);
         env.put("com.sun.jndi.ldap.connect.timeout", String.valueOf(Math.max(1000, properties.getConnectTimeoutMs())));

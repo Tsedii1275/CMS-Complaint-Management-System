@@ -138,7 +138,8 @@ public class UserController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ResponseEntity<Object> updateUser(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+    public ResponseEntity<Object> updateUser(@PathVariable Long id, @RequestBody Map<String, String> payload,
+            HttpServletRequest request) {
         Optional<User> userOpt = userRepository.findById(id);
         if (userOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -153,7 +154,13 @@ public class UserController {
 
         if (payload.containsKey("role") && payload.get("role") != null) {
             try {
-                user.setRole(Role.valueOf(payload.get("role")));
+                Role previous = user.getRole();
+                Role next = Role.valueOf(payload.get("role"));
+                user.setRole(next);
+                if (previous != next) {
+                    securityAuditService.log(user.getUsername(), SecurityAuditEvent.ROLE_CHANGED,
+                            ClientIp.from(request));
+                }
             } catch (Exception e) {
                 return ResponseEntity.badRequest().body(Map.of(KEY_ERROR, "Invalid role: " + payload.get("role")));
             }

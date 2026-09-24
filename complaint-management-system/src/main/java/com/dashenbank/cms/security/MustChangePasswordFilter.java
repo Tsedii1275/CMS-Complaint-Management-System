@@ -30,6 +30,7 @@ public class MustChangePasswordFilter extends OncePerRequestFilter {
         String path = request.getServletPath();
         return "/api/auth/login".equals(path)
                 || "/api/auth/expired-password".equals(path)
+                || "/api/auth/logout".equals(path)
                 || ("PUT".equalsIgnoreCase(request.getMethod()) && "/api/auth/password".equals(path))
                 || "/api/users/password-status".equals(path)
                 || "/favicon.ico".equals(path);

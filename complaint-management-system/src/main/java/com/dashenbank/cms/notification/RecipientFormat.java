@@ -60,24 +60,11 @@ public final class RecipientFormat {
     }
 
     public static String maskEmail(String email) {
-        if (email == null || email.isBlank()) {
-            return "";
-        }
-        int at = email.indexOf('@');
-        if (at <= 0) {
-            return "***";
-        }
-        return email.charAt(0) + "***" + email.substring(at);
+        String masked = com.dashenbank.cms.security.SensitiveDataMasker.email(email);
+        return masked.isBlank() ? "***" : masked;
     }
 
     public static String maskPhone(String phone) {
-        if (phone == null || phone.isBlank()) {
-            return "";
-        }
-        String value = phone.trim();
-        if (value.length() <= 7) {
-            return "***" + value.substring(Math.max(0, value.length() - 2));
-        }
-        return value.substring(0, 4) + "*".repeat(value.length() - 7) + value.substring(value.length() - 3);
+        return com.dashenbank.cms.security.SensitiveDataMasker.phone(phone);
     }
 }

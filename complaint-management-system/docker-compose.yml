@@ -16,7 +16,10 @@ services:
     container_name: cms-mysql
     restart: unless-stopped
     env_file:
-      - .env.${APP_ENV:-dev}
+      - path: .env.${APP_ENV:-dev}
+        required: true
+      - path: .env.${APP_ENV:-dev}.local
+        required: false
     volumes:
       - mysql_data:/var/lib/mysql
       - ./hardening.cnf:/opt/hardening.cnf:ro
@@ -61,7 +64,10 @@ services:
       mysql:
         condition: service_healthy
     env_file:
-      - .env.${APP_ENV:-dev}
+      - path: .env.${APP_ENV:-dev}
+        required: true
+      - path: .env.${APP_ENV:-dev}.local
+        required: false
     environment:
       APP_ENV: ${APP_ENV:-dev}
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-cms_db}?sslMode=${MYSQL_SSL_MODE:-REQUIRED}&serverTimezone=UTC&allowPublicKeyRetrieval=true

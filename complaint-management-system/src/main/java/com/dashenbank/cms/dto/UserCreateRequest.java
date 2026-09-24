@@ -1,5 +1,6 @@
 package com.dashenbank.cms.dto;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -9,6 +10,7 @@ public class UserCreateRequest {
     @Size(max = 100)
     private String username;
 
+    @Email(message = "Email must be a valid address")
     @Size(max = 200)
     private String email;
 

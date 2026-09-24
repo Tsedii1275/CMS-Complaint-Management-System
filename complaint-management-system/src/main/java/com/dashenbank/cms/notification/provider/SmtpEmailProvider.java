@@ -4,6 +4,7 @@ import com.dashenbank.cms.notification.NotificationProperties;
 import jakarta.mail.MessagingException;
 import jakarta.mail.SendFailedException;
 import jakarta.mail.internet.MimeMessage;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.mail.MailAuthenticationException;
@@ -20,9 +21,9 @@ import org.springframework.util.StringUtils;
 import java.io.UnsupportedEncodingException;
 
 /**
- * Standard SMTP submission through Spring {@link JavaMailSender}. Covers an
- * internal SMTP relay and Exchange / Office 365 SMTP submission; the target is
- * chosen entirely by {@code SPRING_MAIL_*} settings.
+ * Standard SMTP through Spring {@link JavaMailSender} (bank Exchange / IP
+ * relay). {@code @gmail.com} recipients are sent through {@link GmailSmtpGateway}
+ * when {@code GMAIL_SMTP_ENABLED=true}.
  */
 @Component
 public class SmtpEmailProvider implements EmailProvider {
@@ -33,12 +34,20 @@ public class SmtpEmailProvider implements EmailProvider {
     private final ObjectProvider<JavaMailSender> mailSender;
     private final Environment environment;
     private final NotificationProperties properties;
+    private final GmailSmtpGateway gmailSmtp;
 
+    @Autowired
     public SmtpEmailProvider(ObjectProvider<JavaMailSender> mailSender, Environment environment,
-            NotificationProperties properties) {
+            NotificationProperties properties, GmailSmtpGateway gmailSmtp) {
         this.mailSender = mailSender;
         this.environment = environment;
         this.properties = properties;
+        this.gmailSmtp = gmailSmtp;
+    }
+
+    SmtpEmailProvider(ObjectProvider<JavaMailSender> mailSender, Environment environment,
+            NotificationProperties properties) {
+        this(mailSender, environment, properties, null);
     }
 
     @Override
@@ -56,10 +65,16 @@ public class SmtpEmailProvider implements EmailProvider {
             throw new IllegalStateException(
                     "NOTIFICATION_EMAIL_PROVIDER=smtp requires NOTIFICATION_EMAIL_FROM (or SPRING_MAIL_USERNAME)");
         }
+        if (gmailSmtp != null) {
+            gmailSmtp.validateIfEnabled();
+        }
     }
 
     @Override
     public ProviderResult send(EmailMessage message) {
+        if (gmailSmtp != null && message != null && gmailSmtp.handles(message.to())) {
+            return gmailSmtp.send(message);
+        }
         JavaMailSender sender = mailSender.getIfAvailable();
         if (sender == null) {
             return ProviderResult.retryable("SMTP transport is not configured");

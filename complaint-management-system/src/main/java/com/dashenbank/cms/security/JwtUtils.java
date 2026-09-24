@@ -42,6 +42,9 @@ public class JwtUtils {
     @Value("${app.jwtExpirationMs:" + SecurityPolicy.SESSION_TIMEOUT_MS + "}")
     private int jwtExpirationMs;
 
+    @Value("${security.jwt-issuer:dashenbank-cms}")
+    private String jwtIssuer;
+
     @PostConstruct
     void validateSecret() {
         if (jwtSecret == null || jwtSecret.isBlank()) {
@@ -78,10 +81,23 @@ public class JwtUtils {
     }
 
     private String sign(JwtBuilder builder) {
+        String issuer = jwtIssuer == null || jwtIssuer.isBlank() ? "dashenbank-cms" : jwtIssuer;
         Instant issuedAt = Instant.now();
-        return JwtValidity.apply(builder, issuedAt, jwtExpirationMs)
+        return JwtValidity.apply(builder.issuer(issuer), issuedAt, jwtExpirationMs)
                 .signWith(getSigningKey())
                 .compact();
+    }
+
+    public int getExpirationMs() {
+        return jwtExpirationMs;
+    }
+
+    public String getSigningAlgorithm() {
+        return "HS256";
+    }
+
+    public String getIssuer() {
+        return jwtIssuer;
     }
 
     public boolean isPasswordChangeToken(String token) {

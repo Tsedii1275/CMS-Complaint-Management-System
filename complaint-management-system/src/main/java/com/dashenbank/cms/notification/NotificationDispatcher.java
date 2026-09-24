@@ -43,6 +43,8 @@ public class NotificationDispatcher {
     private final NotificationAuditRecorder auditRecorder;
     private final Clock clock;
     private final ThreadPoolTaskExecutor executor;
+    @Autowired(required = false)
+    private com.dashenbank.cms.service.SecurityAuditService securityAuditService;
 
     @Autowired
     public NotificationDispatcher(NotificationRecordRepository repository, NotificationProviderRegistry providers,
@@ -154,6 +156,7 @@ public class NotificationDispatcher {
                 notification.setProviderMessageId(result.providerMessageId());
                 log.info("[{}] Notification #{} delivered to {} via {}.", notification.getChannel(),
                         notification.getId(), masked, notification.getProvider());
+                recordSecurityNotificationSent();
             }
             case NOT_DELIVERED -> {
                 notification.setStatus(NotificationStatus.SKIPPED);
@@ -204,6 +207,13 @@ public class NotificationDispatcher {
             return null;
         }
         return value.length() > MAX_REASON_LENGTH ? value.substring(0, MAX_REASON_LENGTH) : value;
+    }
+
+    private void recordSecurityNotificationSent() {
+        if (securityAuditService == null) {
+            return;
+        }
+        securityAuditService.log("system", com.dashenbank.cms.model.SecurityAuditEvent.NOTIFICATION_SENT, "");
     }
 
     private static ThreadPoolTaskExecutor createExecutor(NotificationProperties.Dispatcher config) {

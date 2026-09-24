@@ -40,8 +40,8 @@ class RecipientFormatTest {
 
     @Test
     void masksRecipientsForLogs() {
-        assertEquals("a***@dashenbanksc.com", RecipientFormat.maskEmail("abebe@dashenbanksc.com"));
-        assertEquals("+251******678", RecipientFormat.maskPhone("+251912345678"));
-        assertEquals("***", RecipientFormat.maskEmail("broken"));
+        assertEquals("abeb****@dashenbanksc.com", RecipientFormat.maskEmail("abebe@dashenbanksc.com"));
+        assertEquals("2519****78", RecipientFormat.maskPhone("+251912345678"));
+        assertEquals("****", RecipientFormat.maskEmail("broken"));
     }
 }

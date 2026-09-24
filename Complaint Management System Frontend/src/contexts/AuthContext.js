@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import ApiService from '../services/api';
 
 const AuthContext = React.createContext();
 
@@ -66,9 +67,11 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem('user');
-    setUser(null);
-    setIsAuthenticated(false);
+    ApiService.logout().catch(() => {}).finally(() => {
+      localStorage.removeItem('user');
+      setUser(null);
+      setIsAuthenticated(false);
+    });
   }, []);
 
   const value = React.useMemo(() => ({

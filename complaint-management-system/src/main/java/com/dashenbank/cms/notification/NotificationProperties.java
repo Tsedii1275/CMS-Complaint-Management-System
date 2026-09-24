@@ -31,6 +31,23 @@ public class NotificationProperties {
         private String replyTo = "";
         /** Optional second SMTP host (HA NAT). Tried only after the primary fails to connect. */
         private String backupHost = "";
+        private final Gmail gmail = new Gmail();
+    }
+
+    /**
+     * Optional Gmail SMTP for {@code @gmail.com} recipients. Exchange on UAT
+     * rejects Gmail RCPT; this path uses smtp.gmail.com when enabled.
+     * Username/app password belong in {@code .env.*.local}.
+     */
+    @Getter
+    @Setter
+    public static class Gmail {
+        private boolean enabled = false;
+        private String host = "smtp.gmail.com";
+        private int port = 587;
+        private String username = "";
+        private String password = "";
+        private String from = "";
     }
 
     @Getter

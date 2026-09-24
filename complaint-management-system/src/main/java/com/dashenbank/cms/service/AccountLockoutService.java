@@ -3,7 +3,7 @@ package com.dashenbank.cms.service;
 import com.dashenbank.cms.model.SecurityAuditEvent;
 import com.dashenbank.cms.model.User;
 import com.dashenbank.cms.repository.UserRepository;
-import com.dashenbank.cms.security.SecurityPolicy;
+import com.dashenbank.cms.security.SecuritySettings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,10 +14,13 @@ public class AccountLockoutService {
 
     private final UserRepository userRepository;
     private final SecurityAuditService securityAuditService;
+    private final SecuritySettings securitySettings;
 
-    public AccountLockoutService(UserRepository userRepository, SecurityAuditService securityAuditService) {
+    public AccountLockoutService(UserRepository userRepository, SecurityAuditService securityAuditService,
+            SecuritySettings securitySettings) {
         this.userRepository = userRepository;
         this.securityAuditService = securityAuditService;
+        this.securitySettings = securitySettings;
     }
 
     @Transactional
@@ -47,7 +50,7 @@ public class AccountLockoutService {
         securityAuditService.log(user.getUsername(), SecurityAuditEvent.FAILED_LOGIN, ipAddress);
         int attempts = user.getFailedLoginAttempts() + 1;
         user.setFailedLoginAttempts(attempts);
-        if (attempts >= SecurityPolicy.LOCKOUT_THRESHOLD) {
+        if (attempts >= securitySettings.getLockoutThreshold()) {
             user.setAccountLocked(true);
             user.setLockoutTime(LocalDateTime.now());
             securityAuditService.log(user.getUsername(), SecurityAuditEvent.ACCOUNT_LOCKED, ipAddress);
@@ -69,7 +72,7 @@ public class AccountLockoutService {
         userRepository.save(user);
     }
 
-    private static boolean stillLocked(User user) {
+    private boolean stillLocked(User user) {
         if (!user.isAccountLocked()) {
             return false;
         }
@@ -77,6 +80,6 @@ public class AccountLockoutService {
         if (lockedAt == null) {
             return true;
         }
-        return LocalDateTime.now().isBefore(lockedAt.plusMinutes(SecurityPolicy.LOCKOUT_DURATION_MINUTES));
+        return LocalDateTime.now().isBefore(lockedAt.plusMinutes(securitySettings.getLockoutDurationMinutes()));
     }
 }

@@ -23,6 +23,7 @@ import com.dashenbank.cms.service.NbeComplianceReportService;
 import com.dashenbank.cms.service.SlaAlertAuthorizationService;
 import com.dashenbank.cms.service.SlaAlertScope;
 import com.dashenbank.cms.service.SlaTrackingService;
+import com.dashenbank.cms.security.ClientIp;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.flowable.engine.HistoryService;
 import org.flowable.engine.RuntimeService;
@@ -196,6 +197,8 @@ public class ProcessController {
     private com.dashenbank.cms.security.FileSecurityService fileSecurityService;
     @Autowired
     private CoreBankingClient coreBankingClient;
+    @Autowired(required = false)
+    private com.dashenbank.cms.service.SecurityAuditService securityAuditService;
     private final NotificationDelegate notificationDelegate;
 
     @SuppressWarnings("java:S107")
@@ -284,35 +287,39 @@ public class ProcessController {
     }
 
     private void tryAuditComplaintCreated(String ticket, String processInstanceId, String name, String category,
-            String description) {
+            String description, String sourceIp) {
         try {
             auditService.log(ticket, processInstanceId, null, "COMPLAINT_CREATED", KEY_CUSTOMER, "web",
                     "New complaint submitted by " + name + " via web channel.", name, category, description);
         } catch (Exception eAudit) {
             log.warn("Audit log exception: {}", eAudit.getMessage());
         }
+        recordSecurityEvent(getCurrentUsernameOrCustomer(), com.dashenbank.cms.model.SecurityAuditEvent.COMPLAINT_CREATED,
+                sourceIp);
     }
 
     @PostMapping("/complaints/start")
     public ResponseEntity<Map<String, Object>> startComplaint(
-            @RequestBody(required = false) Map<String, Object> payload) {
-        return startComplaintInternal(payload, false);
+            @RequestBody(required = false) Map<String, Object> payload, HttpServletRequest request) {
+        return startComplaintInternal(payload, false, ClientIp.from(request));
     }
 
     @SuppressWarnings("java:S3776")
     private ResponseEntity<Map<String, Object>> startComplaintInternal(
-            Map<String, Object> payload, boolean skipNotification) {
+            Map<String, Object> payload, boolean skipNotification, String sourceIp) {
         try {
             if (payload == null) {
                 return ResponseEntity.badRequest()
-                        .body(Map.of(KEY_ERROR, "Request body is required and must be valid JSON"));
+                        .body(Map.of(KEY_ERROR, "Request body is required and must be valid JSON",
+                                "code", "VALIDATION_ERROR"));
             }
             Map<String, Object> customer = castToMap(payload.get(KEY_CUSTOMER));
             Map<String, Object> complaint = castToMap(payload.get(KEY_COMPLAINT));
 
             if (customer.isEmpty() || complaint.isEmpty()) {
                 return ResponseEntity.badRequest()
-                        .body(Map.of(KEY_ERROR, "customer and complaint objects are required"));
+                        .body(Map.of(KEY_ERROR, "customer and complaint objects are required",
+                                "code", "VALIDATION_ERROR"));
             }
 
             String name = (String) customer.get(KEY_NAME);
@@ -332,12 +339,14 @@ public class ProcessController {
                     || description.isBlank()) {
                 return ResponseEntity.badRequest()
                         .body(Map.of(KEY_ERROR,
-                                "All required fields (Name, Phone, Channel, Description) must be filled"));
+                                "All required fields (Name, Phone, Channel, Description) must be filled",
+                                "code", "VALIDATION_ERROR"));
             }
 
             if (email != null && !email.isBlank()) {
                 if (!email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")) {
-                    return ResponseEntity.badRequest().body(Map.of(KEY_ERROR, "Invalid email format"));
+                    return ResponseEntity.badRequest()
+                            .body(Map.of(KEY_ERROR, "Invalid email format", "code", "VALIDATION_ERROR"));
                 }
             } else {
                 email = "";
@@ -347,7 +356,8 @@ public class ProcessController {
             if (!cleanPhone.matches("^(\\+?2510?[79]\\d{8}|0?[79]\\d{8})$")) {
                 return ResponseEntity.badRequest()
                         .body(Map.of(KEY_ERROR,
-                                "Invalid phone format; expected Ethiopian phone number (e.g. +2519XXXXXXXX, +2517XXXXXXXX, or 09/07XXXXXXXX)"));
+                                "Invalid phone format; expected Ethiopian phone number (e.g. +2519XXXXXXXX, +2517XXXXXXXX, or 09/07XXXXXXXX)",
+                                "code", "VALIDATION_ERROR"));
             }
             phone = cleanPhone;
 
@@ -415,7 +425,7 @@ public class ProcessController {
 
             tryInitializeSlaForNewComplaint(instance.getId(), ticket, category,
                     LocationKeys.complaintBranch(vars, complaintVars), channel, (String) customerVars.get(KEY_NAME));
-            tryAuditComplaintCreated(ticket, instance.getId(), name, category, description);
+            tryAuditComplaintCreated(ticket, instance.getId(), name, category, description, sourceIp);
 
             Map<String, Object> response = new HashMap<>();
             response.put(KEY_PROCESS_INSTANCE_ID, instance.getId());
@@ -566,8 +576,8 @@ public class ProcessController {
 
     @PostMapping("/complaints/staff-submit")
     public ResponseEntity<Map<String, Object>> startComplaintByStaff(
-            @RequestBody(required = false) Map<String, Object> payload) {
-        return startComplaintInternal(payload, false);
+            @RequestBody(required = false) Map<String, Object> payload, HttpServletRequest request) {
+        return startComplaintInternal(payload, false, ClientIp.from(request));
     }
 
     @PostMapping("/complaints/fcr-resolve")
@@ -669,6 +679,25 @@ public class ProcessController {
             return auth.getAuthorities().iterator().next().getAuthority();
         }
         return "ROLE_ANONYMOUS";
+    }
+
+    private String getCurrentUsernameOrCustomer() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getName() == null || "anonymousUser".equals(auth.getName())) {
+            return "customer";
+        }
+        return getCurrentUsername();
+    }
+
+    private void recordSecurityEvent(String username, com.dashenbank.cms.model.SecurityAuditEvent event, String ip) {
+        if (securityAuditService == null) {
+            return;
+        }
+        try {
+            securityAuditService.log(username, event, ip);
+        } catch (RuntimeException ignored) {
+            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+        }
     }
 
     @GetMapping("/tasks")
@@ -909,7 +938,7 @@ public class ProcessController {
     }
 
     @PostMapping("/tasks/{taskId}/claim")
-    public ResponseEntity<Map<String, Object>> claimTask(@PathVariable String taskId) {
+    public ResponseEntity<Map<String, Object>> claimTask(@PathVariable String taskId, HttpServletRequest request) {
         Task task = slaAlertAuthorizationService.requireAuthorizedTask(taskId,
                 SlaAlertAuthorizationService.TaskAction.CLAIM);
         String username = getCurrentUsername();
@@ -948,6 +977,7 @@ public class ProcessController {
         } catch (Exception e) {
             log.error("Audit log failed for claim: {}", e.getMessage());
         }
+        recordSecurityEvent(username, com.dashenbank.cms.model.SecurityAuditEvent.TASK_CLAIMED, ClientIp.from(request));
 
         Map<String, Object> res = new HashMap<>();
         res.put(KEY_TASK_ID, taskId);
@@ -1042,8 +1072,12 @@ public class ProcessController {
 
     @PostMapping("/tasks/{taskId}/complete")
     public ResponseEntity<Map<String, Object>> completeTask(@PathVariable String taskId,
-            @RequestBody Map<String, Object> body) {
+            @RequestBody Map<String, Object> body, HttpServletRequest request) {
         try {
+            if (body == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of(KEY_ERROR, "Request body is required", "code", "VALIDATION_ERROR"));
+            }
             Map<String, Object> variables = new HashMap<>(
                     body.containsKey(KEY_VARIABLES) && body.get(KEY_VARIABLES) instanceof Map
                             ? castToMap(body.get(KEY_VARIABLES))
@@ -1063,6 +1097,8 @@ public class ProcessController {
             String cEmail = (String) customer.get(KEY_EMAIL);
 
             executeTaskCompletion(task, ticketId, cName, cEmail, cat, desc, variables, vars, customer);
+            recordSecurityEvent(getCurrentUsername(), com.dashenbank.cms.model.SecurityAuditEvent.TASK_COMPLETED,
+                    ClientIp.from(request));
 
             return ResponseEntity.ok(Map.of(KEY_TASK_ID, taskId, "completed", true));
 
@@ -1966,7 +2002,7 @@ public class ProcessController {
 
             if (rawTicket == null || rawTicket.isBlank()) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(Map.of(KEY_ERROR, "Ticket number is required."));
+                        .body(Map.of(KEY_ERROR, "Ticket number is required.", "code", "VALIDATION_ERROR"));
             }
 
             // 1. URL-decode and Trim whitespace
@@ -1976,7 +2012,7 @@ public class ProcessController {
             // FCR-001/2026-27)
             if (!queryTicket.matches("^[A-Za-z0-9/\\-_]{3,50}$")) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(Map.of(KEY_ERROR, "Invalid ticket number format."));
+                        .body(Map.of(KEY_ERROR, "Invalid ticket number format.", "code", "VALIDATION_ERROR"));
             }
 
             // 3. Query audit log
@@ -2405,7 +2441,6 @@ public class ProcessController {
         return slaTrackingService.generateDbcTicketId();
     }
 
-    @SuppressWarnings("java:S1141")
     public synchronized String generateCmTicketId() {
         LocalDate today = LocalDate.now(SYSTEM_ZONE);
         int year = today.getYear();
@@ -2414,29 +2449,48 @@ public class ProcessController {
         int fyEnd = year + 1;
         String fiscalYear = String.format("%d-%02d", year, fyEnd % 100);
 
+        String like = "CM-%/" + fiscalYear;
+        int maxSeq = 0;
+        maxSeq = Math.max(maxSeq, maxCmSequence(
+                "SELECT general_ticket_id FROM complaint_sla_metrics WHERE general_ticket_id LIKE ?", like));
+        maxSeq = Math.max(maxSeq, maxCmSequence(
+                "SELECT ticket_number FROM complaints WHERE ticket_number LIKE ?", like));
+        maxSeq = Math.max(maxSeq, maxCmSequence(
+                "SELECT complaint_id FROM notifications WHERE complaint_id LIKE ?", like));
+        maxSeq = Math.max(maxSeq, maxCmSequence(
+                "SELECT TEXT_ FROM ACT_HI_VARINST WHERE NAME_ IN ('generalTicketId','complaintId') AND TEXT_ LIKE ?",
+                like));
+        maxSeq = Math.max(maxSeq, maxCmSequence(
+                "SELECT TEXT_ FROM ACT_RU_VARIABLE WHERE NAME_ IN ('generalTicketId','complaintId') AND TEXT_ LIKE ?",
+                like));
+
+        int nextSeq = maxSeq + 1;
+        return String.format("CM-%03d/%s", nextSeq, fiscalYear);
+    }
+
+    private int maxCmSequence(String sql, String like) {
         int maxSeq = 0;
         try {
-            List<String> existing = jdbcTemplate.queryForList(
-                    "SELECT general_ticket_id FROM complaint_sla_metrics WHERE general_ticket_id LIKE ?",
-                    String.class, "CM-%/" + fiscalYear);
+            List<String> existing = jdbcTemplate.queryForList(sql, String.class, like);
             for (String cm : existing) {
-                if (cm != null && cm.startsWith("CM-") && cm.contains("/")) {
-                    String seqPart = cm.substring(3, cm.indexOf('/'));
-                    try {
-                        int num = Integer.parseInt(seqPart);
-                        if (num > maxSeq)
-                            maxSeq = num;
-                    } catch (Exception ignored) {
-                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-                }
-                }
+                maxSeq = Math.max(maxSeq, parseCmSequence(cm));
             }
         } catch (Exception e) {
             log.info("CM sequence query note: {}", e.getMessage());
         }
+        return maxSeq;
+    }
 
-        int nextSeq = maxSeq + 1;
-        return String.format("CM-%03d/%s", nextSeq, fiscalYear);
+    private int parseCmSequence(String cm) {
+        if (cm == null || !cm.startsWith("CM-") || !cm.contains("/")) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(cm.substring(3, cm.indexOf('/')));
+        } catch (NumberFormatException ignored) {
+            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+            return 0;
+        }
     }
 
     private String resolveStaffHandling(Map<String, Object> vars, Map<String, Object> complaint) {

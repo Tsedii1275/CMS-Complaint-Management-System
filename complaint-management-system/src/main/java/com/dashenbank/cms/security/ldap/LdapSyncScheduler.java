@@ -27,6 +27,8 @@ public class LdapSyncScheduler {
     private final UserRepository userRepository;
     private final LdapSyncStatusRepository statusRepository;
     private final Clock clock;
+    @Autowired(required = false)
+    private com.dashenbank.cms.service.SecurityAuditService securityAuditService;
 
     @Autowired
     public LdapSyncScheduler(LdapProperties properties, DirectoryOperations directory, AdUserSyncService syncService,
@@ -88,6 +90,9 @@ public class LdapSyncScheduler {
         status.setUsersSynced(synced);
         status.setUsersFailed(failed);
         statusRepository.save(status);
+        if (securityAuditService != null) {
+            securityAuditService.log("system", com.dashenbank.cms.model.SecurityAuditEvent.LDAP_SYNC, "");
+        }
         return new SyncRunResult(synced, failed, status.getLastError());
     }
 

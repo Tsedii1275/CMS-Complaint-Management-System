@@ -17,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
+import org.springframework.security.web.util.matcher.AnyRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -80,6 +81,10 @@ public class WebSecurityConfig {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .headers(headers -> {
+                    headers.httpStrictTransportSecurity(hsts -> hsts
+                            .includeSubDomains(true)
+                            .maxAgeInSeconds(31_536_000)
+                            .requestMatcher(AnyRequestMatcher.INSTANCE));
                     headers.contentTypeOptions(Customizer.withDefaults());
                     headers.frameOptions(frame -> frame.deny());
                     headers.referrerPolicy(policy -> policy.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN));
@@ -94,6 +99,7 @@ public class WebSecurityConfig {
                         .requestMatchers("/favicon.ico").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/expired-password").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/api/auth/password").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/complaints/start").permitAll()
                         .requestMatchers("/api/complaints/status", "/api/complaints/status/**").permitAll()
@@ -148,7 +154,15 @@ public class WebSecurityConfig {
         }
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
-        configuration.setExposedHeaders(List.of(JwtUtils.HEADER_NEW_ACCESS_TOKEN));
+        configuration.setExposedHeaders(List.of(
+                JwtUtils.HEADER_NEW_ACCESS_TOKEN,
+                "Strict-Transport-Security",
+                "X-Content-Type-Options",
+                "X-Frame-Options",
+                "Referrer-Policy",
+                "Content-Security-Policy",
+                "Permissions-Policy",
+                "X-RateLimit-Limit"));
         configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

@@ -4,7 +4,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -15,6 +14,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -72,16 +72,35 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex,
             HttpServletRequest request) {
-        String message = ex.getBindingResult().getFieldErrors().stream()
-                .map(FieldError::getDefaultMessage)
-                .findFirst()
-                .orElse("Validation failed");
+        List<String> fields = ex.getBindingResult().getFieldErrors().stream()
+                .map(err -> err.getField() + ": " + err.getDefaultMessage())
+                .toList();
+        String message = fields.isEmpty() ? "Validation failed" : fields.get(0);
         log.warn("Validation failed [{} {}]: {}", request.getMethod(), request.getRequestURI(), message);
         Map<String, Object> body = new LinkedHashMap<>();
         body.put(KEY_SUCCESS, false);
         body.put("code", "VALIDATION_ERROR");
         body.put(KEY_MESSAGE, message);
         body.put("error", message);
+        body.put("fields", fields);
+        body.put(KEY_TIMESTAMP, currentTimestamp());
+        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleConstraintViolation(
+            jakarta.validation.ConstraintViolationException ex, HttpServletRequest request) {
+        List<String> fields = ex.getConstraintViolations().stream()
+                .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+                .toList();
+        String message = fields.isEmpty() ? "Validation failed" : fields.get(0);
+        log.warn("Validation failed [{} {}]: {}", request.getMethod(), request.getRequestURI(), message);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put(KEY_SUCCESS, false);
+        body.put("code", "VALIDATION_ERROR");
+        body.put(KEY_MESSAGE, message);
+        body.put("error", message);
+        body.put("fields", fields);
         body.put(KEY_TIMESTAMP, currentTimestamp());
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
     }

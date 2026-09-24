@@ -8,6 +8,7 @@ const HTTP_ERROR_MESSAGES = {
   403: 'Access denied.',
   404: 'The requested resource or link was not found.',
   409: 'This request has already been submitted or completed.',
+  429: 'Too many requests. Please try again later.',
   503: 'Core Banking is currently unavailable. Please try again later.',
   504: 'Core Banking lookup timed out. Please try again later.',
 };
@@ -716,6 +717,50 @@ class ApiService {
 
   async runLdapSync() {
     return this.post('/api/admin/ldap/sync', {});
+  }
+
+  async logout() {
+    const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({}),
+    });
+    return this.handleResponse(response, { skipSessionRedirect: true });
+  }
+
+  async getSecurityDashboard() {
+    return this.getWithObservedHeaders('/api/admin/security/dashboard');
+  }
+
+  async getSecurityAuthEvents() {
+    return this.get('/api/admin/security/auth-events');
+  }
+
+  async getSecurityAuditSummary() {
+    return this.get('/api/admin/security/audit-summary');
+  }
+
+  async getWithObservedHeaders(path) {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      headers: this.getHeaders(),
+    });
+    const observedHeaders = {};
+    [
+      'strict-transport-security',
+      'x-content-type-options',
+      'x-frame-options',
+      'referrer-policy',
+      'content-security-policy',
+      'permissions-policy',
+      'x-ratelimit-limit',
+    ].forEach((name) => {
+      const value = response.headers.get(name);
+      if (value) {
+        observedHeaders[name] = value;
+      }
+    });
+    const data = await this.handleResponse(response);
+    return { data, observedHeaders };
   }
 
   // ─── CMD Analytics Methods ───
