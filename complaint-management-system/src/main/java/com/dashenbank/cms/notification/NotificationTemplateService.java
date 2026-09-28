@@ -58,11 +58,11 @@ public class NotificationTemplateService {
     public RenderedMessage render(NotificationEventType eventType, NotificationChannel channel, String language,
             Map<String, String> variables) {
         Properties templates = templatesByLanguage.get(resolveLanguage(language));
-        String prefix = keyPrefix(eventType, channel);
+        String emailPrefix = keyPrefix(eventType, NotificationChannel.EMAIL);
         String subject = channel == NotificationChannel.EMAIL
-                ? fill(templates.getProperty(prefix + "subject"), variables)
+                ? fill(templates.getProperty(emailPrefix + "subject"), variables)
                 : null;
-        return new RenderedMessage(subject, fill(templates.getProperty(prefix + "body"), variables));
+        return new RenderedMessage(subject, fill(templates.getProperty(emailPrefix + "body"), variables));
     }
 
     static String fill(String template, Map<String, String> variables) {
@@ -97,8 +97,7 @@ public class NotificationTemplateService {
         List<String> missing = new ArrayList<>();
         for (NotificationEventType eventType : NotificationEventType.values()) {
             String emailPrefix = keyPrefix(eventType, NotificationChannel.EMAIL);
-            String smsPrefix = keyPrefix(eventType, NotificationChannel.SMS);
-            for (String key : List.of(emailPrefix + "subject", emailPrefix + "body", smsPrefix + "body")) {
+            for (String key : List.of(emailPrefix + "subject", emailPrefix + "body")) {
                 if (templates.getProperty(key, "").isBlank() && !missing.contains(key)) {
                     missing.add(key);
                 }

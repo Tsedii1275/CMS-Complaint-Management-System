@@ -728,41 +728,6 @@ class ApiService {
     return this.handleResponse(response, { skipSessionRedirect: true });
   }
 
-  async getSecurityDashboard() {
-    return this.getWithObservedHeaders('/api/admin/security/dashboard');
-  }
-
-  async getSecurityAuthEvents() {
-    return this.get('/api/admin/security/auth-events');
-  }
-
-  async getSecurityAuditSummary() {
-    return this.get('/api/admin/security/audit-summary');
-  }
-
-  async getWithObservedHeaders(path) {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-      headers: this.getHeaders(),
-    });
-    const observedHeaders = {};
-    [
-      'strict-transport-security',
-      'x-content-type-options',
-      'x-frame-options',
-      'referrer-policy',
-      'content-security-policy',
-      'permissions-policy',
-      'x-ratelimit-limit',
-    ].forEach((name) => {
-      const value = response.headers.get(name);
-      if (value) {
-        observedHeaders[name] = value;
-      }
-    });
-    const data = await this.handleResponse(response);
-    return { data, observedHeaders };
-  }
-
   // ─── CMD Analytics Methods ───
   async getCmdTeamWorkload() {
     return this.get('/api/cmd/analytics/team-workload');

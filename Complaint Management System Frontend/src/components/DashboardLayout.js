@@ -14,8 +14,7 @@ import {
   PieChartOutlined,
   ClockCircleOutlined,
   LockOutlined,
-  CloudServerOutlined,
-  SafetyCertificateOutlined
+  CloudServerOutlined
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { BRAND_COLORS } from '../constants/theme';
@@ -90,11 +89,6 @@ function SidebarMenu({ collapsed, userRole, user, onNavigate }) {
         key: '/admin/ldap',
         icon: <CloudServerOutlined />,
         label: 'LDAP / Active Directory',
-      },
-      {
-        key: '/admin/security',
-        icon: <SafetyCertificateOutlined />,
-        label: 'Security Hardening',
       },
       {
         key: '/admin/sla-config',

@@ -31,7 +31,7 @@ class NotificationTemplateServiceTest {
     }
 
     @Test
-    void rendersAmharicResolutionAndShortSms() {
+    void usesTheSameBodyForEmailAndSms() {
         Map<String, String> vars = Map.of(
                 CustomerNotifications.CUSTOMER_NAME, "አበበ",
                 CustomerNotifications.TICKET_ID, "DBC-1",
@@ -45,9 +45,9 @@ class NotificationTemplateServiceTest {
         assertEquals("የቅሬታ መፍትሄ መረጃ", email.subject());
         assertTrue(email.body().startsWith("ውድ አበበ፣"));
         assertNull(sms.subject());
+        assertEquals(email.body(), sms.body());
         assertTrue(sms.body().contains("DBC-1"));
         assertTrue(sms.body().contains("https://cms/f?token=t"));
-        assertTrue(sms.body().length() < email.body().length());
     }
 
     @Test

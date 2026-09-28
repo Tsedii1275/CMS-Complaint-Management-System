@@ -62,6 +62,11 @@ public class WebSecurityConfig {
     }
 
     @Bean
+    public SecurityAuditFilter securityAuditFilter() {
+        return new SecurityAuditFilter();
+    }
+
+    @Bean
     @SuppressWarnings("deprecation")
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
@@ -138,6 +143,7 @@ public class WebSecurityConfig {
                         .anyRequest().authenticated());
 
         http.authenticationProvider(authenticationProvider());
+        http.addFilterBefore(securityAuditFilter(), UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(apiRateLimitFilter(), UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
         http.addFilterAfter(mustChangePasswordFilter(), AuthTokenFilter.class);
