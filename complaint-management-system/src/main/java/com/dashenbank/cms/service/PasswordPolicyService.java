@@ -60,11 +60,15 @@ public class PasswordPolicyService {
             daysRemaining = ChronoUnit.DAYS.between(LocalDate.now(SYSTEM_ZONE),
                     user.getPasswordExpiryDate().toLocalDate());
         }
-        boolean expiringSoon = !expired && daysRemaining >= 0 && daysRemaining <= SecurityPolicy.PASSWORD_WARNING_DAYS;
+        boolean directoryManaged = user != null && user.getAuthSource() == com.dashenbank.cms.model.AuthSource.AD;
+        boolean expiringSoon = !directoryManaged && !expired && daysRemaining >= 0
+                && daysRemaining <= SecurityPolicy.PASSWORD_WARNING_DAYS;
         return Map.of(
                 "daysRemaining", daysRemaining,
                 "expiringSoon", expiringSoon,
-                "expired", expired);
+                "expired", expired,
+                "directoryManaged", directoryManaged,
+                "canChangePassword", !directoryManaged);
     }
 
     @Transactional

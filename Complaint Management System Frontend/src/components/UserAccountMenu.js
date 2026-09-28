@@ -3,27 +3,27 @@ import { Avatar, Dropdown, Typography } from 'antd';
 import { LockOutlined, LogoutOutlined } from '@ant-design/icons';
 import { BRAND_COLORS } from '../constants/theme';
 
-function UserAccountMenu({ displayName, initial, onUpdatePassword, onLogout }) {
+function UserAccountMenu({ displayName, initial, onUpdatePassword, onLogout, canUpdatePassword }) {
+  const items = [];
+  if (canUpdatePassword) {
+    items.push({
+      key: 'update-password',
+      label: 'Update Password',
+      icon: <LockOutlined />,
+      onClick: onUpdatePassword
+    });
+  }
+  items.push({
+    key: 'logout',
+    label: 'Logout',
+    icon: <LogoutOutlined />,
+    danger: true,
+    onClick: onLogout
+  });
   return (
     <Dropdown
       trigger={['click']}
-      menu={{
-        items: [
-          {
-            key: 'update-password',
-            label: 'Update Password',
-            icon: <LockOutlined />,
-            onClick: onUpdatePassword
-          },
-          {
-            key: 'logout',
-            label: 'Logout',
-            icon: <LogoutOutlined />,
-            danger: true,
-            onClick: onLogout
-          }
-        ]
-      }}
+      menu={{ items }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
         <Avatar style={{ backgroundColor: BRAND_COLORS.accent, color: BRAND_COLORS.primary, fontWeight: 'bold' }}>

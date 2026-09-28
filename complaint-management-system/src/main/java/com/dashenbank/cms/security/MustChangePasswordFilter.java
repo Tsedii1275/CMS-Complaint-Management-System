@@ -43,7 +43,8 @@ public class MustChangePasswordFilter extends OncePerRequestFilter {
         if (auth != null && auth.isAuthenticated() && auth.getName() != null
                 && !"anonymousUser".equalsIgnoreCase(auth.getName())) {
             User user = userRepository.findByUsernameIgnoreCase(auth.getName()).orElse(null);
-            if (user != null && user.isMustChangePassword()) {
+            if (user != null && user.isMustChangePassword()
+                    && user.getAuthSource() != com.dashenbank.cms.model.AuthSource.AD) {
                 response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                 response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                 response.getWriter().write(

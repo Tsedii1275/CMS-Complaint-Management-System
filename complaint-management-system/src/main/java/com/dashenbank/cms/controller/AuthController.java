@@ -131,7 +131,10 @@ public class AuthController {
                 response.put("branch", user.getBranch());
                 response.put("department", user.getDepartment());
                 response.put("fullName", user.getFullName());
-                response.put("mustChangePassword", user.isMustChangePassword());
+                response.put("authSource", user.getAuthSource() == null ? AuthSource.LOCAL.name()
+                        : user.getAuthSource().name());
+                response.put("mustChangePassword",
+                        user.getAuthSource() != AuthSource.AD && user.isMustChangePassword());
             }
             return ResponseEntity.ok(response);
         } catch (LockedException e) {
@@ -203,6 +206,7 @@ public class AuthController {
             response.put("branch", user.getBranch());
             response.put("department", user.getDepartment());
             response.put("fullName", user.getFullName());
+            response.put("authSource", AuthSource.AD.name());
             response.put("mustChangePassword", false);
             return ResponseEntity.ok(response);
         } catch (RoleNotMappedException e) {

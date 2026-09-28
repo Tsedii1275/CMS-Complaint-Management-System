@@ -281,12 +281,13 @@ function UserManagementPage() {
               onClick={() => openEditModal(record)}
             />
           </Tooltip>
-          <Tooltip title="Reset Password">
+          <Tooltip title={record.authSource === 'AD' ? 'Password is managed in Active Directory' : 'Reset Password'}>
             <Button
               type="text"
               style={{ color: '#d97706' }}
               size="small"
               icon={<KeyOutlined />}
+              disabled={record.authSource === 'AD'}
               onClick={() => openResetPasswordModal(record)}
             />
           </Tooltip>

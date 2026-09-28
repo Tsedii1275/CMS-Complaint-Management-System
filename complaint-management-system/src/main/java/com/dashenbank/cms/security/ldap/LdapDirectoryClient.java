@@ -136,7 +136,19 @@ public class LdapDirectoryClient implements DirectoryOperations {
             controls.setCountLimit(Math.max(1, maxResults));
             String filter = "(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))";
             NamingEnumeration<SearchResult> results = ctx.search(properties.searchBase(), filter, controls);
-            List<AdUserProfile> profiles = new ArrayList<>();
+            return collectDiscoveryProfiles(results, maxResults);
+        } catch (NamingException e) {
+            log.warn("LDAP discovery search failed: {}", safeDetail(e));
+            throw new DirectoryUnavailableException("Directory search failed: " + safeDetail(e), e);
+        } finally {
+            closeQuietly(ctx);
+        }
+    }
+
+    private List<AdUserProfile> collectDiscoveryProfiles(NamingEnumeration<SearchResult> results, int maxResults)
+            throws NamingException {
+        List<AdUserProfile> profiles = new ArrayList<>();
+        try {
             while (results.hasMore() && profiles.size() < maxResults) {
                 SearchResult result = results.next();
                 AdUserProfile profile = toProfile(result.getAttributes());
@@ -144,13 +156,16 @@ public class LdapDirectoryClient implements DirectoryOperations {
                     profiles.add(profile);
                 }
             }
-            results.close();
-            return profiles;
-        } catch (NamingException e) {
-            throw new DirectoryUnavailableException("Directory search failed", e);
+        } catch (javax.naming.SizeLimitExceededException | javax.naming.PartialResultException e) {
+            log.warn("LDAP discovery stopped after {} users: {}", profiles.size(), safeDetail(e));
+            if (!profiles.isEmpty()) {
+                return profiles;
+            }
+            throw new DirectoryUnavailableException("Directory search failed: " + safeDetail(e), e);
         } finally {
-            closeQuietly(ctx);
+            results.close();
         }
+        return profiles;
     }
 
     private FoundUser findEntry(String username) {

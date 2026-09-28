@@ -175,7 +175,7 @@ function SidebarMenu({ collapsed, userRole, user, onNavigate }) {
   );
 }
 
-function AppHeader({ collapsed, isMobile, onMenuClick, userRole, user, onLogout, onUpdatePassword }) {
+function AppHeader({ collapsed, isMobile, onMenuClick, userRole, user, onLogout, onUpdatePassword, canUpdatePassword }) {
   const [tasks, setTasks] = useState([]);
   const [popoverOpen, setPopoverOpen] = useState(false);
 
@@ -337,6 +337,7 @@ function AppHeader({ collapsed, isMobile, onMenuClick, userRole, user, onLogout,
         <UserAccountMenu
           displayName={displayName}
           initial={initial}
+          canUpdatePassword={canUpdatePassword}
           onUpdatePassword={onUpdatePassword}
           onLogout={onLogout}
         />
@@ -357,6 +358,7 @@ const DashboardLayout = ({ children, userRole }) => {
   const { logout, user, updateUser } = useAuth();
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.lg;
+  const canUpdatePassword = user?.authSource !== 'AD' && passwordStatus?.directoryManaged !== true;
   const effectiveRole = user?.role || userRole || '';
 
   useEffect(() => {
@@ -374,10 +376,14 @@ const DashboardLayout = ({ children, userRole }) => {
   }, [user?.mustChangePassword]);
 
   useEffect(() => {
+    if (!canUpdatePassword) {
+      setIsPasswordModalOpen(false);
+      return;
+    }
     if (user?.mustChangePassword) {
       setIsPasswordModalOpen(true);
     }
-  }, [user?.mustChangePassword]);
+  }, [canUpdatePassword, user?.mustChangePassword]);
 
   const handleLogout = () => {
     console.log('DashboardLayout - Logging out user');
@@ -430,7 +436,9 @@ const DashboardLayout = ({ children, userRole }) => {
         userRole={effectiveRole}
         user={user}
         onLogout={handleLogout}
+        canUpdatePassword={canUpdatePassword}
         onUpdatePassword={() => {
+          if (!canUpdatePassword) return;
           setPasswordError('');
           passwordForm.resetFields();
           setIsPasswordModalOpen(true);
@@ -493,7 +501,7 @@ const DashboardLayout = ({ children, userRole }) => {
               minWidth: 0,
             }}
           >
-            {passwordStatus?.expiringSoon && !passwordStatus?.expired ? (
+            {canUpdatePassword && passwordStatus?.expiringSoon && !passwordStatus?.expired ? (
               <Alert
                 type="warning"
                 showIcon

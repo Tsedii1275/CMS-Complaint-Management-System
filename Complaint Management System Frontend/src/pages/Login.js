@@ -49,7 +49,8 @@ const Login = () => {
         district: response.district,
         branch: response.branch,
         department: response.department,
-        mustChangePassword: !!response.mustChangePassword
+        authSource: response.authSource || 'LOCAL',
+        mustChangePassword: response.authSource === 'AD' ? false : !!response.mustChangePassword
       };
 
       login(userData);

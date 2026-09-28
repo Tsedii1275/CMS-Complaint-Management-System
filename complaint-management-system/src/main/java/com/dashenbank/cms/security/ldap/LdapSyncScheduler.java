@@ -81,8 +81,9 @@ public class LdapSyncScheduler {
             status.setLastError(null);
             status.setLastSuccessAt(now);
         } catch (RuntimeException e) {
+            log.warn("LDAP sync failed: {}", rootDetail(e));
             status.setLastResult("FAILED");
-            status.setLastError(truncate(e.getClass().getSimpleName()));
+            status.setLastError(truncate(rootDetail(e)));
             failed++;
         }
         status.setLastFinishedAt(LocalDateTime.now(clock));
@@ -160,6 +161,20 @@ public class LdapSyncScheduler {
             created.setLastResult("NEVER_RUN");
             return statusRepository.save(created);
         });
+    }
+
+    private static String rootDetail(Throwable error) {
+        StringBuilder text = new StringBuilder();
+        if (error.getMessage() != null && !error.getMessage().isBlank()) {
+            text.append(error.getMessage().trim());
+        } else {
+            text.append(error.getClass().getSimpleName());
+        }
+        if (error.getCause() != null && error.getCause().getMessage() != null
+                && !error.getCause().getMessage().isBlank()) {
+            text.append(" | ").append(error.getCause().getMessage().trim());
+        }
+        return text.toString();
     }
 
     private static String truncate(String value) {
