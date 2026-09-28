@@ -13,9 +13,14 @@ import javax.naming.NamingException;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
-import javax.naming.directory.InitialDirContext;
 import javax.naming.directory.SearchControls;
 import javax.naming.directory.SearchResult;
+import javax.naming.ldap.Control;
+import javax.naming.ldap.InitialLdapContext;
+import javax.naming.ldap.LdapContext;
+import javax.naming.ldap.PagedResultsControl;
+import javax.naming.ldap.PagedResultsResponseControl;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
@@ -27,9 +32,11 @@ public class LdapDirectoryClient implements DirectoryOperations {
 
     private static final Logger log = LoggerFactory.getLogger(LdapDirectoryClient.class);
     private static final int ACCOUNTDISABLE = 0x0002;
+    private static final String ENABLED_PERSON_FILTER =
+            "(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))";
     private static final String[] USER_ATTRS = {
             "sAMAccountName", "displayName", "cn", "mail", "title", "userAccountControl", "objectGUID", "memberOf",
-            "userPrincipalName"
+            "userPrincipalName", "department", "distinguishedName", "physicalDeliveryOfficeName", "company"
     };
 
     private final LdapProperties properties;
@@ -134,7 +141,7 @@ public class LdapDirectoryClient implements DirectoryOperations {
             controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
             controls.setReturningAttributes(USER_ATTRS);
             controls.setCountLimit(Math.max(1, maxResults));
-            String filter = "(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))";
+            String filter = ENABLED_PERSON_FILTER;
             NamingEnumeration<SearchResult> results = ctx.search(properties.searchBase(), filter, controls);
             return collectDiscoveryProfiles(results, maxResults);
         } catch (NamingException e) {
@@ -143,6 +150,68 @@ public class LdapDirectoryClient implements DirectoryOperations {
         } finally {
             closeQuietly(ctx);
         }
+    }
+
+    @Override
+    public List<AdUserProfile> searchDirectoryUsersPaged(int pageSize, int maxTotal) {
+        if (!configured()) {
+            return List.of();
+        }
+        int size = Math.max(100, Math.min(1000, pageSize));
+        int cap = Math.max(size, maxTotal);
+        DirContext raw = serviceContext();
+        try {
+            if (raw instanceof LdapContext ldapContext) {
+                return pagedUserSearch(ldapContext, size, cap);
+            }
+            log.warn("LDAP context does not support paging; using a single-page search");
+            return searchDirectoryUsers(cap);
+        } catch (NamingException | IOException e) {
+            log.warn("LDAP paged search failed, using a single-page search: {}", safeDetail(e));
+            return searchDirectoryUsers(Math.min(cap, Math.max(500, properties.getSync().getMaxResults())));
+        } finally {
+            closeQuietly(raw);
+        }
+    }
+
+    private List<AdUserProfile> pagedUserSearch(LdapContext ctx, int pageSize, int maxTotal)
+            throws NamingException, IOException {
+        SearchControls controls = new SearchControls();
+        controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
+        controls.setReturningAttributes(USER_ATTRS);
+        byte[] cookie = null;
+        List<AdUserProfile> profiles = new ArrayList<>();
+        do {
+            ctx.setRequestControls(new Control[] { new PagedResultsControl(pageSize, cookie, Control.CRITICAL) });
+            NamingEnumeration<SearchResult> results = ctx.search(properties.searchBase(), ENABLED_PERSON_FILTER,
+                    controls);
+            try {
+                while (results.hasMore() && profiles.size() < maxTotal) {
+                    SearchResult result = results.next();
+                    AdUserProfile profile = toProfile(result.getAttributes());
+                    if (profile != null && StringUtils.hasText(profile.samAccountName())) {
+                        profiles.add(profile);
+                    }
+                }
+            } finally {
+                results.close();
+            }
+            cookie = pagedCookie(ctx.getResponseControls());
+        } while (cookie != null && cookie.length > 0 && profiles.size() < maxTotal);
+        ctx.setRequestControls(null);
+        return profiles;
+    }
+
+    private static byte[] pagedCookie(Control[] responseControls) {
+        if (responseControls == null) {
+            return null;
+        }
+        for (Control control : responseControls) {
+            if (control instanceof PagedResultsResponseControl paged) {
+                return paged.getCookie();
+            }
+        }
+        return null;
     }
 
     private List<AdUserProfile> collectDiscoveryProfiles(NamingEnumeration<SearchResult> results, int maxResults)
@@ -232,7 +301,7 @@ public class LdapDirectoryClient implements DirectoryOperations {
                     StringUtils.hasText(properties.getSslPeerName()) ? properties.getSslPeerName().trim() : "");
         }
         try {
-            return new InitialDirContext(env);
+            return new InitialLdapContext(env, null);
         } finally {
             if (userBind) {
                 env.remove(Context.SECURITY_CREDENTIALS);
@@ -256,7 +325,10 @@ public class LdapDirectoryClient implements DirectoryOperations {
         String title = first(attrs, "title");
         boolean enabled = isEnabled(first(attrs, "userAccountControl"));
         String guid = objectGuidToString(binary(attrs, "objectGUID"));
-        return new AdUserProfile(sam, guid, display, mail, title, enabled, memberOf(attrs));
+        String department = first(attrs, "department");
+        String dn = first(attrs, "distinguishedName");
+        String office = first(attrs, "physicalDeliveryOfficeName");
+        return new AdUserProfile(sam, guid, display, mail, title, enabled, memberOf(attrs), department, dn, office);
     }
 
     private static boolean isEnabled(String userAccountControl) {

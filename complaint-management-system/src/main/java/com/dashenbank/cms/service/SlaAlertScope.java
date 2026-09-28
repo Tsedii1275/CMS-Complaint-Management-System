@@ -193,8 +193,9 @@ public final class SlaAlertScope {
             case "ROLE_DEPARTMENT_WORKUNIT" -> Set.of(TASK_WORK_UNIT);
             case "ROLE_CHIEF_COMMITTEE", "ROLE_COMMITTEE_SECRETARY" -> Set.of(TASK_COMMITTEE);
             case "ROLE_CHIEF_EXPERIENCE_OFFICER" -> Set.of(TASK_CXO);
-            case "ROLE_BRANCH_MANAGER", "ROLE_CUSTOMER_SERVICE_MANAGER",
-                    "ROLE_CUSTOMER_EXPERIENCE_PARTNERSHIP" ->
+            case "ROLE_BRANCH_MANAGER" ->
+                Set.of(TASK_BRANCH_CAPTURE, TASK_BRANCH_REVIEW, TASK_BRANCH_FOLLOWUP, TASK_WORK_UNIT);
+            case "ROLE_CUSTOMER_SERVICE_MANAGER", "ROLE_CUSTOMER_EXPERIENCE_PARTNERSHIP" ->
                 Set.of(TASK_BRANCH_CAPTURE, TASK_BRANCH_REVIEW, TASK_BRANCH_FOLLOWUP);
             case "ROLE_CONTACT_CENTER_AGENT", "ROLE_CONTACT_CENTER_SENIOR_MANAGER",
                     "ROLE_DIGITAL_MARKETING_OFFICER", "ROLE_DIGITAL_MARKETING_SENIOR_MANAGER" ->
@@ -229,7 +230,10 @@ public final class SlaAlertScope {
         if (taskDefinitionKey != null && keys.contains(taskDefinitionKey)) {
             return true;
         }
-        return Role.ROLE_DEPARTMENT_WORKUNIT.name().equals(normalizeRole(role))
+        String n = normalizeRole(role);
+        boolean workUnitActor = Role.ROLE_DEPARTMENT_WORKUNIT.name().equals(n)
+                || Role.ROLE_BRANCH_MANAGER.name().equals(n);
+        return workUnitActor
                 && (taskDefinitionKey == null || "SecondaryResolutionReview".equals(taskDefinitionKey));
     }
 
@@ -254,13 +258,39 @@ public final class SlaAlertScope {
     }
 
     /**
+     * CMD, audit, committee, CXO, SQ, and contact-center lanes are national.
+     * Branch managers, CSM, and work-unit staff are limited to their unit.
+     */
+    public static boolean isCentralSlaRole(String role) {
+        String n = normalizeRole(role);
+        if (isAdmin(n) || n.contains("AUDIT") || n.contains("COMMITTEE") || n.contains("CHIEF_EXPERIENCE")) {
+            return true;
+        }
+        return switch (n) {
+            case "ROLE_CUSTOMER_CARE_OFFICER", "ROLE_CUSTOMER_CARE_TEAM_LEADER",
+                    "ROLE_CUSTOMER_CARE_SENIOR_MANAGER", "ROLE_SERVICE_QUALITY_DIRECTOR",
+                    "ROLE_CONTACT_CENTER_AGENT", "ROLE_CONTACT_CENTER_TEAM_LEADER",
+                    "ROLE_CONTACT_CENTER_SENIOR_MANAGER", "ROLE_CONTACT_CENTER_MANAGER",
+                    "ROLE_DIGITAL_MARKETING_OFFICER", "ROLE_DIGITAL_MARKETING_SENIOR_MANAGER" ->
+                true;
+            default -> false;
+        };
+    }
+
+    /**
      * Organizational scope: a populated user attribute must match a populated
-     * ticket attribute. Blank values on either side leave that dimension open.
-     * Task/stage authorization is still required separately so a blank
-     * department cannot expose another lane's SLA.
+     * ticket attribute. Blank ticket values leave that dimension open.
+     * Blank user org does not match (AD users use assignee instead).
      */
     public static boolean matchesOrganizationalScope(User user, String branch, String district, String department) {
         if (user == null) {
+            return false;
+        }
+        if (user.getRole() != null && isCentralSlaRole(user.getRole().name())) {
+            return true;
+        }
+        boolean hasOrg = hasText(user.getBranch()) || hasText(user.getDistrict()) || hasText(user.getDepartment());
+        if (!hasOrg) {
             return false;
         }
         if (!dimensionMatches(user.getBranch(), branch)) {
@@ -270,6 +300,28 @@ public final class SlaAlertScope {
             return false;
         }
         return dimensionMatches(user.getDepartment(), department);
+    }
+
+    public static boolean assigneeIsCurrentUser(User user, Map<String, Object> processVariables) {
+        if (user == null || !hasText(user.getUsername()) || processVariables == null) {
+            return false;
+        }
+        String assignee = firstVariable(processVariables, "assignedOfficerUsername", "assigneeUsername");
+        return hasText(assignee) && user.getUsername().trim().equalsIgnoreCase(assignee.trim());
+    }
+
+    private static String firstVariable(Map<String, Object> vars, String... keys) {
+        for (String key : keys) {
+            Object value = vars.get(key);
+            if (value != null && hasText(value.toString())) {
+                return value.toString();
+            }
+        }
+        return "";
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private static boolean dimensionMatches(String userValue, String ticketValue) {

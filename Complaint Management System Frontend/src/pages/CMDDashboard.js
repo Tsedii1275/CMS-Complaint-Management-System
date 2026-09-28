@@ -136,6 +136,13 @@ function resolveFinalClassification(formData) {
   return { isDeclined: false, finalClassification: 'COMPLAINT' };
 }
 
+function normalizeAssignmentScope(type) {
+  if (type === 'DISTRICT_DEPARTMENT' || type === 'DISTRICT') return 'DISTRICT';
+  if (type === 'HQ_DEPARTMENT') return 'HQ_DEPARTMENT';
+  if (type === 'BRANCH' || type === 'DISTRICT_BRANCH') return 'BRANCH';
+  return 'DISTRICT';
+}
+
 function cmdSubmitValidationError(formData, isDeclined, finalClassification) {
   if (isDeclined) {
     return formData.declineReason?.trim() ? null : 'Decline Reason is mandatory when declining a complaint.';
@@ -143,51 +150,110 @@ function cmdSubmitValidationError(formData, isDeclined, finalClassification) {
   if (finalClassification !== 'COMPLAINT' || formData.requiresInvestigation) {
     return null;
   }
-  const mode = formData.assignmentType || 'DISTRICT_BRANCH';
-  if (mode === 'DISTRICT_DEPARTMENT') return assignmentDistrictDepartmentError(formData);
-  if (mode === 'DISTRICT_BRANCH') return assignmentDistrictBranchError(formData);
-  if (mode === 'HQ_DEPARTMENT') return assignmentHqDepartmentError(formData);
+  return assignmentAdScopeError(formData);
+}
+
+function assignmentAdScopeError(formData) {
+  const mode = normalizeAssignmentScope(formData.assignmentType);
+  if (!formData.adUnitId?.trim()) {
+    if (mode === 'DISTRICT') return 'District is required.';
+    if (mode === 'BRANCH') return 'Branch is required.';
+    return 'Head Office Department is required.';
+  }
+  if (!formData.assigneeUsername?.trim()) {
+    return 'Select an assignee from Active Directory.';
+  }
   return null;
 }
 
-function assignmentDistrictDepartmentError(formData) {
-  if (!formData.district?.trim()) return 'District is required for District Department assignment.';
-  if (!formData.department?.trim()) return 'District Department is required.';
-  return null;
+function formatAdAssigneeLabel(displayName, title) {
+  if (!displayName) {
+    return '';
+  }
+  if (!title) {
+    return displayName;
+  }
+  return `${displayName} (${title})`;
 }
 
-function assignmentDistrictBranchError(formData) {
-  if (!formData.district?.trim()) return 'District is required for District Branch assignment.';
-  if (!formData.branch?.trim()) return 'Branch is required for District Branch assignment.';
-  return null;
+function inferAssignmentTypeFromTask(task) {
+  const stored = task.variables?.assignmentType;
+  if (stored) {
+    return normalizeAssignmentScope(stored);
+  }
+  if (complaintDistrict(task.variables) === 'Head Office' || task.variables?.district === 'Head Office') {
+    return 'HQ_DEPARTMENT';
+  }
+  if (task.variables?.department && !complaintBranch(task.variables)) {
+    return 'DISTRICT';
+  }
+  return 'BRANCH';
 }
 
-function assignmentHqDepartmentError(formData) {
-  if (!formData.department?.trim()) return 'Head Office Department is required.';
-  return null;
+function assignmentUnitLabel(scope) {
+  if (scope === 'DISTRICT') {
+    return 'District';
+  }
+  if (scope === 'BRANCH') {
+    return 'Branch';
+  }
+  return 'Head Office Department';
+}
+
+async function fetchAdOrgUnits(scope) {
+  if (scope === 'DISTRICT') {
+    return ApiService.getAdDistricts();
+  }
+  if (scope === 'HQ_DEPARTMENT') {
+    return ApiService.getAdDepartments();
+  }
+  return ApiService.getAdBranches();
+}
+
+async function fetchAdOfficers(scope, unitId) {
+  if (scope === 'DISTRICT') {
+    return ApiService.getAdDistrictOfficers(unitId);
+  }
+  if (scope === 'HQ_DEPARTMENT') {
+    return ApiService.getAdDepartmentLeaders(unitId);
+  }
+  return ApiService.getAdBranchManagers(unitId);
+}
+
+function districtNameForAdUnit(scope, unitName, previousDistrict) {
+  if (scope === 'DISTRICT') {
+    return unitName;
+  }
+  if (scope === 'HQ_DEPARTMENT') {
+    return 'Head Office';
+  }
+  return previousDistrict;
 }
 
 function applyWorkUnitAssignmentVars(variables, formData) {
-  const mode = formData.assignmentType || 'DISTRICT_BRANCH';
+  const mode = normalizeAssignmentScope(formData.assignmentType);
   variables.assignmentType = mode;
+  variables.assignedOfficerUsername = formData.assigneeUsername || '';
+  variables.assigneeUsername = formData.assigneeUsername || '';
+  variables.assignedOfficerTitle = formData.assigneeTitle || '';
+  variables.manager = formatAdAssigneeLabel(formData.assigneeDisplayName, formData.assigneeTitle)
+    || formData.manager
+    || '';
   if (mode === 'HQ_DEPARTMENT') {
     variables.complaintDistrict = 'Head Office';
     variables.complaintBranch = '';
-    variables.department = formData.department;
-    variables.manager = formData.manager || `Department Director & Manager (${formData.department})`;
-        return;
-      }
-      if (mode === 'DISTRICT_DEPARTMENT') {
-    variables.complaintDistrict = formData.district;
+    variables.department = formData.department || formData.adUnitName || '';
+    return;
+  }
+  if (mode === 'DISTRICT') {
+    variables.complaintDistrict = formData.district || formData.adUnitName || '';
     variables.complaintBranch = '';
-    variables.department = formData.department;
-    variables.manager = formData.manager || `District Director & Manager (${formData.department})`;
-          return;
-        }
-  variables.complaintDistrict = formData.district;
-  variables.complaintBranch = formData.branch;
+    variables.department = '';
+    return;
+  }
+  variables.complaintDistrict = formData.district || '';
+  variables.complaintBranch = formData.branch || formData.adUnitName || '';
   variables.department = formData.department || '';
-  variables.manager = formData.manager || 'Branch Manager & CSM';
 }
 
 function hasWorkUnitResolution(selectedTask) {
@@ -344,10 +410,7 @@ function buildCmdTaskList(tasksData, metricsData, user) {
 }
 
 function resolveAssignmentTypeFromTask(task) {
-  if (task.variables?.assignmentType) return task.variables.assignmentType;
-  if (complaintDistrict(task.variables) === 'Head Office' || task.variables?.district === 'Head Office') return 'HQ_DEPARTMENT';
-  if (task.variables?.department && !complaintBranch(task.variables)) return 'DISTRICT_DEPARTMENT';
-  return 'DISTRICT_BRANCH';
+  return inferAssignmentTypeFromTask(task);
 }
 
 function initialCmdFormFromTask(task) {
@@ -370,6 +433,11 @@ function initialCmdFormFromTask(task) {
       branch: complaintBranch(task.variables) || '',
       department: task.variables?.department || '',
       manager: task.variables?.manager || '',
+      adUnitId: '',
+      adUnitName: '',
+      assigneeUsername: task.variables?.assignedOfficerUsername || '',
+      assigneeDisplayName: '',
+      assigneeTitle: task.variables?.assignedOfficerTitle || '',
       accountNumber: task.variables?.customer?.accountNumber || task.variables?.accountNumber || '',
       complaintDescription: task.variables?.complaint?.description || task.variables?.description || '',
       ccoActionChoice: 'close_complaint'
@@ -1315,11 +1383,16 @@ function useCmdDashboardState() {
     complaintClassification: 'General',
     requiresInvestigation: false,
     notes: '',
-    assignmentType: 'DISTRICT_BRANCH',
+    assignmentType: 'DISTRICT',
     district: '',
     branch: '',
     department: '',
-    manager: ''
+    manager: '',
+    adUnitId: '',
+    adUnitName: '',
+    assigneeUsername: '',
+    assigneeDisplayName: '',
+    assigneeTitle: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
@@ -1334,6 +1407,10 @@ function useCmdDashboardState() {
   const [selectedFollowup, setSelectedFollowup] = useState(null);
   const [isFollowupModalOpen, setIsFollowupModalOpen] = useState(false);
   const [editingFields, setEditingFields] = useState({ district: false, branch: false, description: false, accountNumber: false });
+  const [adOrgUnits, setAdOrgUnits] = useState([]);
+  const [adOfficers, setAdOfficers] = useState([]);
+  const [adOrgLoading, setAdOrgLoading] = useState(false);
+  const [adOfficerLoading, setAdOfficerLoading] = useState(false);
 
   const bag = {
     user,
@@ -1379,6 +1456,10 @@ function useCmdDashboardState() {
     setIsFollowupModalOpen,
     editingFields,
     setEditingFields,
+    adOrgUnits,
+    adOfficers,
+    adOrgLoading,
+    adOfficerLoading,
     stateRef
   };
   stateRef.current = bag;
@@ -1396,6 +1477,45 @@ function useCmdDashboardState() {
     }, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const scope = normalizeAssignmentScope(formData.assignmentType);
+    let cancelled = false;
+    setAdOfficers([]);
+    (async () => {
+      setAdOrgLoading(true);
+      try {
+        const units = await fetchAdOrgUnits(scope);
+        if (!cancelled) setAdOrgUnits(Array.isArray(units) ? units : []);
+      } catch {
+        if (!cancelled) setAdOrgUnits([]);
+      } finally {
+        if (!cancelled) setAdOrgLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [formData.assignmentType]);
+
+  useEffect(() => {
+    if (!formData.adUnitId) {
+      setAdOfficers([]);
+      return undefined;
+    }
+    const scope = normalizeAssignmentScope(formData.assignmentType);
+    let cancelled = false;
+    (async () => {
+      setAdOfficerLoading(true);
+      try {
+        const officers = await fetchAdOfficers(scope, formData.adUnitId);
+        if (!cancelled) setAdOfficers(Array.isArray(officers) ? officers : []);
+      } catch {
+        if (!cancelled) setAdOfficers([]);
+      } finally {
+        if (!cancelled) setAdOfficerLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [formData.assignmentType, formData.adUnitId]);
 
   return bag;
 }
@@ -2464,9 +2584,10 @@ function CmdScreeningSubmitActions({ selectedTask, formData, setFormData, isSubm
 
 function CmdScreeningFormCard(props) {
   const {
-    selectedTask, activeTab, formData, setFormData, isSubmitting, districtsList,
-    investigationFileList, setInvestigationFileList, handleSelectChange, handleDistrictChange,
-    handleBranchChange, handleSaveClassification, handleSubmit
+    selectedTask, activeTab, formData, setFormData, isSubmitting,
+    investigationFileList, setInvestigationFileList, handleSelectChange,
+    handleSaveClassification, handleSubmit,
+    adOrgUnits, adOfficers, adOrgLoading, adOfficerLoading
   } = props;
   if (!shouldShowCmdScreening(activeTab, formData, selectedTask)) {
     return null;
@@ -2626,7 +2747,12 @@ function CmdScreeningFormCard(props) {
                                             district: '',
                                             branch: '',
                                             department: '',
-                                            manager: ''
+                                            manager: '',
+                                            adUnitId: '',
+                                            adUnitName: '',
+                                            assigneeUsername: '',
+                                            assigneeDisplayName: '',
+                                            assigneeTitle: ''
                                           } : {})
                                         }));
                                       }}
@@ -2694,7 +2820,7 @@ function CmdScreeningFormCard(props) {
                                       {/* Assignment Scope Radio Buttons */}
                                       <Form.Item label={<CmdFormLabel style={CMD_LABEL_STRONG_STYLE}>Assignment Scope</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
                                         <Radio.Group
-                                          value={formData.assignmentType || 'DISTRICT_BRANCH'}
+                                          value={normalizeAssignmentScope(formData.assignmentType)}
                                           onChange={(e) => {
                                             const val = e.target.value;
                                             setFormData(prev => ({
@@ -2703,16 +2829,21 @@ function CmdScreeningFormCard(props) {
                                               district: '',
                                               branch: '',
                                               department: '',
-                                              manager: ''
+                                              manager: '',
+                                              adUnitId: '',
+                                              adUnitName: '',
+                                              assigneeUsername: '',
+                                              assigneeDisplayName: '',
+                                              assigneeTitle: ''
                                             }));
                                           }}
                                           style={{ width: '100%' }}
                                         >
                                           <Space direction="vertical" style={{ width: '100%' }} size="small">
-                                            <Radio value="DISTRICT_DEPARTMENT" style={{ fontSize: '14px', color: '#1e293b', fontWeight: 500 }}>
-                                              District Department
+                                            <Radio value="DISTRICT" style={{ fontSize: '14px', color: '#1e293b', fontWeight: 500 }}>
+                                              District
                                             </Radio>
-                                            <Radio value="DISTRICT_BRANCH" style={{ fontSize: '14px', color: '#1e293b', fontWeight: 500 }}>
+                                            <Radio value="BRANCH" style={{ fontSize: '14px', color: '#1e293b', fontWeight: 500 }}>
                                               Branch
                                             </Radio>
                                             <Radio value="HQ_DEPARTMENT" style={{ fontSize: '14px', color: '#1e293b', fontWeight: 500 }}>
@@ -2722,105 +2853,73 @@ function CmdScreeningFormCard(props) {
                                         </Radio.Group>
                                       </Form.Item>
 
-                                      {/* District Department Option */}
-                                      {formData.assignmentType === 'DISTRICT_DEPARTMENT' && (
-                                        <>
-                                          <Form.Item label={<CmdFormLabel required>Complaint District</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
-                                            <Select
-                                              placeholder="Select District"
-                                              value={formData.district || undefined}
-                                              onChange={(val) => {
-                                                setFormData(prev => ({
-                                                  ...prev,
-                                                  district: val,
-                                                  department: '',
-                                                  manager: 'District Director & Department Manager'
-                                                }));
-                                              }}
-                                              style={{ width: '100%' }}
-                                            >
-                                              {districtsList.map(dist => (
-                                                <Option key={dist.id} value={dist.name}>{dist.name}</Option>
-                                              ))}
-                                            </Select>
-                                          </Form.Item>
+                                      <Form.Item
+                                        label={(
+                                          <CmdFormLabel required>
+                                            {assignmentUnitLabel(normalizeAssignmentScope(formData.assignmentType))}
+                                          </CmdFormLabel>
+                                        )}
+                                        required
+                                        style={CMD_FORM_ITEM_24}
+                                      >
+                                        <Select
+                                          placeholder="Loaded from Active Directory"
+                                          loading={adOrgLoading}
+                                          value={formData.adUnitId || undefined}
+                                          onChange={(unitId) => {
+                                            const unit = (adOrgUnits || []).find(u => u.id === unitId);
+                                            const name = unit?.name || '';
+                                            const scope = normalizeAssignmentScope(formData.assignmentType);
+                                            setFormData(prev => ({
+                                              ...prev,
+                                              adUnitId: unitId,
+                                              adUnitName: name,
+                                              district: districtNameForAdUnit(scope, name, prev.district),
+                                              branch: scope === 'BRANCH' ? name : '',
+                                              department: scope === 'HQ_DEPARTMENT' ? name : '',
+                                              assigneeUsername: '',
+                                              assigneeDisplayName: '',
+                                              assigneeTitle: '',
+                                              manager: ''
+                                            }));
+                                          }}
+                                          notFoundContent={adOrgLoading ? 'Loading…' : 'No units found in Active Directory'}
+                                          style={{ width: '100%' }}
+                                        >
+                                          {(adOrgUnits || []).map(unit => (
+                                            <Option key={unit.id} value={unit.id}>{unit.name}</Option>
+                                          ))}
+                                        </Select>
+                                      </Form.Item>
 
-                                          <Form.Item label={<CmdFormLabel required>Department</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
-                                            <Select
-                                              placeholder={formData.district ? "Select Department" : "Select District first"}
-                                              value={formData.department || undefined}
-                                              onChange={(val) => {
-                                                setFormData(prev => ({
-                                                  ...prev,
-                                                  department: val,
-                                                  manager: `District Director & Manager (${val})`
-                                                }));
-                                              }}
-                                              disabled={!formData.district}
-                                              style={{ width: '100%' }}
-                                            >
-                                              {['Operations Department', 'District Audit', 'ATM Operations', 'Digital Banking', 'Credit Department', 'Customer Service', 'Fraud Investigation'].map(dept => (
-                                                <Option key={dept} value={dept}>{dept}</Option>
-                                              ))}
-                                            </Select>
-                                          </Form.Item>
-                                        </>
-                                      )}
-
-                                      {/* Branch Option */}
-                                      {(formData.assignmentType === 'DISTRICT_BRANCH' || !formData.assignmentType) && (
-                                        <>
-                                          <Form.Item label={<CmdFormLabel required>Complaint District</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
-                                            <Select
-                                              placeholder="Select District"
-                                              value={formData.district || undefined}
-                                              onChange={handleDistrictChange}
-                                              style={{ width: '100%' }}
-                                            >
-                                              {districtsList.map(dist => (
-                                                <Option key={dist.id} value={dist.name}>{dist.name}</Option>
-                                              ))}
-                                            </Select>
-                                          </Form.Item>
-
-                                          <Form.Item label={<CmdFormLabel required>Complaint Branch</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
-                                            <Select
-                                              placeholder={formData.district ? "Select Branch" : "Select District first"}
-                                              value={formData.branch || undefined}
-                                              onChange={handleBranchChange}
-                                              disabled={!formData.district}
-                                              style={{ width: '100%' }}
-                                            >
-                                              {formData.district && districtsList.find(d => d.name === formData.district)?.branches.map(br => (
-                                                <Option key={br.id} value={br.name}>{br.name} ({br.code})</Option>
-                                              ))}
-                                            </Select>
-                                          </Form.Item>
-                                        </>
-                                      )}
-
-                                      {/* Head Office Department Option */}
-                                      {formData.assignmentType === 'HQ_DEPARTMENT' && (
-                                          <Form.Item label={<CmdFormLabel required>Department</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
-                                            <Select
-                                              placeholder="Select Department"
-                                              value={formData.department || undefined}
-                                              onChange={(val) => {
-                                                setFormData(prev => ({
-                                                  ...prev,
-                                                  district: 'Head Office',
-                                                  department: val,
-                                                  manager: `Department Director & Manager (${val})`
-                                                }));
-                                              }}
-                                              style={{ width: '100%' }}
-                                            >
-                                              {['ATM Operations', 'Digital Banking', 'Card Operations', 'Credit Department', 'Operations Department', 'Customer Experience', 'Fraud Investigation', 'Trade Finance & Foreign Exchange', 'Internal Audit & Compliance'].map(dept => (
-                                                <Option key={dept} value={dept}>{dept}</Option>
-                                              ))}
-                                            </Select>
-                                          </Form.Item>
-                                      )}
+                                      <Form.Item label={<CmdFormLabel required>Assignee</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
+                                        <Select
+                                          placeholder={formData.adUnitId ? 'Loaded from Active Directory' : 'Select a unit first'}
+                                          loading={adOfficerLoading}
+                                          disabled={!formData.adUnitId}
+                                          value={formData.assigneeUsername || undefined}
+                                          onChange={(username) => {
+                                            const officer = (adOfficers || []).find(o => o.username === username);
+                                            setFormData(prev => ({
+                                              ...prev,
+                                              assigneeUsername: username,
+                                              assigneeDisplayName: officer?.displayName || username,
+                                              assigneeTitle: officer?.title || '',
+                                              manager: officer
+                                                ? formatAdAssigneeLabel(officer.displayName, officer.title)
+                                                : username
+                                            }));
+                                          }}
+                                          notFoundContent={adOfficerLoading ? 'Loading…' : 'No matching officers in Active Directory'}
+                                          style={{ width: '100%' }}
+                                        >
+                                          {(adOfficers || []).map(officer => (
+                                            <Option key={officer.username} value={officer.username}>
+                                              {officer.displayName}{officer.title ? ` — ${officer.title}` : ''}
+                                            </Option>
+                                          ))}
+                                        </Select>
+                                      </Form.Item>
                                     </>
                                   )}
 

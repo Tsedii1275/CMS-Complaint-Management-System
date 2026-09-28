@@ -67,7 +67,7 @@ export function canAccessPath(pathname, role) {
     return r.includes('COMMITTEE');
   }
   if (pathname === '/work-unit') {
-    return r === 'ROLE_DEPARTMENT_WORKUNIT';
+    return r === 'ROLE_DEPARTMENT_WORKUNIT' || r.startsWith('ROLE_BRANCH_MANAGER');
   }
   if (pathname === '/cmd') {
     return r === 'ROLE_CUSTOMER_CARE_OFFICER'
@@ -75,7 +75,6 @@ export function canAccessPath(pathname, role) {
       || r.includes('CUSTOMER_CARE_OFFICER')
       || r === 'ROLE_CUSTOMER_CARE_SENIOR_MANAGER'
       || r === 'ROLE_SERVICE_QUALITY_DIRECTOR'
-      || r.startsWith('ROLE_BRANCH_MANAGER')
       || r.startsWith('ROLE_CONTACT_CENTER')
       || r.startsWith('ROLE_DIGITAL_MARKETING')
       || r === 'ROLE_CUSTOMER_EXPERIENCE_PARTNERSHIP'

@@ -55,6 +55,13 @@ public class SlaAlertAuthorizationService {
     }
 
     public String currentRole() {
+        String username = currentUsername();
+        if (username != null && !"anonymous".equalsIgnoreCase(username)) {
+            Optional<User> stored = userRepository.findByUsernameIgnoreCase(username);
+            if (stored.isPresent() && stored.get().getRole() != null) {
+                return stored.get().getRole().name();
+            }
+        }
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getAuthorities() != null && !auth.getAuthorities().isEmpty()) {
             return SlaAlertScope.normalizeRole(auth.getAuthorities().iterator().next().getAuthority());
@@ -74,15 +81,18 @@ public class SlaAlertAuthorizationService {
      */
     public boolean isStageSlaAlertVisible(String role, User user, String activeTaskDefinitionKey,
             ComplaintSlaMetrics metrics) {
+        return isStageSlaAlertVisible(role, user, activeTaskDefinitionKey, metrics, Map.of());
+    }
+
+    public boolean isStageSlaAlertVisible(String role, User user, String activeTaskDefinitionKey,
+            ComplaintSlaMetrics metrics, Map<String, Object> processVariables) {
         if (user == null || activeTaskDefinitionKey == null || metrics == null) {
             return false;
         }
         if (!SlaAlertScope.roleMayHandleTask(role, activeTaskDefinitionKey)) {
             return false;
         }
-        if (!SlaAlertScope.isAdmin(role)
-                && !SlaAlertScope.matchesOrganizationalScope(user, metrics.getBranch(), metrics.getDistrict(),
-                        metrics.getDepartment())) {
+        if (!SlaAlertScope.isAdmin(role) && !inUserUnit(role, user, metrics, processVariables)) {
             return false;
         }
         String activeStage = SlaAlertScope.stageCodeFromTaskKey(activeTaskDefinitionKey);
@@ -100,7 +110,8 @@ public class SlaAlertAuthorizationService {
             return false;
         }
         if (!SlaAlertScope.matchesOrganizationalScope(user, metrics.getBranch(), metrics.getDistrict(),
-                metrics.getDepartment())) {
+                metrics.getDepartment())
+                && !SlaAlertScope.isCentralSlaRole(role)) {
             return false;
         }
         String effectiveStage = activeTaskKey != null
@@ -172,7 +183,37 @@ public class SlaAlertAuthorizationService {
         String district = firstNonBlank(LocationKeys.complaintDistrict(vars, complaint),
                 metricsDistrict(task.getProcessInstanceId()));
         String department = firstNonBlank(vars.get("department"), metricsDepartment(task.getProcessInstanceId()));
-        return user == null || SlaAlertScope.matchesOrganizationalScope(user, branch, district, department);
+        return inUserUnit(role, user, branch, district, department, vars);
+    }
+
+    private boolean inUserUnit(String role, User user, ComplaintSlaMetrics metrics, Map<String, Object> vars) {
+        return inUserUnit(role, user, metrics.getBranch(), metrics.getDistrict(), metrics.getDepartment(), vars);
+    }
+
+    private boolean inUserUnit(String role, User user, String branch, String district, String department,
+            Map<String, Object> vars) {
+        if (user == null) {
+            return false;
+        }
+        if (SlaAlertScope.isCentralSlaRole(role)) {
+            return true;
+        }
+        if (SlaAlertScope.assigneeIsCurrentUser(user, vars != null ? vars : Map.of())) {
+            return true;
+        }
+        return SlaAlertScope.matchesOrganizationalScope(user, branch, district, department);
+    }
+
+    private Map<String, Object> loadTaskVariables(Task task) {
+        if (task == null || task.getId() == null) {
+            return Map.of();
+        }
+        try {
+            Map<String, Object> vars = taskService.getVariables(task.getId());
+            return vars != null ? vars : Map.of();
+        } catch (RuntimeException e) {
+            return Map.of();
+        }
     }
 
     public enum TaskAction {
@@ -303,13 +344,18 @@ public class SlaAlertAuthorizationService {
         }
         ComplaintSlaMetrics metrics = metricsOpt.get();
         slaTrackingService.recalculateSlaStatus(metrics);
-        if (!isStageSlaAlertVisible(role, user, task.getTaskDefinitionKey(), metrics)) {
+        Map<String, Object> vars = loadTaskVariables(task);
+        if (!isStageSlaAlertVisible(role, user, task.getTaskDefinitionKey(), metrics, vars)) {
             return Optional.empty();
         }
-        return Optional.of(toAlertPayload(task, metrics));
+        return Optional.of(toAlertPayload(task, metrics, vars));
     }
 
     public Map<String, Object> toAlertPayload(Task task, ComplaintSlaMetrics metrics) {
+        return toAlertPayload(task, metrics, Map.of());
+    }
+
+    public Map<String, Object> toAlertPayload(Task task, ComplaintSlaMetrics metrics, Map<String, Object> vars) {
         String activeStage = SlaAlertScope.stageCodeFromTaskKey(task.getTaskDefinitionKey());
         if (activeStage == null) {
             activeStage = SlaAlertScope.canonicalizeStage(metrics.getCurrentStage());
@@ -333,6 +379,11 @@ public class SlaAlertAuthorizationService {
         alert.put("branch", metrics.getBranch());
         alert.put("district", metrics.getDistrict());
         alert.put("department", metrics.getDepartment());
+        Object assigned = vars != null ? vars.get("assignedOfficerUsername") : null;
+        if (assigned == null && vars != null) {
+            assigned = vars.get("assigneeUsername");
+        }
+        alert.put("assignedOfficerUsername", assigned != null ? assigned.toString() : "");
         return alert;
     }
 

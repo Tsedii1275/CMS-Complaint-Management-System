@@ -6,6 +6,8 @@ import com.dashenbank.cms.model.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -124,6 +126,20 @@ class SlaAlertAuthorizationServiceTest {
                 SlaAlertScope.TASK_WORK_UNIT, metrics));
         assertTrue(service.isStageSlaAlertVisible("ROLE_DEPARTMENT_WORKUNIT", sameDept,
                 SlaAlertScope.TASK_WORK_UNIT, metrics));
+    }
+
+    @Test
+    void workUnitWithoutOrgOnlySeesAssignedAlerts() {
+        ComplaintSlaMetrics metrics = metrics("WORK_UNIT_RESOLUTION", "BREACHED", "Loans", "Bole");
+        User adWorkUnit = user(Role.ROLE_DEPARTMENT_WORKUNIT, null, null);
+        adWorkUnit.setUsername("loans.lead");
+        assertFalse(service.isStageSlaAlertVisible("ROLE_DEPARTMENT_WORKUNIT", adWorkUnit,
+                SlaAlertScope.TASK_WORK_UNIT, metrics));
+        assertTrue(service.isStageSlaAlertVisible("ROLE_DEPARTMENT_WORKUNIT", adWorkUnit,
+                SlaAlertScope.TASK_WORK_UNIT, metrics,
+                Map.of("assignedOfficerUsername", "loans.lead")));
+        assertFalse(service.isStageSlaAlertVisible("ROLE_DEPARTMENT_WORKUNIT", adWorkUnit,
+                SlaAlertScope.TASK_CMD_SCREENING, metrics("CMD_SCREENING", "BREACHED", "Loans", "Bole")));
     }
 
     @Test

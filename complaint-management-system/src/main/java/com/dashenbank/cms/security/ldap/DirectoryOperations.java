@@ -17,4 +17,9 @@ public interface DirectoryOperations {
     Optional<AdUserProfile> findBySamAccountName(String username);
 
     List<AdUserProfile> searchDirectoryUsers(int maxResults);
+
+    /**
+     * RFC 2696 paged search of enabled user objects. Used for Work Unit assignment.
+     */
+    List<AdUserProfile> searchDirectoryUsersPaged(int pageSize, int maxTotal);
 }

@@ -46,9 +46,27 @@ public class AdRoleMappingService {
         Map<String, Role> titles = titleMap();
         Role role = titles.get(normalized);
         if (role == null) {
+            role = workUnitDashboardRole(title);
+        }
+        if (role == null) {
             return RoleResolution.none();
         }
         return new RoleResolution(role, "JOB_TITLE", title.trim());
+    }
+
+    /**
+     * Branch titles keep ROLE_BRANCH_MANAGER (branch-staff + work-unit).
+     * District and HO assignee titles are work-unit only.
+     */
+    static Role workUnitDashboardRole(String title) {
+        if (AdWorkUnitTitleMatcher.matchesTitle(title, AdAssignmentScope.BRANCH)) {
+            return Role.ROLE_BRANCH_MANAGER;
+        }
+        if (AdWorkUnitTitleMatcher.matchesTitle(title, AdAssignmentScope.DISTRICT)
+                || AdWorkUnitTitleMatcher.matchesTitle(title, AdAssignmentScope.HEAD_OFFICE_DEPARTMENT)) {
+            return Role.ROLE_DEPARTMENT_WORKUNIT;
+        }
+        return null;
     }
 
     public RoleResolution resolveFromGroups(List<String> memberOf) {
@@ -108,6 +126,18 @@ public class AdRoleMappingService {
     static Map<String, Role> defaultTitleMap() {
         Map<String, Role> map = new LinkedHashMap<>();
         putTitle(map, "Branch Manager", Role.ROLE_BRANCH_MANAGER);
+        putTitle(map, "Branch Manager I", Role.ROLE_BRANCH_MANAGER);
+        putTitle(map, "Branch Manager II", Role.ROLE_BRANCH_MANAGER);
+        putTitle(map, "Senior Branch Manager", Role.ROLE_BRANCH_MANAGER);
+        putTitle(map, "District Director", Role.ROLE_DEPARTMENT_WORKUNIT);
+        putTitle(map, "District Business Director", Role.ROLE_DEPARTMENT_WORKUNIT);
+        putTitle(map, "Operational Manager", Role.ROLE_DEPARTMENT_WORKUNIT);
+        putTitle(map, "Senior Manager", Role.ROLE_DEPARTMENT_WORKUNIT);
+        putTitle(map, "Director", Role.ROLE_DEPARTMENT_WORKUNIT);
+        putTitle(map, "Director – Service Quality", Role.ROLE_DEPARTMENT_WORKUNIT);
+        putTitle(map, "Director – Customer Experience", Role.ROLE_DEPARTMENT_WORKUNIT);
+        putTitle(map, "Director - Service Quality", Role.ROLE_DEPARTMENT_WORKUNIT);
+        putTitle(map, "Director - Customer Experience", Role.ROLE_DEPARTMENT_WORKUNIT);
         putTitle(map, "Customer Service Manager", Role.ROLE_CUSTOMER_SERVICE_MANAGER);
         putTitle(map, "Customer Care Officer", Role.ROLE_CUSTOMER_CARE_OFFICER);
         putTitle(map, "Customer Care Team Leader", Role.ROLE_CUSTOMER_CARE_TEAM_LEADER);

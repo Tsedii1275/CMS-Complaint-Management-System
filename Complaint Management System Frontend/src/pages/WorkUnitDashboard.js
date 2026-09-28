@@ -7,6 +7,7 @@ import { BRAND_COLORS } from '../constants/theme';
 import TaskTable, { formatUniqueId, formatIntakeId, matchesTicketSearch } from '../components/TaskTable';
 import { useAuth } from '../contexts/AuthContext';
 import { complaintBranch } from '../utils/locationKeys';
+import { isVisibleOnWorkUnitInbox } from '../utils/workUnitInbox';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -33,58 +34,13 @@ function WorkUnitDashboard() {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [user?.username, user?.role, user?.branch]);
 
   const loadTasks = async (showLoading = false) => {
     try {
       if (showLoading === true) setLoading(true);
       const tasksData = await ApiService.getEnrichedTasks();
-      const workUnitTasks = tasksData.filter(task => {
-        const currentStage = task.variables?.currentStage || task.variables?.stage;
-        const isWorkUnitTask = task.definitionKey === 'FormTask_57'
-          || task.definitionKey === 'UserTask_WorkUnit'
-          || task.definitionKey === 'SecondaryResolutionReview'
-          || task.name?.includes('Secondary Resolution Review');
-        if (!isWorkUnitTask && ['COMMITTEE_ACCEPTED', 'COMMITTEE_REJECTED', 'COMMITTEE_REVIEW', 'CHIEF_EXPERIENCE_REVIEW', 'CHIEF_OPERATION_AUDIT', 'CMD_SCREENING', 'COMPLETED', 'RESOLVED', 'CLOSED'].includes(currentStage)) {
-          return false;
-        }
-
-        // Exclude Non-Complaint / "Other" / "Declined" cases
-        const isComplaintVar = task.variables?.isComplaint;
-        if (isComplaintVar === false || isComplaintVar === 'false') {
-          return false;
-        }
-
-        const classification = (task.variables?.classification || task.variables?.complaintClassification || '').toUpperCase();
-        if (['OTHER', 'DECLINED', 'INQUIRY', 'REQUEST'].includes(classification)) {
-          return false;
-        }
-
-        const targetTab = task.variables?.targetTab;
-        if (['Other', 'Declined'].includes(targetTab)) {
-          return false;
-        }
-
-        // Non-complaints carry CM- ticket ID without a valid DBC- ticket ID
-        const dbcTicketId = task.variables?.dbcTicketId;
-        const complaintId = task.complaintId || task.variables?.complaintId || task.variables?.ticketId || task.variables?.uniqueIdNo || '';
-        if (String(complaintId).startsWith('CM-') && (!dbcTicketId || !String(dbcTicketId).startsWith('DBC-'))) {
-          return false;
-        }
-
-        return (
-          task.definitionKey !== 'FormTask_43' &&
-          task.definitionKey !== 'FormTask_ChiefCommittee' &&
-          task.definitionKey !== 'FormTask_CEX' &&
-          task.definitionKey !== 'FormTask_48' &&
-          (
-            task.definitionKey === 'FormTask_57' ||
-            task.definitionKey === 'UserTask_WorkUnit' ||
-            task.definitionKey === 'SecondaryResolutionReview' ||
-            task.name?.includes('Secondary Resolution Review')
-          )
-        );
-      });
+      const workUnitTasks = tasksData.filter(task => isVisibleOnWorkUnitInbox(task, user));
       setTasks(workUnitTasks);
     } catch (err) {
       setError('Failed to load tasks');

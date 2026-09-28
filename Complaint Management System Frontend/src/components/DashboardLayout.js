@@ -19,6 +19,7 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import { BRAND_COLORS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
+import { isSlaAlertForUser } from '../utils/slaAlertVisibility';
 import ApiService from '../services/api';
 import UserAccountMenu from './UserAccountMenu';
 import {
@@ -96,6 +97,25 @@ function SidebarMenu({ collapsed, userRole, user, onNavigate }) {
         label: 'SLA Governance & Policy Configuration',
       }
     );
+  } else if (role === 'ROLE_DEPARTMENT_WORKUNIT' || role.includes('DEPARTMENT_WORKUNIT')) {
+    menuItems.push({
+      key: '/work-unit',
+      icon: <HomeOutlined />,
+      label: 'Work Unit Resolution',
+    });
+  } else if (role.startsWith('ROLE_BRANCH_MANAGER')) {
+    menuItems.push(
+      {
+        key: '/branch-staff',
+        icon: <FileTextOutlined />,
+        label: 'Complaint Registration',
+      },
+      {
+        key: '/work-unit',
+        icon: <HomeOutlined />,
+        label: 'Work Unit Resolution',
+      }
+    );
   } else if (role.includes('AUDIT')) {
     menuItems.push({
       key: '/audit',
@@ -141,7 +161,6 @@ function SidebarMenu({ collapsed, userRole, user, onNavigate }) {
       }
     );
   } else if (
-    role.startsWith('ROLE_BRANCH_MANAGER') ||
     role.startsWith('ROLE_CONTACT_CENTER') ||
     role.startsWith('ROLE_DIGITAL_MARKETING') ||
     role === 'ROLE_CUSTOMER_EXPERIENCE_PARTNERSHIP' ||
@@ -183,7 +202,8 @@ function AppHeader({ collapsed, isMobile, onMenuClick, userRole, user, onLogout,
     try {
       if (!user || userRole === 'admin') return;
       const data = await ApiService.getSlaAlerts();
-      setTasks(data || []);
+      const mine = (data || []).filter(alert => isSlaAlertForUser(alert, user));
+      setTasks(mine);
     } catch (err) {
       console.error('Failed to fetch SLA alerts in AppHeader:', err);
       setTasks([]);

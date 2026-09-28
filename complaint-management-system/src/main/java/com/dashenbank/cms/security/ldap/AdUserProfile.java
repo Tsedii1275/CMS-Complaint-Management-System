@@ -9,9 +9,17 @@ public record AdUserProfile(
         String email,
         String title,
         boolean enabled,
-        List<String> memberOf) {
+        List<String> memberOf,
+        String department,
+        String distinguishedName,
+        String office) {
 
     public AdUserProfile {
         memberOf = memberOf == null ? List.of() : List.copyOf(memberOf);
+    }
+
+    public AdUserProfile(String samAccountName, String objectGuid, String displayName, String email, String title,
+            boolean enabled, List<String> memberOf) {
+        this(samAccountName, objectGuid, displayName, email, title, enabled, memberOf, null, null, null);
     }
 }

@@ -380,6 +380,30 @@ class ApiService {
     return this.delete(`/api/sla/config/holidays/${id}`);
   }
 
+  async getAdDistricts() {
+    return this.get('/api/ad/districts');
+  }
+
+  async getAdDistrictOfficers(districtId) {
+    return this.get(`/api/ad/districts/${encodeURIComponent(districtId)}/officers`);
+  }
+
+  async getAdBranches() {
+    return this.get('/api/ad/branches');
+  }
+
+  async getAdBranchManagers(branchId) {
+    return this.get(`/api/ad/branches/${encodeURIComponent(branchId)}/managers`);
+  }
+
+  async getAdDepartments() {
+    return this.get('/api/ad/departments');
+  }
+
+  async getAdDepartmentLeaders(departmentId) {
+    return this.get(`/api/ad/departments/${encodeURIComponent(departmentId)}/leaders`);
+  }
+
   // Get Districts, Branches, and Departments hierarchy
   async getHierarchy() {
     return this.get('/api/hierarchy');

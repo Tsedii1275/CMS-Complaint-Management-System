@@ -113,6 +113,7 @@ public class WebSecurityConfig {
                         .requestMatchers("/api/customer-feedback").permitAll()
                         .requestMatchers("/api/customer-feedback/validate").permitAll()
                         .requestMatchers("/api/hierarchy").permitAll()
+                        .requestMatchers("/api/ad/**").authenticated()
                         .requestMatchers("/api/complaints/staff-submit", "/api/complaints/fcr-resolve").authenticated()
                         .requestMatchers("/api/customer-profile/**", "/api/customers/by-account/**").authenticated()
                         .requestMatchers("/api/users/password-status").authenticated()

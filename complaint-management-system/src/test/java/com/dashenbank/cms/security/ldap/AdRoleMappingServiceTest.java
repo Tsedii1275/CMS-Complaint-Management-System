@@ -87,6 +87,10 @@ class AdRoleMappingServiceTest {
         assertTrue(service.resolveFromTitle("Audit / Investigation Officer").resolved());
         assertEquals(Role.ROLE_CUSTOMER_CARE_TEAM_LEADER,
                 service.resolveFromTitle("Customer Care Team Leader").role());
+        assertEquals(Role.ROLE_DEPARTMENT_WORKUNIT, service.resolveFromTitle("District Director").role());
+        assertEquals(Role.ROLE_BRANCH_MANAGER, service.resolveFromTitle("Branch Manager II").role());
+        assertEquals(Role.ROLE_DEPARTMENT_WORKUNIT, service.resolveFromTitle("Director – Customer Experience").role());
+        assertEquals(Role.ROLE_SERVICE_QUALITY_DIRECTOR, service.resolveFromTitle("Service Quality Director").role());
     }
 
     @Test
