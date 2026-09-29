@@ -108,19 +108,19 @@ function isUnresolvedCmdTask(t, unresolvedTicketIds) {
 }
 
 const CMD_SCREENING_RESET = {
-    classification: 'COMPLAINT',
+  classification: 'COMPLAINT',
   declineReason: '',
   additionalRemarks: '',
   complaintCategory: 'Customer Service Issues',
   serviceType: 'Digital Banking',
   complaintMadeOn: 'Branch',
   receivedBy: 'Customer Care-Telephone',
-          complaintClassification: 'General',
-          requiresInvestigation: false,
-          notes: '',
-          district: '',
-          branch: '',
-          department: '',
+  complaintClassification: 'General',
+  requiresInvestigation: false,
+  notes: '',
+  district: '',
+  branch: '',
+  department: '',
   manager: '',
   isDeclining: false
 };
@@ -262,57 +262,57 @@ function hasWorkUnitResolution(selectedTask) {
 }
 
 function buildCmdCompleteVariables(formData, finalClassification, selectedTask, investigationFileList) {
-      const variables = {
-        classification: finalClassification,
-        decision: finalClassification,
-        isComplaint: finalClassification === 'COMPLAINT' || finalClassification === 'DECLINED',
-        declineReason: formData.declineReason || '',
-        additionalRemarks: formData.additionalRemarks || formData.notes || '',
-        complaintCategory: formData.complaintCategory || 'Customer Service Issues',
-        serviceType: formData.serviceType || 'Digital Banking',
-        complaintMadeOn: formData.complaintMadeOn || 'Branch',
-        receivedBy: formData.receivedBy || 'Customer Care-Telephone',
-        complaintClassification: formData.complaintClassification || 'General',
-        priorityLevel: formData.complaintClassification || 'General',
-        requiresInvestigation: Boolean(formData.requiresInvestigation),
-        notes: formData.notes || ''
-      };
+  const variables = {
+    classification: finalClassification,
+    decision: finalClassification,
+    isComplaint: finalClassification === 'COMPLAINT' || finalClassification === 'DECLINED',
+    declineReason: formData.declineReason || '',
+    additionalRemarks: formData.additionalRemarks || formData.notes || '',
+    complaintCategory: formData.complaintCategory || 'Customer Service Issues',
+    serviceType: formData.serviceType || 'Digital Banking',
+    complaintMadeOn: formData.complaintMadeOn || 'Branch',
+    receivedBy: formData.receivedBy || 'Customer Care-Telephone',
+    complaintClassification: formData.complaintClassification || 'General',
+    priorityLevel: formData.complaintClassification || 'General',
+    requiresInvestigation: Boolean(formData.requiresInvestigation),
+    notes: formData.notes || ''
+  };
 
   const workUnitRes = hasWorkUnitResolution(selectedTask);
   const isClosingAfterRes = workUnitRes && (formData.ccoActionChoice === 'close_complaint' || !formData.ccoActionChoice);
 
-      if (finalClassification === 'DECLINED') {
-        variables.targetTab = 'Declined';
-        variables.status = 'DECLINED';
-      } else if (finalClassification === 'OTHER') {
-        variables.targetTab = 'Other';
-      } else if (isClosingAfterRes) {
-        const summaryText = (formData.resolutionSummary || formData.notes || '').trim();
-        if (!summaryText) {
+  if (finalClassification === 'DECLINED') {
+    variables.targetTab = 'Declined';
+    variables.status = 'DECLINED';
+  } else if (finalClassification === 'OTHER') {
+    variables.targetTab = 'Other';
+  } else if (isClosingAfterRes) {
+    const summaryText = (formData.resolutionSummary || formData.notes || '').trim();
+    if (!summaryText) {
       return { error: 'Resolution Summary is mandatory before closing the case and notifying the customer.' };
-        }
-        variables.status = 'CLOSED';
-        variables.currentStage = 'CLOSED';
-        variables.stage = 'CLOSED';
-        variables.decision = 'RESOLVED';
-        variables.resolutionAccepted = true;
-        variables.requiresInvestigation = false;
-        variables.resolutionSummary = summaryText;
-        variables.notes = summaryText;
-        variables.additionalRemarks = summaryText;
-      } else if (formData.requiresInvestigation) {
-        variables.requiresInvestigation = true;
-        variables.currentStage = 'CHIEF_EXPERIENCE_REVIEW';
-        variables.stage = 'CHIEF_EXPERIENCE';
-        variables.assignedToRole = 'ROLE_CHIEF_EXPERIENCE_OFFICER';
-        variables.nextStage = 'CHIEF_OPERATION_AUDIT';
-        variables.investigationFiles = investigationFileList.map(f => ({
-          name: f.name,
-          url: f.url,
-          size: f.size,
-          type: f.type
-        }));
-      } else {
+    }
+    variables.status = 'CLOSED';
+    variables.currentStage = 'CLOSED';
+    variables.stage = 'CLOSED';
+    variables.decision = 'RESOLVED';
+    variables.resolutionAccepted = true;
+    variables.requiresInvestigation = false;
+    variables.resolutionSummary = summaryText;
+    variables.notes = summaryText;
+    variables.additionalRemarks = summaryText;
+  } else if (formData.requiresInvestigation) {
+    variables.requiresInvestigation = true;
+    variables.currentStage = 'CHIEF_EXPERIENCE_REVIEW';
+    variables.stage = 'CHIEF_EXPERIENCE';
+    variables.assignedToRole = 'ROLE_CHIEF_EXPERIENCE_OFFICER';
+    variables.nextStage = 'CHIEF_OPERATION_AUDIT';
+    variables.investigationFiles = investigationFileList.map(f => ({
+      name: f.name,
+      url: f.url,
+      size: f.size,
+      type: f.type
+    }));
+  } else {
     applyWorkUnitAssignmentVars(variables, formData);
   }
 
@@ -320,7 +320,7 @@ function buildCmdCompleteVariables(formData, finalClassification, selectedTask, 
 }
 
 function cmdSubmitSuccessText(finalClassification, isClosingAfterRes, isReassigning, variables, requiresInvestigation) {
-      if (finalClassification === 'DECLINED') {
+  if (finalClassification === 'DECLINED') {
     return 'Complaint declined and recorded in audit log. Case moved to Declined tab.';
   }
   if (finalClassification === 'OTHER') {
@@ -330,7 +330,7 @@ function cmdSubmitSuccessText(finalClassification, isClosingAfterRes, isReassign
     return 'Complaint resolution accepted, case CLOSED, and customer notified successfully!';
   }
   if (isReassigning) {
-        const targetUnit = variables.department || variables.complaintBranch || variables.branch || variables.complaintDistrict || variables.district || 'Work Unit';
+    const targetUnit = variables.department || variables.complaintBranch || variables.branch || variables.complaintDistrict || variables.district || 'Work Unit';
     return `Complaint successfully reassigned to ${targetUnit} for additional resolution.`;
   }
   if (requiresInvestigation) {
@@ -340,19 +340,19 @@ function cmdSubmitSuccessText(finalClassification, isClosingAfterRes, isReassign
 }
 
 function applyCmdRoleScope(filtered, user) {
-      const role = user?.role || '';
-      if (role === 'ROLE_BRANCH_MANAGER' || role === 'ROLE_CUSTOMER_SERVICE_MANAGER') {
-        const userBranch = user?.branch || 'Bole Branch';
+  const role = user?.role || '';
+  if (role === 'ROLE_BRANCH_MANAGER' || role === 'ROLE_CUSTOMER_SERVICE_MANAGER') {
+    const userBranch = user?.branch || 'Bole Branch';
     return filtered.filter(t => {
-          const b = complaintBranch(t.variables) || t.branch;
-          return !b || b.toLowerCase().includes(userBranch.split(' ')[0].toLowerCase());
-        });
+      const b = complaintBranch(t.variables) || t.branch;
+      return !b || b.toLowerCase().includes(userBranch.split(' ')[0].toLowerCase());
+    });
   }
   if (role === 'ROLE_DIGITAL_MARKETING_SENIOR_MANAGER') {
     return filtered.filter(t => {
-          const ch = (t.variables?.complaint?.channel || t.channel || '').toLowerCase();
-          return ['digital', 'social_media', 'web', 'mobile', 'internet_banking', 'super_app', 'portal'].includes(ch);
-        });
+      const ch = (t.variables?.complaint?.channel || t.channel || '').toLowerCase();
+      return ['digital', 'social_media', 'web', 'mobile', 'internet_banking', 'super_app', 'portal'].includes(ch);
+    });
   }
   return filtered;
 }
@@ -361,34 +361,34 @@ function mapDeclinedMetricToTask(m) {
   const dbcFromTicket = m.dbcTicketId && String(m.dbcTicketId).startsWith('DBC-') ? m.dbcTicketId : null;
   const dbcFromComplaint = m.complaintId && String(m.complaintId).startsWith('DBC-') ? m.complaintId : null;
   const formalDbc = dbcFromTicket || dbcFromComplaint || m.dbcTicketId || m.complaintId;
-        const intakeId = m.generalTicketId || m.complaintId;
+  const intakeId = m.generalTicketId || m.complaintId;
   return {
-          id: `declined-${m.id || formalDbc}`,
-          complaintId: formalDbc,
-          dbcTicketId: formalDbc,
-          generalTicketId: intakeId,
-          customerName: m.customerName || 'N/A',
-          status: 'DECLINED',
-          classification: 'DECLINED',
-          priority: m.priority || 'Normal',
-          createdAt: m.createdAt,
-          definitionKey: 'DECLINED_HISTORIC',
-          variables: {
-            customer: { name: m.customerName, phone: m.phone || 'N/A' },
-            complaint: {
-              description: m.breachReason || 'Declined Complaint',
-              branch: m.branch,
-              district: m.district,
-              category: m.complaintCategory
-            },
-            declineReason: m.breachReason || 'Declined',
-            classification: 'DECLINED',
-            status: 'DECLINED',
-            targetTab: 'Declined',
-            dbcTicketId: formalDbc,
-            complaintId: formalDbc,
-            generalTicketId: intakeId
-          }
+    id: `declined-${m.id || formalDbc}`,
+    complaintId: formalDbc,
+    dbcTicketId: formalDbc,
+    generalTicketId: intakeId,
+    customerName: m.customerName || 'N/A',
+    status: 'DECLINED',
+    classification: 'DECLINED',
+    priority: m.priority || 'Normal',
+    createdAt: m.createdAt,
+    definitionKey: 'DECLINED_HISTORIC',
+    variables: {
+      customer: { name: m.customerName, phone: m.phone || 'N/A' },
+      complaint: {
+        description: m.breachReason || 'Declined Complaint',
+        branch: m.branch,
+        district: m.district,
+        category: m.complaintCategory
+      },
+      declineReason: m.breachReason || 'Declined',
+      classification: 'DECLINED',
+      status: 'DECLINED',
+      targetTab: 'Declined',
+      dbcTicketId: formalDbc,
+      complaintId: formalDbc,
+      generalTicketId: intakeId
+    }
   };
 }
 
@@ -399,14 +399,14 @@ function buildCmdTaskList(tasksData, metricsData, user) {
   filtered = applyCmdRoleScope(filtered, user);
   (metricsData || []).filter(m => m.status === 'DECLINED' || m.classification === 'DECLINED')
     .forEach(m => filtered.push(mapDeclinedMetricToTask(m)));
-      filtered.sort((a, b) => {
-        const aRejected = !!a.variables?.customerFeedbackComment || a.variables?.isSatisfied === false;
-        const bRejected = !!b.variables?.customerFeedbackComment || b.variables?.isSatisfied === false;
-        if (aRejected && !bRejected) return -1;
-        if (!aRejected && bRejected) return 1;
-        return 0;
-      });
-      return filtered;
+  filtered.sort((a, b) => {
+    const aRejected = !!a.variables?.customerFeedbackComment || a.variables?.isSatisfied === false;
+    const bRejected = !!b.variables?.customerFeedbackComment || b.variables?.isSatisfied === false;
+    if (aRejected && !bRejected) return -1;
+    if (!aRejected && bRejected) return 1;
+    return 0;
+  });
+  return filtered;
 }
 
 function resolveAssignmentTypeFromTask(task) {
@@ -414,89 +414,89 @@ function resolveAssignmentTypeFromTask(task) {
 }
 
 function initialCmdFormFromTask(task) {
-    const rawClass = task.classification || task.variables?.classification;
-    const initialClass = (rawClass && rawClass !== 'INTAKE') ? rawClass : 'COMPLAINT';
+  const rawClass = task.classification || task.variables?.classification;
+  const initialClass = (rawClass && rawClass !== 'INTAKE') ? rawClass : 'COMPLAINT';
   return {
-      classification: initialClass,
-        declineReason: '',
-        additionalRemarks: '',
-      resolutionSummary: '',
-      complaintCategory: task.variables?.complaintCategory || task.variables?.complaint?.category || task.complaintCategory || 'Customer Service Issues',
-      serviceType: task.variables?.serviceType || task.variables?.complaint?.serviceType || 'Digital Banking',
-      complaintMadeOn: task.variables?.complaintMadeOn || task.variables?.channel || task.variables?.complaint?.complaintMadeOn || 'Branch',
-      receivedBy: task.variables?.receivedBy || task.variables?.complaint?.receivedBy || 'Customer Care-Telephone',
-      complaintClassification: task.variables?.complaintClassification || task.variables?.priorityLevel || task.priority || 'General',
-      requiresInvestigation: Boolean(task.variables?.requiresInvestigation),
-        notes: '',
+    classification: initialClass,
+    declineReason: '',
+    additionalRemarks: '',
+    resolutionSummary: '',
+    complaintCategory: task.variables?.complaintCategory || task.variables?.complaint?.category || task.complaintCategory || 'Customer Service Issues',
+    serviceType: task.variables?.serviceType || task.variables?.complaint?.serviceType || 'Digital Banking',
+    complaintMadeOn: task.variables?.complaintMadeOn || task.variables?.channel || task.variables?.complaint?.complaintMadeOn || 'Branch',
+    receivedBy: task.variables?.receivedBy || task.variables?.complaint?.receivedBy || 'Customer Care-Telephone',
+    complaintClassification: task.variables?.complaintClassification || task.variables?.priorityLevel || task.priority || 'General',
+    requiresInvestigation: Boolean(task.variables?.requiresInvestigation),
+    notes: '',
     assignmentType: resolveAssignmentTypeFromTask(task),
-      district: complaintDistrict(task.variables) || '',
-      branch: complaintBranch(task.variables) || '',
-      department: task.variables?.department || '',
-      manager: task.variables?.manager || '',
-      adUnitId: '',
-      adUnitName: '',
-      assigneeUsername: task.variables?.assignedOfficerUsername || '',
-      assigneeDisplayName: '',
-      assigneeTitle: task.variables?.assignedOfficerTitle || '',
-      accountNumber: task.variables?.customer?.accountNumber || task.variables?.accountNumber || '',
-      complaintDescription: task.variables?.complaint?.description || task.variables?.description || '',
-      ccoActionChoice: 'close_complaint'
+    district: complaintDistrict(task.variables) || '',
+    branch: complaintBranch(task.variables) || '',
+    department: task.variables?.department || '',
+    manager: task.variables?.manager || '',
+    adUnitId: '',
+    adUnitName: '',
+    assigneeUsername: task.variables?.assignedOfficerUsername || '',
+    assigneeDisplayName: '',
+    assigneeTitle: task.variables?.assignedOfficerTitle || '',
+    accountNumber: task.variables?.customer?.accountNumber || task.variables?.accountNumber || '',
+    complaintDescription: task.variables?.complaint?.description || task.variables?.description || '',
+    ccoActionChoice: 'close_complaint'
   };
 }
 
 const FCR_APPROVE_VARS = {
-          fcrAction: 'approve',
-          fcrStatus: 'VERIFIED',
-          requiresInvestigation: false,
-          status: 'RESOLVED',
-          currentStage: 'RESOLVED',
-          stage: 'RESOLVED',
-          decision: 'FCR_APPROVED',
-          notes: 'FCR resolution verified and approved by Customer Care Officer.'
-        };
+  fcrAction: 'approve',
+  fcrStatus: 'VERIFIED',
+  requiresInvestigation: false,
+  status: 'RESOLVED',
+  currentStage: 'RESOLVED',
+  stage: 'RESOLVED',
+  decision: 'FCR_APPROVED',
+  notes: 'FCR resolution verified and approved by Customer Care Officer.'
+};
 
-          const STANDARDIZED_CATEGORY_MAP = [
-            { key: 'Customer Service Issues', label: 'Customer Service Issues', color: '#fa8c16' },
-            { key: 'Transaction Error', label: 'Transaction Error', color: '#cf1322' },
-            { key: 'Account Management', label: 'Account Management', color: '#52c41a' },
-            { key: 'Banking App Issues', label: 'Banking App Issues', color: '#722ed1' },
-            { key: 'Credit/Financing Concerns', label: 'Credit/Financing Concerns', color: '#13c2c2' },
-            { key: 'Fraud & Security Risk', label: 'Fraud & Security Risk', color: '#f5222d' },
-            { key: 'Information Disclosure', label: 'Information Disclosure', color: '#eb2f96' },
-            { key: 'ATM & Card Banking Issues', label: 'ATM & Card Banking Issues', color: '#1890ff' },
-            { key: 'Policy & Compliance Disputes', label: 'Policy & Compliance Disputes', color: '#fa541c' },
-            { key: 'System Failure', label: 'System Failure', color: '#2f54eb' },
-            { key: 'Branch Operation', label: 'Branch Operation', color: '#faad14' },
-            { key: 'General', label: 'General / Other', color: '#8c8c8c' }
-          ];
+const STANDARDIZED_CATEGORY_MAP = [
+  { key: 'Customer Service Issues', label: 'Customer Service Issues', color: '#fa8c16' },
+  { key: 'Transaction Error', label: 'Transaction Error', color: '#cf1322' },
+  { key: 'Account Management', label: 'Account Management', color: '#52c41a' },
+  { key: 'Banking App Issues', label: 'Banking App Issues', color: '#722ed1' },
+  { key: 'Credit/Financing Concerns', label: 'Credit/Financing Concerns', color: '#13c2c2' },
+  { key: 'Fraud & Security Risk', label: 'Fraud & Security Risk', color: '#f5222d' },
+  { key: 'Information Disclosure', label: 'Information Disclosure', color: '#eb2f96' },
+  { key: 'ATM & Card Banking Issues', label: 'ATM & Card Banking Issues', color: '#1890ff' },
+  { key: 'Policy & Compliance Disputes', label: 'Policy & Compliance Disputes', color: '#fa541c' },
+  { key: 'System Failure', label: 'System Failure', color: '#2f54eb' },
+  { key: 'Branch Operation', label: 'Branch Operation', color: '#faad14' },
+  { key: 'General', label: 'General / Other', color: '#8c8c8c' }
+];
 
 function getTaskCategoryLabel(taskItem, slaMetrics) {
-            const ticketId = taskItem.complaintId || taskItem.variables?.complaintId || taskItem.id;
-            const metric = slaMetrics.find(m => m.complaintId === ticketId);
-            const raw = taskItem.variables?.complaintCategory ||
-              taskItem.variables?.complaint?.complaintCategory ||
-              taskItem.variables?.complaint?.category ||
-              taskItem.variables?.category ||
-              taskItem.variables?.serviceType ||
-              metric?.complaintCategory ||
-              taskItem.complaintCategory ||
-              'General';
-            const str = String(raw).trim();
-            const matched = STANDARDIZED_CATEGORY_MAP.find(c => c.key.toLowerCase() === str.toLowerCase());
-            if (matched) return matched.key;
-            const lower = str.toLowerCase();
-            if (lower.includes('customer service') || lower.includes('behaviour')) return 'Customer Service Issues';
-            if (lower.includes('transaction')) return 'Transaction Error';
-            if (lower.includes('account')) return 'Account Management';
-            if (lower.includes('app') || lower.includes('mobile') || lower.includes('super')) return 'Banking App Issues';
-            if (lower.includes('credit') || lower.includes('loan') || lower.includes('financing')) return 'Credit/Financing Concerns';
-            if (lower.includes('fraud') || lower.includes('security')) return 'Fraud & Security Risk';
-            if (lower.includes('disclosure') || lower.includes('information')) return 'Information Disclosure';
-            if (lower.includes('atm') || lower.includes('card')) return 'ATM & Card Banking Issues';
-            if (lower.includes('policy') || lower.includes('compliance')) return 'Policy & Compliance Disputes';
-            if (lower.includes('system') || lower.includes('technical')) return 'System Failure';
-            if (lower.includes('branch')) return 'Branch Operation';
-            return 'General';
+  const ticketId = taskItem.complaintId || taskItem.variables?.complaintId || taskItem.id;
+  const metric = slaMetrics.find(m => m.complaintId === ticketId);
+  const raw = taskItem.variables?.complaintCategory ||
+    taskItem.variables?.complaint?.complaintCategory ||
+    taskItem.variables?.complaint?.category ||
+    taskItem.variables?.category ||
+    taskItem.variables?.serviceType ||
+    metric?.complaintCategory ||
+    taskItem.complaintCategory ||
+    'General';
+  const str = String(raw).trim();
+  const matched = STANDARDIZED_CATEGORY_MAP.find(c => c.key.toLowerCase() === str.toLowerCase());
+  if (matched) return matched.key;
+  const lower = str.toLowerCase();
+  if (lower.includes('customer service') || lower.includes('behaviour')) return 'Customer Service Issues';
+  if (lower.includes('transaction')) return 'Transaction Error';
+  if (lower.includes('account')) return 'Account Management';
+  if (lower.includes('app') || lower.includes('mobile') || lower.includes('super')) return 'Banking App Issues';
+  if (lower.includes('credit') || lower.includes('loan') || lower.includes('financing')) return 'Credit/Financing Concerns';
+  if (lower.includes('fraud') || lower.includes('security')) return 'Fraud & Security Risk';
+  if (lower.includes('disclosure') || lower.includes('information')) return 'Information Disclosure';
+  if (lower.includes('atm') || lower.includes('card')) return 'ATM & Card Banking Issues';
+  if (lower.includes('policy') || lower.includes('compliance')) return 'Policy & Compliance Disputes';
+  if (lower.includes('system') || lower.includes('technical')) return 'System Failure';
+  if (lower.includes('branch')) return 'Branch Operation';
+  return 'General';
 }
 
 function isSeniorCmdManager(role) {
@@ -559,114 +559,114 @@ function CmdMessageBanner({ message, onClose }) {
 function CmdCategoryAnalytics({ tasks, slaMetrics, unresolvedFollowups, loading }) {
   const unresolvedTicketIds = buildUnresolvedTicketIds(unresolvedFollowups);
   const activeCategoryTasks = tasks.filter(t => isActiveCmdQueueTask(t, unresolvedTicketIds));
-          const totalComplaints = activeCategoryTasks.length;
-          const categoryCounts = {};
-          activeCategoryTasks.forEach(t => {
+  const totalComplaints = activeCategoryTasks.length;
+  const categoryCounts = {};
+  activeCategoryTasks.forEach(t => {
     const cat = getTaskCategoryLabel(t, slaMetrics);
-            categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
-          });
-          const categoryData = STANDARDIZED_CATEGORY_MAP.map(c => {
-            const count = categoryCounts[c.key] || 0;
-            return {
-              key: c.key,
-              name: c.label,
-              color: c.color,
-              count,
-              percent: totalComplaints > 0 ? (count / totalComplaints) * 100 : 0
-            };
-          }).sort((a, b) => b.count - a.count);
-          const radius = 48;
-          const circumference = 2 * Math.PI * radius;
-          let currentRotation = -90;
+    categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+  });
+  const categoryData = STANDARDIZED_CATEGORY_MAP.map(c => {
+    const count = categoryCounts[c.key] || 0;
+    return {
+      key: c.key,
+      name: c.label,
+      color: c.color,
+      count,
+      percent: totalComplaints > 0 ? (count / totalComplaints) * 100 : 0
+    };
+  }).sort((a, b) => b.count - a.count);
+  const radius = 48;
+  const circumference = 2 * Math.PI * radius;
+  let currentRotation = -90;
   const slices = categoryData.filter(c => c.count > 0);
 
-          return (
-            <div style={{ marginBottom: '24px' }}>
-              <Card
-                title={<span style={{ fontWeight: 600, color: BRAND_COLORS.primary, display: 'flex', alignItems: 'center', gap: '8px' }}><DashboardOutlined /> Complaint Category Analytics</span>}
-                bordered={true}
-                loading={loading}
-                style={{ borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}
-              >
-                <Row gutter={[32, 24]} align="middle">
-                  <Col xs={24} md={12} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <div style={{ position: 'relative', width: '140px', height: '140px', flexShrink: 0 }}>
-                      <svg width="100%" height="100%" viewBox="0 0 120 120">
+  return (
+    <div style={{ marginBottom: '24px' }}>
+      <Card
+        title={<span style={{ fontWeight: 600, color: BRAND_COLORS.primary, display: 'flex', alignItems: 'center', gap: '8px' }}><DashboardOutlined /> Complaint Category Analytics</span>}
+        bordered={true}
+        loading={loading}
+        style={{ borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}
+      >
+        <Row gutter={[32, 24]} align="middle">
+          <Col xs={24} md={12} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <div style={{ position: 'relative', width: '140px', height: '140px', flexShrink: 0 }}>
+              <svg width="100%" height="100%" viewBox="0 0 120 120">
                 <circle cx="60" cy="60" r={radius} fill="transparent" stroke="#f0f0f0" strokeWidth="12" />
                 {totalComplaints > 0 && slices.map((cat) => {
-                          const strokeDashoffset = circumference - (cat.percent / 100) * circumference;
-                          const rotation = currentRotation;
-                          currentRotation += (cat.percent / 100) * 360;
-                          return (
-                            <Tooltip
-                              key={cat.key}
-                              title={<div style={{ textAlign: 'center' }}><strong>{cat.name}</strong><br />{cat.count} complaints ({Math.round(cat.percent)}%)</div>}
-                              placement="top"
-                            >
-                              <circle
-                                cx="60"
-                                cy="60"
-                                r={radius}
-                                fill="transparent"
-                                stroke={cat.color}
-                                strokeWidth="12"
-                                strokeDasharray={circumference}
-                                strokeDashoffset={strokeDashoffset}
-                                transform={`rotate(${rotation} 60 60)`}
-                                strokeLinecap="round"
-                                style={{
-                                  transition: 'stroke-dashoffset 0.8s ease, transform 0.8s ease, stroke-width 0.2s ease',
-                                  cursor: 'pointer'
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.target.setAttribute('stroke-width', '15');
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.target.setAttribute('stroke-width', '12');
-                                }}
-                              />
-                            </Tooltip>
-                          );
-                        })}
-                      </svg>
-                      <div style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        textAlign: 'center'
-                      }}>
-                        <div style={{ fontSize: '26px', fontWeight: '800', color: BRAND_COLORS.primary, lineHeight: 1 }}>
-                          {totalComplaints}
-                        </div>
-                        <div style={{ fontSize: '10px', color: '#8c8c8c', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total</div>
-                      </div>
-                    </div>
-                  </Col>
-                  <Col xs={24} md={12} className="card-vertical-divider">
-                    <div style={{ maxHeight: '180px', overflowY: 'auto', paddingRight: '8px' }}>
-              {slices.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '24px 0', color: '#bfbfbf' }}>No active complaints in queue</div>
-                      ) : (
-                slices.map(cat => (
-                          <div key={cat.key} style={{ marginBottom: '10px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '2px' }}>
-                              <span style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: cat.color, display: 'inline-block' }}></span>
-                                {cat.name}
-                              </span>
-                              <span style={{ color: '#8c8c8c' }}>{cat.count} ({Math.round(cat.percent)}%)</span>
-                            </div>
-                    <Progress percent={Math.round(cat.percent)} size="small" showInfo={false} strokeColor={cat.color} />
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </Col>
-                </Row>
-              </Card>
+                  const strokeDashoffset = circumference - (cat.percent / 100) * circumference;
+                  const rotation = currentRotation;
+                  currentRotation += (cat.percent / 100) * 360;
+                  return (
+                    <Tooltip
+                      key={cat.key}
+                      title={<div style={{ textAlign: 'center' }}><strong>{cat.name}</strong><br />{cat.count} complaints ({Math.round(cat.percent)}%)</div>}
+                      placement="top"
+                    >
+                      <circle
+                        cx="60"
+                        cy="60"
+                        r={radius}
+                        fill="transparent"
+                        stroke={cat.color}
+                        strokeWidth="12"
+                        strokeDasharray={circumference}
+                        strokeDashoffset={strokeDashoffset}
+                        transform={`rotate(${rotation} 60 60)`}
+                        strokeLinecap="round"
+                        style={{
+                          transition: 'stroke-dashoffset 0.8s ease, transform 0.8s ease, stroke-width 0.2s ease',
+                          cursor: 'pointer'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.setAttribute('stroke-width', '15');
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.setAttribute('stroke-width', '12');
+                        }}
+                      />
+                    </Tooltip>
+                  );
+                })}
+              </svg>
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '26px', fontWeight: '800', color: BRAND_COLORS.primary, lineHeight: 1 }}>
+                  {totalComplaints}
+                </div>
+                <div style={{ fontSize: '10px', color: '#8c8c8c', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total</div>
+              </div>
             </div>
-          );
+          </Col>
+          <Col xs={24} md={12} className="card-vertical-divider">
+            <div style={{ maxHeight: '180px', overflowY: 'auto', paddingRight: '8px' }}>
+              {slices.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '24px 0', color: '#bfbfbf' }}>No active complaints in queue</div>
+              ) : (
+                slices.map(cat => (
+                  <div key={cat.key} style={{ marginBottom: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '2px' }}>
+                      <span style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: cat.color, display: 'inline-block' }}></span>
+                        {cat.name}
+                      </span>
+                      <span style={{ color: '#8c8c8c' }}>{cat.count} ({Math.round(cat.percent)}%)</span>
+                    </div>
+                    <Progress percent={Math.round(cat.percent)} size="small" showInfo={false} strokeColor={cat.color} />
+                  </div>
+                ))
+              )}
+            </div>
+          </Col>
+        </Row>
+      </Card>
+    </div>
+  );
 }
 
 function CmdQueueToolbar({
@@ -679,7 +679,7 @@ function CmdQueueToolbar({
   setActiveTab,
   setSelectedTask
 }) {
-              const userRole = user?.role || '';
+  const userRole = user?.role || '';
   const isSeniorManager = isSeniorCmdManager(userRole);
   const unresolvedTicketIds = buildUnresolvedTicketIds(unresolvedFollowups);
   const activeTasks = tasks.filter(t => isActiveCmdQueueTask(t, unresolvedTicketIds));
@@ -687,86 +687,86 @@ function CmdQueueToolbar({
   const assignedTasks = activeTasks.filter(t => !isUnassignedAssignee(t.assignee));
   const openFollowupCount = unresolvedFollowups.reduce((n, f) => (f.followupStatus !== 'CLOSED' ? n + 1 : n), 0);
 
-              return (
-                <div>
-                  {isSeniorManager && (
-                    <Row gutter={[16, 16]} style={{ marginBottom: '20px' }}>
-                      <Col xs={24} sm={8}>
-                        <Card size="small" style={{ borderRadius: '8px', borderLeft: `4px solid ${BRAND_COLORS.primary}` }}>
-                          <Text type="secondary" style={{ fontSize: '11px', fontWeight: 600 }}>Total Queue Volume</Text>
-                          <Title level={3} style={{ margin: '2px 0 0 0', color: BRAND_COLORS.primary }}>{activeTasks.length}</Title>
-                        </Card>
-                      </Col>
-                      <Col xs={24} sm={8}>
-                        <Card size="small" style={{ borderRadius: '8px', borderLeft: '4px solid #2563eb' }}>
-                          <Text type="secondary" style={{ fontSize: '11px', fontWeight: 600 }}>Assigned complaints</Text>
-                          <Title level={3} style={{ margin: '2px 0 0 0', color: '#2563eb' }}>{assignedTasks.length}</Title>
-                        </Card>
-                      </Col>
-                      <Col xs={24} sm={8}>
-                        <Card size="small" style={{ borderRadius: '8px', borderLeft: '4px solid #ea580c' }}>
-                          <Text type="secondary" style={{ fontSize: '11px', fontWeight: 600 }}>Unassigned Complaints</Text>
-                          <Title level={3} style={{ margin: '2px 0 0 0', color: '#ea580c' }}>{unassignedTasks.length}</Title>
-                        </Card>
-                      </Col>
-                    </Row>
-                  )}
+  return (
+    <div>
+      {isSeniorManager && (
+        <Row gutter={[16, 16]} style={{ marginBottom: '20px' }}>
+          <Col xs={24} sm={8}>
+            <Card size="small" style={{ borderRadius: '8px', borderLeft: `4px solid ${BRAND_COLORS.primary}` }}>
+              <Text type="secondary" style={{ fontSize: '11px', fontWeight: 600 }}>Total Queue Volume</Text>
+              <Title level={3} style={{ margin: '2px 0 0 0', color: BRAND_COLORS.primary }}>{activeTasks.length}</Title>
+            </Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card size="small" style={{ borderRadius: '8px', borderLeft: '4px solid #2563eb' }}>
+              <Text type="secondary" style={{ fontSize: '11px', fontWeight: 600 }}>Assigned complaints</Text>
+              <Title level={3} style={{ margin: '2px 0 0 0', color: '#2563eb' }}>{assignedTasks.length}</Title>
+            </Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card size="small" style={{ borderRadius: '8px', borderLeft: '4px solid #ea580c' }}>
+              <Text type="secondary" style={{ fontSize: '11px', fontWeight: 600 }}>Unassigned Complaints</Text>
+              <Title level={3} style={{ margin: '2px 0 0 0', color: '#ea580c' }}>{unassignedTasks.length}</Title>
+            </Card>
+          </Col>
+        </Row>
+      )}
       {openFollowupCount > 0 && (
-                    <Alert
-                      message="Unresolved Customer Complaint Alert"
+        <Alert
+          message="Unresolved Customer Complaint Alert"
           description={`There are ${openFollowupCount} unresolved customer complaint survey response(s) requiring follow-up investigation.`}
-                      type="warning"
-                      showIcon
-                      icon={<WarningOutlined style={{ color: '#ef4444' }} />}
-                      style={{ marginBottom: '16px', borderRadius: '8px', borderLeft: '4px solid #ef4444', backgroundColor: '#fff5f5' }}
-                      closable
-                    />
-                  )}
-                  <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Input
-                      className="pill-search-input"
+          type="warning"
+          showIcon
+          icon={<WarningOutlined style={{ color: '#ef4444' }} />}
+          style={{ marginBottom: '16px', borderRadius: '8px', borderLeft: '4px solid #ef4444', backgroundColor: '#fff5f5' }}
+          closable
+        />
+      )}
+      <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Input
+          className="pill-search-input"
           placeholder="Search by Unique ID No, CM ticket, Customer, Description..."
-                      prefix={<SearchOutlined style={{ color: '#475569', fontSize: '16px' }} />}
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      allowClear
+          prefix={<SearchOutlined style={{ color: '#475569', fontSize: '16px' }} />}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          allowClear
           style={{ width: '100%', maxWidth: '280px' }}
-                    />
-                  </div>
-                  <Tabs
-                    activeKey={activeTab}
-                    onChange={(key) => {
-                      setActiveTab(key);
-                      setSelectedTask(null);
-                    }}
-                    style={{ marginBottom: '16px' }}
-                  >
-                    <Tabs.TabPane tab="All Tasks" key="all_tasks" />
-                    {isSeniorManager && (
-                      <Tabs.TabPane tab="Assigned" key="assigned_tasks" />
-                    )}
-                    {isSeniorManager && (
-                      <Tabs.TabPane tab="Unassigned" key="unassigned_tasks" />
-                    )}
-                    {isCmdOfficerWorkspace(userRole) && (
-                      <Tabs.TabPane tab="My Tasks" key="my_tasks" />
-                    )}
-                    <Tabs.TabPane tab="FCR Verification" key="fcr_tasks" />
-                    <Tabs.TabPane tab="Declined" key="declined_tasks" />
-                    <Tabs.TabPane
+        />
+      </div>
+      <Tabs
+        activeKey={activeTab}
+        onChange={(key) => {
+          setActiveTab(key);
+          setSelectedTask(null);
+        }}
+        style={{ marginBottom: '16px' }}
+      >
+        <Tabs.TabPane tab="All Tasks" key="all_tasks" />
+        {isSeniorManager && (
+          <Tabs.TabPane tab="Assigned" key="assigned_tasks" />
+        )}
+        {isSeniorManager && (
+          <Tabs.TabPane tab="Unassigned" key="unassigned_tasks" />
+        )}
+        {isCmdOfficerWorkspace(userRole) && (
+          <Tabs.TabPane tab="My Tasks" key="my_tasks" />
+        )}
+        <Tabs.TabPane tab="FCR Verification" key="fcr_tasks" />
+        <Tabs.TabPane tab="Declined" key="declined_tasks" />
+        <Tabs.TabPane
           tab={(
-                        <span>
-                          Unresolved Follow-Up
+            <span>
+              Unresolved Follow-Up
               {openFollowupCount > 0 && (
                 <Badge count={openFollowupCount} overflowCount={99} style={{ marginLeft: 6, backgroundColor: '#ef4444' }} />
-                          )}
-                        </span>
+              )}
+            </span>
           )}
-                      key="unresolved_followups"
-                    />
-                  </Tabs>
-                </div>
-              );
+          key="unresolved_followups"
+        />
+      </Tabs>
+    </div>
+  );
 }
 
 function UnresolvedFollowupsPanel({
@@ -777,111 +777,111 @@ function UnresolvedFollowupsPanel({
   handleStartFollowup,
   handleCloseFollowup
 }) {
-                const unresolvedColumns = [
-                  {
-                    title: 'Unique ID No',
-                    dataIndex: 'ticketNumber',
-                    key: 'ticketNumber',
-                    render: (text, record) => (
-                      <span style={{
-                        fontFamily: 'monospace',
-                        fontSize: '11px',
-                        color: '#111827',
-                        fontWeight: 600,
-                        background: '#f3f4f6',
-                        padding: '3px 8px',
-                        borderRadius: '4px',
-                        whiteSpace: 'nowrap',
-                        display: 'inline-block'
-                      }}>
-                        {text || record.ticketId || '-'}
-                      </span>
-                    )
-                  },
-                  {
-                    title: 'Submission Date',
-                    dataIndex: 'submittedAt',
-                    key: 'submittedAt',
-                    render: (text) => text ? new Date(text).toLocaleString() : '-'
-                  },
-                  {
-                    title: 'Satisfaction Answer',
-                    key: 'satisfaction',
-                    render: () => <Tag color="error" style={{ fontWeight: 600 }}>No (Not Resolved)</Tag>
-                  },
-                  {
-                    title: 'Follow-Up Status',
-                    dataIndex: 'followupStatus',
-                    key: 'followupStatus',
-                    render: (status) => {
+  const unresolvedColumns = [
+    {
+      title: 'Unique ID No',
+      dataIndex: 'ticketNumber',
+      key: 'ticketNumber',
+      render: (text, record) => (
+        <span style={{
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: '#111827',
+          fontWeight: 600,
+          background: '#f3f4f6',
+          padding: '3px 8px',
+          borderRadius: '4px',
+          whiteSpace: 'nowrap',
+          display: 'inline-block'
+        }}>
+          {text || record.ticketId || '-'}
+        </span>
+      )
+    },
+    {
+      title: 'Submission Date',
+      dataIndex: 'submittedAt',
+      key: 'submittedAt',
+      render: (text) => text ? new Date(text).toLocaleString() : '-'
+    },
+    {
+      title: 'Satisfaction Answer',
+      key: 'satisfaction',
+      render: () => <Tag color="error" style={{ fontWeight: 600 }}>No (Not Resolved)</Tag>
+    },
+    {
+      title: 'Follow-Up Status',
+      dataIndex: 'followupStatus',
+      key: 'followupStatus',
+      render: (status) => {
         const { color, label } = followupActionStatus(status);
-                      return <Tag color={color} style={{ fontWeight: 600 }}>{label}</Tag>;
-                    }
-                  },
-                  {
-                    title: 'Actions',
-                    key: 'actions',
-                    render: (_, record) => (
-                      <Space size="small">
-                        <Tooltip title="View Complaint Details">
-                          <Button
-                            type="text"
-                            icon={<EyeOutlined style={{ color: BRAND_COLORS.primary, fontSize: '18px' }} />}
-                            onClick={() => {
-                              setSelectedFollowup(record);
-                              setIsFollowupModalOpen(true);
-                            }}
-                          />
-                        </Tooltip>
-                        {record.followupStatus !== 'IN_PROGRESS' && record.followupStatus !== 'CLOSED' && (
-                          <Button
-                            size="small"
-                            type="primary"
-                            style={{ borderRadius: '4px', background: '#2563eb', borderColor: '#2563eb', fontWeight: 600 }}
-                            onClick={() => handleStartFollowup(record.id)}
-                          >
-                            Start Follow-Up
-                          </Button>
-                        )}
-                        {record.followupStatus !== 'CLOSED' && (
-                          <Button
-                            size="small"
-                            type="primary"
-                            style={{ borderRadius: '4px', background: '#10b981', borderColor: '#10b981', fontWeight: 600 }}
-                            onClick={() => handleCloseFollowup(record.id)}
-                          >
-                            Close Follow-Up
-                          </Button>
-                        )}
-                      </Space>
-                    )
-                  }
-                ];
-                const query = searchQuery.toLowerCase().trim();
-                const filteredUnresolved = unresolvedFollowups.filter(f => {
-                  const comm = (f.additionalComments || '').toLowerCase();
+        return <Tag color={color} style={{ fontWeight: 600 }}>{label}</Tag>;
+      }
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_, record) => (
+        <Space size="small">
+          <Tooltip title="View Complaint Details">
+            <Button
+              type="text"
+              icon={<EyeOutlined style={{ color: BRAND_COLORS.primary, fontSize: '18px' }} />}
+              onClick={() => {
+                setSelectedFollowup(record);
+                setIsFollowupModalOpen(true);
+              }}
+            />
+          </Tooltip>
+          {record.followupStatus !== 'IN_PROGRESS' && record.followupStatus !== 'CLOSED' && (
+            <Button
+              size="small"
+              type="primary"
+              style={{ borderRadius: '4px', background: '#2563eb', borderColor: '#2563eb', fontWeight: 600 }}
+              onClick={() => handleStartFollowup(record.id)}
+            >
+              Start Follow-Up
+            </Button>
+          )}
+          {record.followupStatus !== 'CLOSED' && (
+            <Button
+              size="small"
+              type="primary"
+              style={{ borderRadius: '4px', background: '#10b981', borderColor: '#10b981', fontWeight: 600 }}
+              onClick={() => handleCloseFollowup(record.id)}
+            >
+              Close Follow-Up
+            </Button>
+          )}
+        </Space>
+      )
+    }
+  ];
+  const query = searchQuery.toLowerCase().trim();
+  const filteredUnresolved = unresolvedFollowups.filter(f => {
+    const comm = (f.additionalComments || '').toLowerCase();
     return !query || matchesTicketSearch(f, query) || comm.includes(query);
-                });
-                if (filteredUnresolved.length === 0) {
-                  return (
-                    <Empty
-                      description="No unresolved complaint survey follow-ups found."
-                      image={Empty.PRESENTED_IMAGE_SIMPLE}
-                      style={{ marginTop: '60px' }}
-                    />
-                  );
-                }
-                return (
-                  <Table
-                    dataSource={filteredUnresolved}
-                    columns={unresolvedColumns}
-                    rowKey="id"
-                    pagination={{ pageSize: 10 }}
-                    style={{ background: '#fff', borderRadius: '8px' }}
+  });
+  if (filteredUnresolved.length === 0) {
+    return (
+      <Empty
+        description="No unresolved complaint survey follow-ups found."
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        style={{ marginTop: '60px' }}
+      />
+    );
+  }
+  return (
+    <Table
+      dataSource={filteredUnresolved}
+      columns={unresolvedColumns}
+      rowKey="id"
+      pagination={{ pageSize: 10 }}
+      style={{ background: '#fff', borderRadius: '8px' }}
       scroll={{ x: 'max-content' }}
-                  />
-                );
-              }
+    />
+  );
+}
 
 function getCmdTabFilteredTasks({ tasks, unresolvedFollowups, user, activeTab, searchQuery }) {
   const unresolvedTicketIds = buildUnresolvedTicketIds(unresolvedFollowups);
@@ -895,19 +895,19 @@ function getCmdTabFilteredTasks({ tasks, unresolvedFollowups, user, activeTab, s
     declined_tasks: tasks.filter(isDeclinedCmdTask)
   };
   const tabFilteredTasks = tabLists[activeTab] || activeTasks;
-              const query = searchQuery.toLowerCase().trim();
+  const query = searchQuery.toLowerCase().trim();
   return tabFilteredTasks.filter(task => {
-                const customerName = task.customerName || '';
-                const desc = task.variables?.complaint?.description || '';
-                const cat = task.variables?.complaint?.category || '';
-                const officer = task.assignee || task.claimedBy || '';
-                return !query ||
+    const customerName = task.customerName || '';
+    const desc = task.variables?.complaint?.description || '';
+    const cat = task.variables?.complaint?.category || '';
+    const officer = task.assignee || task.claimedBy || '';
+    return !query ||
       matchesTicketSearch(task, query) ||
-                  customerName.toLowerCase().includes(query) ||
-                  desc.toLowerCase().includes(query) ||
-                  cat.toLowerCase().includes(query) ||
-                  officer.toLowerCase().includes(query);
-              });
+      customerName.toLowerCase().includes(query) ||
+      desc.toLowerCase().includes(query) ||
+      cat.toLowerCase().includes(query) ||
+      officer.toLowerCase().includes(query);
+  });
 }
 
 function CmdTaskQueue({
@@ -921,24 +921,24 @@ function CmdTaskQueue({
 }) {
   const isSeniorManager = isSeniorCmdManager(user?.role || '');
   const filtered = getCmdTabFilteredTasks({ tasks, unresolvedFollowups, user, activeTab, searchQuery });
-              if (filtered.length === 0) {
-                return (
-                  <Empty
-                    description="No matching tasks found for selected view"
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    style={{ marginTop: '60px' }}
-                  />
-                );
-              }
-              const isDeclinedTab = activeTab === 'declined_tasks';
-              return (
-                <TaskTable
-                  tasks={filtered}
-                  onSelectTask={handleTaskSelect}
-                  onAssignTask={isSeniorManager && !isDeclinedTab ? handleOpenAssignModal : null}
-                  showPriority={false}
-                  showAssignedOfficer={!isDeclinedTab}
-                  showAssignedDate={!isDeclinedTab}
+  if (filtered.length === 0) {
+    return (
+      <Empty
+        description="No matching tasks found for selected view"
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        style={{ marginTop: '60px' }}
+      />
+    );
+  }
+  const isDeclinedTab = activeTab === 'declined_tasks';
+  return (
+    <TaskTable
+      tasks={filtered}
+      onSelectTask={handleTaskSelect}
+      onAssignTask={isSeniorManager && !isDeclinedTab ? handleOpenAssignModal : null}
+      showPriority={false}
+      showAssignedOfficer={!isDeclinedTab}
+      showAssignedDate={!isDeclinedTab}
       showOverallStatus={false}
     />
   );
@@ -1567,7 +1567,7 @@ function otherCmdSubmitButton(selectedTask, formData, isSubmitting) {
       }}
     >
       {submitLabel}
-              </Button>
+    </Button>
   );
 }
 
@@ -1576,7 +1576,7 @@ function CmdVoiceRecordingCard({ task }) {
   if (!voice) return null;
   const { vUrl, vName } = voice;
   return (
-                    <div style={{
+    <div style={{
       background: '#f0f9ff',
       border: '1px solid #bae6fd',
       borderRadius: '8px',
@@ -1591,8 +1591,8 @@ function CmdVoiceRecordingCard({ task }) {
           <AudioOutlined style={{ color: '#0284c7', fontSize: '18px' }} />
           <Text style={{ fontWeight: 600, color: '#0369a1', fontSize: '14px' }}>
             Voice / Call Recording Attachment
-                            </Text>
-                        </Space>
+          </Text>
+        </Space>
         <Button
           href={ApiService.getAttachmentUrl(vUrl)}
           download={vName}
@@ -1604,7 +1604,7 @@ function CmdVoiceRecordingCard({ task }) {
         >
           Download Audio ({vName})
         </Button>
-                      </div>
+      </div>
       <audio src={ApiService.getAttachmentUrl(vUrl)} controls style={{ width: '100%', height: '36px', marginTop: '4px' }}>
         <track kind="captions" />
       </audio>
@@ -1635,9 +1635,9 @@ function CmdEvidenceDocumentCard({ task }) {
   if (!evidence) return null;
   const { eUrl, eName } = evidence;
   return (
-                      <div style={{
-                        background: '#f8fafc',
-                        border: '1px solid #e2e8f0',
+    <div style={{
+      background: '#f8fafc',
+      border: '1px solid #e2e8f0',
       borderRadius: '8px',
       padding: '12px 16px',
       marginTop: '8px',
@@ -1650,10 +1650,10 @@ function CmdEvidenceDocumentCard({ task }) {
         <div>
           <Text style={{ fontWeight: 600, color: '#334155', fontSize: '14px', display: 'block' }}>
             Supporting Evidence Document
-                        </Text>
+          </Text>
           <Text type="secondary" style={{ fontSize: '12px' }}>{eName}</Text>
-                      </div>
-                      </Space>
+        </div>
+      </Space>
       <a
         href={ApiService.getAttachmentUrl(eUrl)}
         download={eName}
@@ -1671,7 +1671,7 @@ function CmdEvidenceDocumentCard({ task }) {
       >
         Download Document
       </a>
-                    </div>
+    </div>
   );
 }
 
@@ -1730,88 +1730,88 @@ function isCommitteeAcceptedDecision(task) {
 function CmdCommitteeDecisionCard({ selectedTask, formData, setFormData, isSubmitting, handleCloseCommitteeDecisionCase }) {
   if (!isCommitteeReturnedToCco(selectedTask)) return null;
   const isAccepted = isCommitteeAcceptedDecision(selectedTask);
-                  return (
-                    <div style={{
-                      background: '#ffffff',
-                      borderRadius: '12px',
-                      padding: '20px 24px',
-                      marginBottom: '20px',
-                      border: isAccepted ? '1px solid #bbf7d0' : '1px solid #fee2e2',
-                      borderLeft: isAccepted ? '4px solid #16a34a' : '4px solid #ef4444',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
-                    }}>
-                      <div style={{ marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <Space size="middle" align="start">
-                          {isAccepted ? (
-                            <CheckCircleOutlined style={{ color: '#16a34a', fontSize: '22px', marginTop: '2px' }} />
-                          ) : (
-                            <CloseCircleOutlined style={{ color: '#ef4444', fontSize: '22px', marginTop: '2px' }} />
-                          )}
-                          <div>
-                            <Space align="center" style={{ marginBottom: '2px' }}>
-                              <Text style={{ fontWeight: 700, fontSize: '16px', color: '#0f172a' }}>
-                                Chief Committee Decision:
-                              </Text>
-                              <Tag color={isAccepted ? 'green' : 'red'} style={{ fontWeight: 700, padding: '2px 8px', borderRadius: '4px' }}>
-                                {isAccepted ? 'Committee Accepted' : 'Committee Rejected'}
-                              </Tag>
-                            </Space>
-                            <Text style={{ fontSize: '13px', color: '#64748b', display: 'block' }}>
-                              Case returned to Customer Care Officer to perform final case closure &amp; customer notification.
-                            </Text>
-                          </div>
-                        </Space>
-                      </div>
-                      {(selectedTask.variables?.committeeExplanation || selectedTask.variables?.decisionSummary) && (
-                        <div style={{
-                          background: isAccepted ? '#f0fdf4' : '#fff5f5',
-                          padding: '14px 16px',
-                          borderRadius: '8px',
-                          border: isAccepted ? '1px solid #bbf7d0' : '1px solid #fecaca',
-                          marginBottom: '16px'
-                        }}>
-                          <Text style={{ fontSize: '12px', display: 'block', fontWeight: 600, color: isAccepted ? '#166534' : '#991b1b', marginBottom: '4px' }}>
-                            {isAccepted ? 'Committee Resolution Directions:' : 'Reason for Committee Rejection:'}
-                          </Text>
-                          <Text style={{ fontSize: '14px', color: isAccepted ? '#14532d' : '#7f1d1d', fontWeight: 500, lineHeight: '1.5', display: 'block' }}>
-                            {selectedTask.variables?.committeeExplanation || selectedTask.variables?.decisionSummary}
-                          </Text>
-                        </div>
-                      )}
-                      <Form.Item
-                        label={<CmdFormLabel required style={CMD_DARK_LABEL_STYLE}>Resolution Summary</CmdFormLabel>}
-                        required
-                        style={{ marginBottom: '16px' }}
-                      >
-                        <Input.TextArea
-                          rows={3}
-                          placeholder="Provide a concise summary of the final outcome communicated to the customer."
-                          value={formData.resolutionSummary || formData.notes || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setFormData(prev => ({ ...prev, resolutionSummary: val, notes: val, additionalRemarks: val }));
-                          }}
-                          style={{ borderRadius: '6px' }}
-                        />
-                      </Form.Item>
-                      <Button
-                        type="primary"
-                        danger={!isAccepted}
-                        icon={isAccepted ? <CheckOutlined /> : <CloseCircleOutlined />}
-                        style={{
-                          backgroundColor: isAccepted ? '#16a34a' : undefined,
-                          borderColor: isAccepted ? '#16a34a' : undefined,
-                          borderRadius: '6px',
-                          fontWeight: 600,
-                          height: '38px'
-                        }}
-                        loading={isSubmitting}
-                        onClick={() => handleCloseCommitteeDecisionCase(isAccepted)}
-                      >
-                        Close Case &amp; Notify Customer
-                      </Button>
-                    </div>
-                  );
+  return (
+    <div style={{
+      background: '#ffffff',
+      borderRadius: '12px',
+      padding: '20px 24px',
+      marginBottom: '20px',
+      border: isAccepted ? '1px solid #bbf7d0' : '1px solid #fee2e2',
+      borderLeft: isAccepted ? '4px solid #16a34a' : '4px solid #ef4444',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+    }}>
+      <div style={{ marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Space size="middle" align="start">
+          {isAccepted ? (
+            <CheckCircleOutlined style={{ color: '#16a34a', fontSize: '22px', marginTop: '2px' }} />
+          ) : (
+            <CloseCircleOutlined style={{ color: '#ef4444', fontSize: '22px', marginTop: '2px' }} />
+          )}
+          <div>
+            <Space align="center" style={{ marginBottom: '2px' }}>
+              <Text style={{ fontWeight: 700, fontSize: '16px', color: '#0f172a' }}>
+                Chief Committee Decision:
+              </Text>
+              <Tag color={isAccepted ? 'green' : 'red'} style={{ fontWeight: 700, padding: '2px 8px', borderRadius: '4px' }}>
+                {isAccepted ? 'Committee Accepted' : 'Committee Rejected'}
+              </Tag>
+            </Space>
+            <Text style={{ fontSize: '13px', color: '#64748b', display: 'block' }}>
+              Case returned to Customer Care Officer to perform final case closure &amp; customer notification.
+            </Text>
+          </div>
+        </Space>
+      </div>
+      {(selectedTask.variables?.committeeExplanation || selectedTask.variables?.decisionSummary) && (
+        <div style={{
+          background: isAccepted ? '#f0fdf4' : '#fff5f5',
+          padding: '14px 16px',
+          borderRadius: '8px',
+          border: isAccepted ? '1px solid #bbf7d0' : '1px solid #fecaca',
+          marginBottom: '16px'
+        }}>
+          <Text style={{ fontSize: '12px', display: 'block', fontWeight: 600, color: isAccepted ? '#166534' : '#991b1b', marginBottom: '4px' }}>
+            {isAccepted ? 'Committee Resolution Directions:' : 'Reason for Committee Rejection:'}
+          </Text>
+          <Text style={{ fontSize: '14px', color: isAccepted ? '#14532d' : '#7f1d1d', fontWeight: 500, lineHeight: '1.5', display: 'block' }}>
+            {selectedTask.variables?.committeeExplanation || selectedTask.variables?.decisionSummary}
+          </Text>
+        </div>
+      )}
+      <Form.Item
+        label={<CmdFormLabel required style={CMD_DARK_LABEL_STYLE}>Resolution Summary</CmdFormLabel>}
+        required
+        style={{ marginBottom: '16px' }}
+      >
+        <Input.TextArea
+          rows={3}
+          placeholder="Provide a concise summary of the final outcome communicated to the customer."
+          value={formData.resolutionSummary || formData.notes || ''}
+          onChange={(e) => {
+            const val = e.target.value;
+            setFormData(prev => ({ ...prev, resolutionSummary: val, notes: val, additionalRemarks: val }));
+          }}
+          style={{ borderRadius: '6px' }}
+        />
+      </Form.Item>
+      <Button
+        type="primary"
+        danger={!isAccepted}
+        icon={isAccepted ? <CheckOutlined /> : <CloseCircleOutlined />}
+        style={{
+          backgroundColor: isAccepted ? '#16a34a' : undefined,
+          borderColor: isAccepted ? '#16a34a' : undefined,
+          borderRadius: '6px',
+          fontWeight: 600,
+          height: '38px'
+        }}
+        loading={isSubmitting}
+        onClick={() => handleCloseCommitteeDecisionCase(isAccepted)}
+      >
+        Close Case &amp; Notify Customer
+      </Button>
+    </div>
+  );
 }
 
 function CmdFcrReviewBanner({ selectedTask, isSubmitting, handleFcrVerification }) {
@@ -1819,66 +1819,66 @@ function CmdFcrReviewBanner({ selectedTask, isSubmitting, handleFcrVerification 
     return null;
   }
   return (
-                    <div style={{
-                      background: '#ffffff',
-                      borderRadius: '12px',
-                      padding: '20px 24px',
-                      marginBottom: '20px',
-                      border: '1px solid #e2e8f0',
-                      borderLeft: '4px solid #16a34a',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
-                    }}>
-                      <div style={{ marginBottom: '14px' }}>
-                        <Space size="middle" align="start">
-                          <CheckCircleOutlined style={{ color: '#16a34a', fontSize: '20px', marginTop: '2px' }} />
-                          <div>
-                            <Text style={{ fontWeight: 700, fontSize: '16px', color: '#0f172a', display: 'block' }}>
-                              First Contact Resolution (FCR) Review
-                            </Text>
-                            <Text style={{ fontSize: '13px', color: '#64748b' }}>
-                              Resolved at intake level by Branch Staff
-                            </Text>
-                          </div>
-                        </Space>
-                      </div>
+    <div style={{
+      background: '#ffffff',
+      borderRadius: '12px',
+      padding: '20px 24px',
+      marginBottom: '20px',
+      border: '1px solid #e2e8f0',
+      borderLeft: '4px solid #16a34a',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+    }}>
+      <div style={{ marginBottom: '14px' }}>
+        <Space size="middle" align="start">
+          <CheckCircleOutlined style={{ color: '#16a34a', fontSize: '20px', marginTop: '2px' }} />
+          <div>
+            <Text style={{ fontWeight: 700, fontSize: '16px', color: '#0f172a', display: 'block' }}>
+              First Contact Resolution (FCR) Review
+            </Text>
+            <Text style={{ fontSize: '13px', color: '#64748b' }}>
+              Resolved at intake level by Branch Staff
+            </Text>
+          </div>
+        </Space>
+      </div>
 
-                      <div style={{
-                        background: '#f8fafc',
-                        padding: '14px 16px',
-                        borderRadius: '8px',
-                        border: '1px solid #e2e8f0',
-                        marginBottom: '16px'
-                      }}>
-                        <Text style={{ fontSize: '12px', display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>
-                          Resolution Notes recorded:
-                        </Text>
-                        <Text style={{ fontSize: '14px', color: '#1e293b', fontWeight: 500, lineHeight: '1.5', display: 'block' }}>
-                          {selectedTask.variables?.fcrNotes || selectedTask.variables?.resolutionNotes || selectedTask.variables?.complaint?.fcrNotes || selectedTask.variables?.complaint?.resolutionNotes || 'FCR notes'}
-                        </Text>
-                      </div>
+      <div style={{
+        background: '#f8fafc',
+        padding: '14px 16px',
+        borderRadius: '8px',
+        border: '1px solid #e2e8f0',
+        marginBottom: '16px'
+      }}>
+        <Text style={{ fontSize: '12px', display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>
+          Resolution Notes recorded:
+        </Text>
+        <Text style={{ fontSize: '14px', color: '#1e293b', fontWeight: 500, lineHeight: '1.5', display: 'block' }}>
+          {selectedTask.variables?.fcrNotes || selectedTask.variables?.resolutionNotes || selectedTask.variables?.complaint?.fcrNotes || selectedTask.variables?.complaint?.resolutionNotes || 'FCR notes'}
+        </Text>
+      </div>
 
-                      <Space size="middle" wrap>
-                        <Button
-                          type="primary"
-                          icon={<CheckOutlined />}
-                          style={{ backgroundColor: '#16a34a', borderColor: '#16a34a', borderRadius: '6px', fontWeight: 600, height: '36px' }}
-                          loading={isSubmitting}
-                          onClick={() => handleFcrVerification('approve')}
-                        >
-                          Approve FCR &amp; Close Case
-                        </Button>
+      <Space size="middle" wrap>
+        <Button
+          type="primary"
+          icon={<CheckOutlined />}
+          style={{ backgroundColor: '#16a34a', borderColor: '#16a34a', borderRadius: '6px', fontWeight: 600, height: '36px' }}
+          loading={isSubmitting}
+          onClick={() => handleFcrVerification('approve')}
+        >
+          Approve FCR &amp; Close Case
+        </Button>
 
-                        <Button
-                          danger
-                          icon={<CloseOutlined />}
-                          style={{ borderRadius: '6px', fontWeight: 600, height: '36px' }}
-                          loading={isSubmitting}
-                          onClick={() => handleFcrVerification('reject')}
-                        >
-                          Reject FCR &amp; Route to Screening
-                        </Button>
-                      </Space>
-                    </div>
+        <Button
+          danger
+          icon={<CloseOutlined />}
+          style={{ borderRadius: '6px', fontWeight: 600, height: '36px' }}
+          loading={isSubmitting}
+          onClick={() => handleFcrVerification('reject')}
+        >
+          Reject FCR &amp; Route to Screening
+        </Button>
+      </Space>
+    </div>
   );
 }
 
@@ -1887,102 +1887,102 @@ function CmdWorkUnitResolutionBanner({ selectedTask, formData, setFormData, isSu
     return null;
   }
   return (
-                    <div style={{
-                      background: '#ffffff',
-                      borderRadius: '12px',
-                      padding: '20px 24px',
-                      marginBottom: '20px',
-                      border: '1px solid #bbf7d0',
-                      borderLeft: '4px solid #16a34a',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
-                    }}>
-                      <div style={{ marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Space size="middle" align="center">
-                          <CheckCircleOutlined style={{ color: '#16a34a', fontSize: '22px' }} />
-                          <div>
-                            <Space align="center">
-                              <Text style={{ fontWeight: 700, fontSize: '16px', color: '#0f172a' }}>
-                                Work Unit Resolution Submitted
-                              </Text>
-                            </Space>
-                            <Text style={{ fontSize: '13px', color: '#64748b', display: 'block' }}>
-                              Review the resolution provided by the Work Unit and choose an action below.
-                            </Text>
-                          </div>
-                        </Space>
-                      </div>
+    <div style={{
+      background: '#ffffff',
+      borderRadius: '12px',
+      padding: '20px 24px',
+      marginBottom: '20px',
+      border: '1px solid #bbf7d0',
+      borderLeft: '4px solid #16a34a',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+    }}>
+      <div style={{ marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Space size="middle" align="center">
+          <CheckCircleOutlined style={{ color: '#16a34a', fontSize: '22px' }} />
+          <div>
+            <Space align="center">
+              <Text style={{ fontWeight: 700, fontSize: '16px', color: '#0f172a' }}>
+                Work Unit Resolution Submitted
+              </Text>
+            </Space>
+            <Text style={{ fontSize: '13px', color: '#64748b', display: 'block' }}>
+              Review the resolution provided by the Work Unit and choose an action below.
+            </Text>
+          </div>
+        </Space>
+      </div>
 
-                      <div style={{
-                        background: '#f0fdf4',
-                        padding: '14px 16px',
-                        borderRadius: '8px',
-                        border: '1px solid #bbf7d0',
-                        marginBottom: '16px'
-                      }}>
-                        {selectedTask.variables?.resolutionDetails && (
-                          <div style={{ marginBottom: '8px' }}>
-                            <Text style={{ fontSize: '12px', display: 'block', fontWeight: 600, color: '#166534', marginBottom: '2px' }}>
-                              Resolution Details:
-                            </Text>
-                            <Text style={{ fontSize: '14px', color: '#1e293b', fontWeight: 500, lineHeight: '1.5', display: 'block' }}>
-                              {selectedTask.variables.resolutionDetails}
-                            </Text>
-                          </div>
-                        )}
-                        {selectedTask.variables?.actionTaken && (
-                          <div>
-                            <Text style={{ fontSize: '12px', display: 'block', fontWeight: 600, color: '#166534', marginBottom: '2px' }}>
-                              Action Taken:
-                            </Text>
-                            <Text style={{ fontSize: '14px', color: '#1e293b', fontWeight: 500, lineHeight: '1.5', display: 'block' }}>
-                              {selectedTask.variables.actionTaken}
-                            </Text>
-                          </div>
-                        )}
-                      </div>
+      <div style={{
+        background: '#f0fdf4',
+        padding: '14px 16px',
+        borderRadius: '8px',
+        border: '1px solid #bbf7d0',
+        marginBottom: '16px'
+      }}>
+        {selectedTask.variables?.resolutionDetails && (
+          <div style={{ marginBottom: '8px' }}>
+            <Text style={{ fontSize: '12px', display: 'block', fontWeight: 600, color: '#166534', marginBottom: '2px' }}>
+              Resolution Details:
+            </Text>
+            <Text style={{ fontSize: '14px', color: '#1e293b', fontWeight: 500, lineHeight: '1.5', display: 'block' }}>
+              {selectedTask.variables.resolutionDetails}
+            </Text>
+          </div>
+        )}
+        {selectedTask.variables?.actionTaken && (
+          <div>
+            <Text style={{ fontSize: '12px', display: 'block', fontWeight: 600, color: '#166534', marginBottom: '2px' }}>
+              Action Taken:
+            </Text>
+            <Text style={{ fontSize: '14px', color: '#1e293b', fontWeight: 500, lineHeight: '1.5', display: 'block' }}>
+              {selectedTask.variables.actionTaken}
+            </Text>
+          </div>
+        )}
+      </div>
 
-                      <Form.Item
-                        label={<CmdFormLabel required style={CMD_DARK_LABEL_STYLE}>Resolution Summary</CmdFormLabel>}
-                        required
-                        style={{ marginBottom: '16px' }}
-                      >
-                        <Input.TextArea
-                          rows={3}
-                          placeholder="Provide a concise summary of the final outcome communicated to the customer."
-                          value={formData.resolutionSummary || formData.notes || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setFormData(prev => ({ ...prev, resolutionSummary: val, notes: val, additionalRemarks: val }));
-                          }}
-                          style={{ borderRadius: '6px' }}
-                        />
-                      </Form.Item>
+      <Form.Item
+        label={<CmdFormLabel required style={CMD_DARK_LABEL_STYLE}>Resolution Summary</CmdFormLabel>}
+        required
+        style={{ marginBottom: '16px' }}
+      >
+        <Input.TextArea
+          rows={3}
+          placeholder="Provide a concise summary of the final outcome communicated to the customer."
+          value={formData.resolutionSummary || formData.notes || ''}
+          onChange={(e) => {
+            const val = e.target.value;
+            setFormData(prev => ({ ...prev, resolutionSummary: val, notes: val, additionalRemarks: val }));
+          }}
+          style={{ borderRadius: '6px' }}
+        />
+      </Form.Item>
 
-                      {/* Direct Action Buttons */}
-                      <Space size="middle" style={{ marginTop: '4px' }}>
-                        <Button
-                          type="primary"
-                          icon={<CheckOutlined />}
-                          style={{ backgroundColor: '#16a34a', borderColor: '#16a34a', borderRadius: '6px', fontWeight: 600, height: '38px' }}
-                          loading={isSubmitting}
-                          onClick={handleCloseAfterWorkUnit}
-                        >
-                          Close Complaint &amp; Notify Customer
-                        </Button>
+      {/* Direct Action Buttons */}
+      <Space size="middle" style={{ marginTop: '4px' }}>
+        <Button
+          type="primary"
+          icon={<CheckOutlined />}
+          style={{ backgroundColor: '#16a34a', borderColor: '#16a34a', borderRadius: '6px', fontWeight: 600, height: '38px' }}
+          loading={isSubmitting}
+          onClick={handleCloseAfterWorkUnit}
+        >
+          Close Complaint &amp; Notify Customer
+        </Button>
 
-                        <Button
-                          type="default"
-                          icon={<SwapOutlined />}
-                          style={{ borderColor: '#2563eb', color: '#2563eb', borderRadius: '6px', fontWeight: 600, height: '38px' }}
-                          onClick={() => {
-                            setFormData(prev => ({ ...prev, ccoActionChoice: 'reassign_work_unit' }));
-                            antMessage.info('Please select target assignment details in the right panel to reassign.');
-                          }}
-                        >
-                          Reassign Complaint
-                        </Button>
-                      </Space>
-                    </div>
+        <Button
+          type="default"
+          icon={<SwapOutlined />}
+          style={{ borderColor: '#2563eb', color: '#2563eb', borderRadius: '6px', fontWeight: 600, height: '38px' }}
+          onClick={() => {
+            setFormData(prev => ({ ...prev, ccoActionChoice: 'reassign_work_unit' }));
+            antMessage.info('Please select target assignment details in the right panel to reassign.');
+          }}
+        >
+          Reassign Complaint
+        </Button>
+      </Space>
+    </div>
   );
 }
 
@@ -1992,352 +1992,352 @@ function CmdComplaintDetailsCard({
   handleDistrictChange, districtsList
 }) {
   return (
-                <div style={{
-                  background: '#f8fafc',
-                  borderRadius: '16px',
-                  padding: '24px',
-                  marginBottom: '20px',
-                  border: '1px solid #f1f5f9'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                    <Text style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
-                      Complaint details
-                    </Text>
-                    <Space align="center">
-                      {(isSeniorCmdManager(user?.role) || user?.role === 'ROLE_ADMIN') &&
-                        activeTab !== 'declined_tasks' &&
-                        !isDeclinedCmdTask(selectedTask) && (
-                        <Button
-                          type="primary"
-                          size="small"
-                          icon={<UserOutlined />}
-                          onClick={() => handleOpenAssignModal(selectedTask)}
-                          style={{ backgroundColor: BRAND_COLORS.primary, borderColor: BRAND_COLORS.primary, borderRadius: '6px', fontWeight: 600 }}
-                        >
-                          {(selectedTask.assignee && String(selectedTask.assignee).toLowerCase() !== 'unassigned' && String(selectedTask.assignee).toLowerCase() !== 'null' && String(selectedTask.assignee).toLowerCase() !== 'initiator') ? 'Reassign Officer' : 'Assign Officer'}
-                        </Button>
-                      )}
-                    </Space>
-                  </div>
+    <div style={{
+      background: '#f8fafc',
+      borderRadius: '16px',
+      padding: '24px',
+      marginBottom: '20px',
+      border: '1px solid #f1f5f9'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+        <Text style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
+          Complaint details
+        </Text>
+        <Space align="center">
+          {(isSeniorCmdManager(user?.role) || user?.role === 'ROLE_ADMIN') &&
+            activeTab !== 'declined_tasks' &&
+            !isDeclinedCmdTask(selectedTask) && (
+              <Button
+                type="primary"
+                size="small"
+                icon={<UserOutlined />}
+                onClick={() => handleOpenAssignModal(selectedTask)}
+                style={{ backgroundColor: BRAND_COLORS.primary, borderColor: BRAND_COLORS.primary, borderRadius: '6px', fontWeight: 600 }}
+              >
+                {(selectedTask.assignee && String(selectedTask.assignee).toLowerCase() !== 'unassigned' && String(selectedTask.assignee).toLowerCase() !== 'null' && String(selectedTask.assignee).toLowerCase() !== 'initiator') ? 'Reassign Officer' : 'Assign Officer'}
+              </Button>
+            )}
+        </Space>
+      </div>
 
-                  <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={{ color: '#64748b', fontSize: '14px' }}>Unique ID No</Text>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>
-                          {formatUniqueId(selectedTask)}
-                        </Text>
-                        {formatIntakeId(selectedTask) && formatIntakeId(selectedTask) !== formatUniqueId(selectedTask) && (
-                          <Text type="secondary" style={{ fontSize: '12px' }}>
-                            Intake {formatIntakeId(selectedTask)}
-                          </Text>
-                        )}
-                        {(selectedTask.variables?.committeeDecision === 'rejected' ||
-                          selectedTask.variables?.committeeStatus === 'REJECTED' ||
-                          selectedTask.variables?.currentStage === 'COMMITTEE_REJECTED' ||
-                          selectedTask.variables?.isCommitteeRejected === true ||
-                          selectedTask.committeeDecision === 'rejected') && (
-                            <Tag color="magenta" style={{ fontWeight: 700, fontSize: '11px', borderRadius: '4px', margin: 0 }}>
-                              Committee Rejected
-                            </Tag>
-                          )}
-                        {(selectedTask.variables?.committeeDecision === 'approved' ||
-                          selectedTask.variables?.committeeDecision === 'accepted' ||
-                          selectedTask.variables?.committeeDecision === 'accept' ||
-                          selectedTask.variables?.committeeStatus === 'ACCEPTED' ||
-                          selectedTask.variables?.currentStage === 'COMMITTEE_ACCEPTED' ||
-                          selectedTask.variables?.isCommitteeAccepted === true ||
-                          selectedTask.committeeDecision === 'approved' ||
-                          selectedTask.committeeDecision === 'accepted') && (
-                            <Tag color="green" style={{ fontWeight: 700, fontSize: '11px', borderRadius: '4px', margin: 0 }}>
-                              Committee Approved
-                            </Tag>
-                          )}
-                      </div>
-                    </div>
+      <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={{ color: '#64748b', fontSize: '14px' }}>Unique ID No</Text>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>
+              {formatUniqueId(selectedTask)}
+            </Text>
+            {formatIntakeId(selectedTask) && formatIntakeId(selectedTask) !== formatUniqueId(selectedTask) && (
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                Intake {formatIntakeId(selectedTask)}
+              </Text>
+            )}
+            {(selectedTask.variables?.committeeDecision === 'rejected' ||
+              selectedTask.variables?.committeeStatus === 'REJECTED' ||
+              selectedTask.variables?.currentStage === 'COMMITTEE_REJECTED' ||
+              selectedTask.variables?.isCommitteeRejected === true ||
+              selectedTask.committeeDecision === 'rejected') && (
+                <Tag color="magenta" style={{ fontWeight: 700, fontSize: '11px', borderRadius: '4px', margin: 0 }}>
+                  Committee Rejected
+                </Tag>
+              )}
+            {(selectedTask.variables?.committeeDecision === 'approved' ||
+              selectedTask.variables?.committeeDecision === 'accepted' ||
+              selectedTask.variables?.committeeDecision === 'accept' ||
+              selectedTask.variables?.committeeStatus === 'ACCEPTED' ||
+              selectedTask.variables?.currentStage === 'COMMITTEE_ACCEPTED' ||
+              selectedTask.variables?.isCommitteeAccepted === true ||
+              selectedTask.committeeDecision === 'approved' ||
+              selectedTask.committeeDecision === 'accepted') && (
+                <Tag color="green" style={{ fontWeight: 700, fontSize: '11px', borderRadius: '4px', margin: 0 }}>
+                  Committee Approved
+                </Tag>
+              )}
+          </div>
+        </div>
 
-                    {/* 1. Customer Name (No badge, no edit icon) */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={{ color: '#64748b', fontSize: '14px' }}>Customer Name</Text>
-                      <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>{selectedTask.customerName || 'N/A'}</Text>
-                    </div>
+        {/* 1. Customer Name (No badge, no edit icon) */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={{ color: '#64748b', fontSize: '14px' }}>Customer Name</Text>
+          <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>{selectedTask.customerName || 'N/A'}</Text>
+        </div>
 
-                    {/* 2. Current contact phone (SMS destination) */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={{ color: '#64748b', fontSize: '14px' }}>Current Contact Phone</Text>
-                      <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>
-                        {resolveCurrentContactPhone(selectedTask.variables?.customer, selectedTask.variables?.phone) || 'N/A'}
-                      </Text>
-                    </div>
+        {/* 2. Current contact phone (SMS destination) */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={{ color: '#64748b', fontSize: '14px' }}>Current Contact Phone</Text>
+          <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>
+            {resolveCurrentContactPhone(selectedTask.variables?.customer, selectedTask.variables?.phone) || 'N/A'}
+          </Text>
+        </div>
 
-                    {/* 3. Preferred Contact Method (No edit icon) */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={{ color: '#64748b', fontSize: '14px' }}>Preferred Contact Method</Text>
-                      <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>
-                        {selectedTask.variables?.customer?.preferredContactMethod || selectedTask.variables?.preferredContactMethod || 'Email'}
-                      </Text>
-                    </div>
+        {/* 3. Preferred Contact Method (No edit icon) */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={{ color: '#64748b', fontSize: '14px' }}>Preferred Contact Method</Text>
+          <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>
+            {selectedTask.variables?.customer?.preferredContactMethod || selectedTask.variables?.preferredContactMethod || 'Email'}
+          </Text>
+        </div>
 
-                    {/* 4. Complaint Branch (Editable with Edit Icon in My Tasks) */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={{ color: '#64748b', fontSize: '14px' }}>Complaint Branch</Text>
-                      {activeTab === 'my_tasks' && editingFields.branch ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Select
-                            placeholder="Select Branch"
-                            value={formData.branch || undefined}
-                            onChange={handleBranchChange}
-                            style={{ minWidth: '180px' }}
-                            size="small"
-                          >
-                            {districtsList.flatMap(d => d.branches).map(br => (
-                              <Option key={br.id || br.name} value={br.name}>{br.name}</Option>
-                            ))}
-                          </Select>
-                          <Button
-                            type="text"
-                            size="small"
-                            icon={<CheckOutlined style={{ color: '#52c41a' }} />}
-                            onClick={() => setEditingFields(p => ({ ...p, branch: false }))}
-                          />
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>
-                            {formData.branch || complaintBranch(selectedTask.variables) || 'N/A'}
-                          </Text>
-                          {activeTab === 'my_tasks' && (
-                            <Tooltip title="Edit Complaint Branch">
-                              <EditOutlined
-                                style={{ color: BRAND_COLORS.primary, cursor: 'pointer', marginLeft: '8px', fontSize: '14px' }}
-                                onClick={() => setEditingFields(p => ({ ...p, branch: true }))}
-                              />
-                            </Tooltip>
-                          )}
-                        </div>
-                      )}
-                    </div>
+        {/* 4. Complaint Branch (Editable with Edit Icon in My Tasks) */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={{ color: '#64748b', fontSize: '14px' }}>Complaint Branch</Text>
+          {activeTab === 'my_tasks' && editingFields.branch ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Select
+                placeholder="Select Branch"
+                value={formData.branch || undefined}
+                onChange={handleBranchChange}
+                style={{ minWidth: '180px' }}
+                size="small"
+              >
+                {districtsList.flatMap(d => d.branches).map(br => (
+                  <Option key={br.id || br.name} value={br.name}>{br.name}</Option>
+                ))}
+              </Select>
+              <Button
+                type="text"
+                size="small"
+                icon={<CheckOutlined style={{ color: '#52c41a' }} />}
+                onClick={() => setEditingFields(p => ({ ...p, branch: false }))}
+              />
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>
+                {formData.branch || complaintBranch(selectedTask.variables) || 'N/A'}
+              </Text>
+              {activeTab === 'my_tasks' && (
+                <Tooltip title="Edit Complaint Branch">
+                  <EditOutlined
+                    style={{ color: BRAND_COLORS.primary, cursor: 'pointer', marginLeft: '8px', fontSize: '14px' }}
+                    onClick={() => setEditingFields(p => ({ ...p, branch: true }))}
+                  />
+                </Tooltip>
+              )}
+            </div>
+          )}
+        </div>
 
-                    {/* 5. District (Editable with Edit Icon in My Tasks) */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={{ color: '#64748b', fontSize: '14px' }}>Complaint District</Text>
-                      {activeTab === 'my_tasks' && editingFields.district ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Select
-                            placeholder="Select District"
-                            value={formData.district || undefined}
-                            onChange={handleDistrictChange}
-                            style={{ minWidth: '180px' }}
-                            size="small"
-                          >
-                            {districtsList.map(dist => (
-                              <Option key={dist.id || dist.name} value={dist.name}>{dist.name}</Option>
-                            ))}
-                          </Select>
-                          <Button
-                            type="text"
-                            size="small"
-                            icon={<CheckOutlined style={{ color: '#52c41a' }} />}
-                            onClick={() => setEditingFields(p => ({ ...p, district: false }))}
-                          />
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>
-                            {formData.district || complaintDistrict(selectedTask.variables) || 'N/A'}
-                          </Text>
-                          {activeTab === 'my_tasks' && (
-                            <Tooltip title="Edit District">
-                              <EditOutlined
-                                style={{ color: BRAND_COLORS.primary, cursor: 'pointer', marginLeft: '8px', fontSize: '14px' }}
-                                onClick={() => setEditingFields(p => ({ ...p, district: true }))}
-                              />
-                            </Tooltip>
-                          )}
-                        </div>
-                      )}
-                    </div>
+        {/* 5. District (Editable with Edit Icon in My Tasks) */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={{ color: '#64748b', fontSize: '14px' }}>Complaint District</Text>
+          {activeTab === 'my_tasks' && editingFields.district ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Select
+                placeholder="Select District"
+                value={formData.district || undefined}
+                onChange={handleDistrictChange}
+                style={{ minWidth: '180px' }}
+                size="small"
+              >
+                {districtsList.map(dist => (
+                  <Option key={dist.id || dist.name} value={dist.name}>{dist.name}</Option>
+                ))}
+              </Select>
+              <Button
+                type="text"
+                size="small"
+                icon={<CheckOutlined style={{ color: '#52c41a' }} />}
+                onClick={() => setEditingFields(p => ({ ...p, district: false }))}
+              />
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>
+                {formData.district || complaintDistrict(selectedTask.variables) || 'N/A'}
+              </Text>
+              {activeTab === 'my_tasks' && (
+                <Tooltip title="Edit District">
+                  <EditOutlined
+                    style={{ color: BRAND_COLORS.primary, cursor: 'pointer', marginLeft: '8px', fontSize: '14px' }}
+                    onClick={() => setEditingFields(p => ({ ...p, district: true }))}
+                  />
+                </Tooltip>
+              )}
+            </div>
+          )}
+        </div>
 
-                    {/* 6. Details of the Complaint (Editable with Edit Icon in My Tasks) */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <Text style={{ color: '#64748b', fontSize: '14px' }}>Details of the Complaint</Text>
-                      {activeTab === 'my_tasks' && editingFields.description ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-                          <Input.TextArea
-                            rows={3}
-                            value={formData.complaintDescription}
-                            onChange={(e) => setFormData(p => ({ ...p, complaintDescription: e.target.value }))}
-                            style={{ width: '280px', borderRadius: '6px' }}
-                          />
-                          <Button
-                            type="primary"
-                            size="small"
-                            icon={<CheckOutlined />}
-                            onClick={() => setEditingFields(p => ({ ...p, description: false }))}
-                            style={{ borderRadius: '4px' }}
-                          >
-                            Done
-                          </Button>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                          <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 500, textAlign: 'right', maxWidth: '260px' }}>
-                            {formData.complaintDescription || selectedTask.variables?.complaint?.description || selectedTask.variables?.description || 'N/A'}
-                          </Text>
-                          {activeTab === 'my_tasks' && (
-                            <Tooltip title="Edit Complaint Details">
-                              <EditOutlined
-                                style={{ color: BRAND_COLORS.primary, cursor: 'pointer', marginLeft: '8px', marginTop: '3px', fontSize: '14px' }}
-                                onClick={() => setEditingFields(p => ({ ...p, description: true }))}
-                              />
-                            </Tooltip>
-                          )}
-                        </div>
-                      )}
-                    </div>
+        {/* 6. Details of the Complaint (Editable with Edit Icon in My Tasks) */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Text style={{ color: '#64748b', fontSize: '14px' }}>Details of the Complaint</Text>
+          {activeTab === 'my_tasks' && editingFields.description ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+              <Input.TextArea
+                rows={3}
+                value={formData.complaintDescription}
+                onChange={(e) => setFormData(p => ({ ...p, complaintDescription: e.target.value }))}
+                style={{ width: '280px', borderRadius: '6px' }}
+              />
+              <Button
+                type="primary"
+                size="small"
+                icon={<CheckOutlined />}
+                onClick={() => setEditingFields(p => ({ ...p, description: false }))}
+                style={{ borderRadius: '4px' }}
+              >
+                Done
+              </Button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+              <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 500, textAlign: 'right', maxWidth: '260px' }}>
+                {formData.complaintDescription || selectedTask.variables?.complaint?.description || selectedTask.variables?.description || 'N/A'}
+              </Text>
+              {activeTab === 'my_tasks' && (
+                <Tooltip title="Edit Complaint Details">
+                  <EditOutlined
+                    style={{ color: BRAND_COLORS.primary, cursor: 'pointer', marginLeft: '8px', marginTop: '3px', fontSize: '14px' }}
+                    onClick={() => setEditingFields(p => ({ ...p, description: true }))}
+                  />
+                </Tooltip>
+              )}
+            </div>
+          )}
+        </div>
 
-                    <CmdVoiceRecordingCard task={selectedTask} />
-                    <CmdEvidenceDocumentCard task={selectedTask} />
+        <CmdVoiceRecordingCard task={selectedTask} />
+        <CmdEvidenceDocumentCard task={selectedTask} />
 
-                    {/* Work Unit Resolution & Action Taken Section */}
-                    {/* Separator Line & Complaint Information Section */}
-                    {activeTab !== 'declined_tasks' && selectedTask?.variables?.targetTab !== 'Declined' && selectedTask?.status !== 'DECLINED' && selectedTask?.classification !== 'DECLINED' && (
-                      <div style={{ borderTop: '1px solid #e2e8f0', marginTop: '16px', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                        <Text style={{ fontSize: '15px', fontWeight: 700, color: BRAND_COLORS.primary, display: 'block', marginBottom: '2px' }}>
-                          Complaint Information
-                        </Text>
+        {/* Work Unit Resolution & Action Taken Section */}
+        {/* Separator Line & Complaint Information Section */}
+        {activeTab !== 'declined_tasks' && selectedTask?.variables?.targetTab !== 'Declined' && selectedTask?.status !== 'DECLINED' && selectedTask?.classification !== 'DECLINED' && (
+          <div style={{ borderTop: '1px solid #e2e8f0', marginTop: '16px', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <Text style={{ fontSize: '15px', fontWeight: 700, color: BRAND_COLORS.primary, display: 'block', marginBottom: '2px' }}>
+              Complaint Information
+            </Text>
 
-                        {/* Complaint Category */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text style={{ color: '#64748b', fontSize: '14px' }}>Complaint Category</Text>
-                          {activeTab === 'my_tasks' ? (
-                            <Select
-                              value={formData.complaintCategory || 'Customer Service Issues'}
-                              onChange={(value) => setFormData(prev => ({ ...prev, complaintCategory: value }))}
-                              style={{ minWidth: '220px' }}
-                            >
-                              <Option value="Customer Service Issues">Customer Service Issues</Option>
-                              <Option value="Transaction Error">Transaction Error</Option>
-                              <Option value="Account Management">Account Management</Option>
-                              <Option value="Banking App Issues">Banking App Issues</Option>
-                              <Option value="Credit/Financing Concerns">Credit/Financing Concerns</Option>
-                              <Option value="Fraud & Security Risk">Fraud & Security Risk</Option>
-                              <Option value="Information Disclosure">Information Disclosure</Option>
-                              <Option value="ATM & Card Banking Issues">ATM & Card Banking Issues</Option>
-                              <Option value="Policy & Compliance Disputes">Policy & Compliance Disputes</Option>
-                              <Option value="System Failure">System Failure</Option>
-                              <Option value="Branch Operation">Branch Operation</Option>
-                            </Select>
-                          ) : (
-                            <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>
-                              {formData.complaintCategory || selectedTask.variables?.complaintCategory || selectedTask.variables?.complaint?.category || 'Customer Service Issues'}
-                            </Text>
-                          )}
-                        </div>
+            {/* Complaint Category */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ color: '#64748b', fontSize: '14px' }}>Complaint Category</Text>
+              {activeTab === 'my_tasks' ? (
+                <Select
+                  value={formData.complaintCategory || 'Customer Service Issues'}
+                  onChange={(value) => setFormData(prev => ({ ...prev, complaintCategory: value }))}
+                  style={{ minWidth: '220px' }}
+                >
+                  <Option value="Customer Service Issues">Customer Service Issues</Option>
+                  <Option value="Transaction Error">Transaction Error</Option>
+                  <Option value="Account Management">Account Management</Option>
+                  <Option value="Banking App Issues">Banking App Issues</Option>
+                  <Option value="Credit/Financing Concerns">Credit/Financing Concerns</Option>
+                  <Option value="Fraud & Security Risk">Fraud & Security Risk</Option>
+                  <Option value="Information Disclosure">Information Disclosure</Option>
+                  <Option value="ATM & Card Banking Issues">ATM & Card Banking Issues</Option>
+                  <Option value="Policy & Compliance Disputes">Policy & Compliance Disputes</Option>
+                  <Option value="System Failure">System Failure</Option>
+                  <Option value="Branch Operation">Branch Operation</Option>
+                </Select>
+              ) : (
+                <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>
+                  {formData.complaintCategory || selectedTask.variables?.complaintCategory || selectedTask.variables?.complaint?.category || 'Customer Service Issues'}
+                </Text>
+              )}
+            </div>
 
-                        {/* Service Type */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text style={{ color: '#64748b', fontSize: '14px' }}>Service Type</Text>
-                          {activeTab === 'my_tasks' ? (
-                            <Select
-                              value={formData.serviceType || 'Digital Banking'}
-                              onChange={(value) => setFormData(prev => ({ ...prev, serviceType: value }))}
-                              style={{ minWidth: '220px' }}
-                            >
-                              <Option value="Deposit Account">Deposit Account</Option>
-                              <Option value="Credit/Financing">Credit/Financing</Option>
-                              <Option value="Digital Banking">Digital Banking</Option>
-                              <Option value="ATM & Card Banking">ATM & Card Banking</Option>
-                              <Option value="RTGs">RTGs</Option>
-                              <Option value="International Banking">International Banking</Option>
-                              <Option value="Vendor/Procurement">Vendor/Procurement</Option>
-                              <Option value="Incoming Fund Transfer">Incoming Fund Transfer</Option>
-                              <Option value="Outgoing Fund Transfer">Outgoing Fund Transfer</Option>
-                              <Option value="Merchant Service via Super App">Merchant Service via Super App</Option>
-                              <Option value="Interest Free Banking Services">Interest Free Banking Services</Option>
-                              <Option value="Other">Other</Option>
-                            </Select>
-                          ) : (
-                            <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>
-                              {formData.serviceType || selectedTask.variables?.serviceType || selectedTask.variables?.complaint?.serviceType || 'Digital Banking'}
-                            </Text>
-                          )}
-                        </div>
+            {/* Service Type */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ color: '#64748b', fontSize: '14px' }}>Service Type</Text>
+              {activeTab === 'my_tasks' ? (
+                <Select
+                  value={formData.serviceType || 'Digital Banking'}
+                  onChange={(value) => setFormData(prev => ({ ...prev, serviceType: value }))}
+                  style={{ minWidth: '220px' }}
+                >
+                  <Option value="Deposit Account">Deposit Account</Option>
+                  <Option value="Credit/Financing">Credit/Financing</Option>
+                  <Option value="Digital Banking">Digital Banking</Option>
+                  <Option value="ATM & Card Banking">ATM & Card Banking</Option>
+                  <Option value="RTGs">RTGs</Option>
+                  <Option value="International Banking">International Banking</Option>
+                  <Option value="Vendor/Procurement">Vendor/Procurement</Option>
+                  <Option value="Incoming Fund Transfer">Incoming Fund Transfer</Option>
+                  <Option value="Outgoing Fund Transfer">Outgoing Fund Transfer</Option>
+                  <Option value="Merchant Service via Super App">Merchant Service via Super App</Option>
+                  <Option value="Interest Free Banking Services">Interest Free Banking Services</Option>
+                  <Option value="Other">Other</Option>
+                </Select>
+              ) : (
+                <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>
+                  {formData.serviceType || selectedTask.variables?.serviceType || selectedTask.variables?.complaint?.serviceType || 'Digital Banking'}
+                </Text>
+              )}
+            </div>
 
-                        {/* Complaint Made On */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text style={{ color: '#64748b', fontSize: '14px' }}>Complaint Made On</Text>
-                          {activeTab === 'my_tasks' ? (
-                            <Select
-                              value={formData.complaintMadeOn || 'Branch'}
-                              onChange={(value) => setFormData(prev => ({ ...prev, complaintMadeOn: value }))}
-                              style={{ minWidth: '220px' }}
-                            >
-                              <Option value="Agent">Agent</Option>
-                              <Option value="ATM">ATM</Option>
-                              <Option value="Branch">Branch</Option>
-                              <Option value="District Office">District Office</Option>
-                              <Option value="HO">HO</Option>
-                              <Option value="Super App">Super App</Option>
-                              <Option value="Merchant">Merchant</Option>
-                            </Select>
-                          ) : (
-                            <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>
-                              {formData.complaintMadeOn || selectedTask.variables?.complaintMadeOn || selectedTask.variables?.channel || 'Branch'}
-                            </Text>
-                          )}
-                        </div>
+            {/* Complaint Made On */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ color: '#64748b', fontSize: '14px' }}>Complaint Made On</Text>
+              {activeTab === 'my_tasks' ? (
+                <Select
+                  value={formData.complaintMadeOn || 'Branch'}
+                  onChange={(value) => setFormData(prev => ({ ...prev, complaintMadeOn: value }))}
+                  style={{ minWidth: '220px' }}
+                >
+                  <Option value="Agent">Agent</Option>
+                  <Option value="ATM">ATM</Option>
+                  <Option value="Branch">Branch</Option>
+                  <Option value="District Office">District Office</Option>
+                  <Option value="HO">HO</Option>
+                  <Option value="Super App">Super App</Option>
+                  <Option value="Merchant">Merchant</Option>
+                </Select>
+              ) : (
+                <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>
+                  {formData.complaintMadeOn || selectedTask.variables?.complaintMadeOn || selectedTask.variables?.channel || 'Branch'}
+                </Text>
+              )}
+            </div>
 
-                        {/* Received By */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text style={{ color: '#64748b', fontSize: '14px' }}>Received By</Text>
-                          {activeTab === 'my_tasks' ? (
-                            <Select
-                              value={formData.receivedBy || 'Customer Care-Telephone'}
-                              onChange={(value) => setFormData(prev => ({ ...prev, receivedBy: value }))}
-                              style={{ minWidth: '220px' }}
-                            >
-                              <Option value="Customer Care-Telephone">Customer Care-Telephone</Option>
-                              <Option value="Customer Care-In person">Customer Care-In person</Option>
-                              <Option value="Contact Center">Contact Center</Option>
-                              <Option value="Contact Center-Email">Contact Center-Email</Option>
-                              <Option value="Digital Marketing">Digital Marketing</Option>
-                              <Option value="HO">HO</Option>
-                              <Option value="Branch">Branch</Option>
-                              <Option value="District">District</Option>
-                            </Select>
-                          ) : (
-                            <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>
-                              {formData.receivedBy || selectedTask.variables?.receivedBy || 'Customer Care-Telephone'}
-                            </Text>
-                          )}
-                        </div>
+            {/* Received By */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ color: '#64748b', fontSize: '14px' }}>Received By</Text>
+              {activeTab === 'my_tasks' ? (
+                <Select
+                  value={formData.receivedBy || 'Customer Care-Telephone'}
+                  onChange={(value) => setFormData(prev => ({ ...prev, receivedBy: value }))}
+                  style={{ minWidth: '220px' }}
+                >
+                  <Option value="Customer Care-Telephone">Customer Care-Telephone</Option>
+                  <Option value="Customer Care-In person">Customer Care-In person</Option>
+                  <Option value="Contact Center">Contact Center</Option>
+                  <Option value="Contact Center-Email">Contact Center-Email</Option>
+                  <Option value="Digital Marketing">Digital Marketing</Option>
+                  <Option value="HO">HO</Option>
+                  <Option value="Branch">Branch</Option>
+                  <Option value="District">District</Option>
+                </Select>
+              ) : (
+                <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>
+                  {formData.receivedBy || selectedTask.variables?.receivedBy || 'Customer Care-Telephone'}
+                </Text>
+              )}
+            </div>
 
-                        {activeTab === 'my_tasks' && (
-                          <div style={{ paddingTop: '16px', borderTop: '1px solid #e2e8f0', marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
-                            <Button
-                              type="primary"
-                              icon={<SaveOutlined />}
-                              loading={isSubmitting}
-                              onClick={handleSaveAllChanges}
-                              style={{
-                                backgroundColor: BRAND_COLORS.primary,
-                                borderColor: BRAND_COLORS.primary,
-                                borderRadius: '6px',
-                                fontWeight: 600,
-                                height: '40px',
-                                padding: '0 24px',
-                                fontSize: '14px'
-                              }}
-                            >
-                              Save All Changes
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
+            {activeTab === 'my_tasks' && (
+              <div style={{ paddingTop: '16px', borderTop: '1px solid #e2e8f0', marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
+                  type="primary"
+                  icon={<SaveOutlined />}
+                  loading={isSubmitting}
+                  onClick={handleSaveAllChanges}
+                  style={{
+                    backgroundColor: BRAND_COLORS.primary,
+                    borderColor: BRAND_COLORS.primary,
+                    borderRadius: '6px',
+                    fontWeight: 600,
+                    height: '40px',
+                    padding: '0 24px',
+                    fontSize: '14px'
+                  }}
+                >
+                  Save All Changes
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -2346,64 +2346,64 @@ function CmdAuditInvestigationCard({ selectedTask }) {
     return null;
   }
   return (
-                  <div style={{
-                    background: '#f8fafc',
-                    borderRadius: '16px',
-                    padding: '24px',
-                    marginBottom: '20px',
-                    border: '1px solid #f1f5f9'
-                  }}>
-                    <div style={{ marginBottom: '16px' }}>
-                      <Text style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
-                        Audit Investigation Details
-                      </Text>
-                    </div>
+    <div style={{
+      background: '#f8fafc',
+      borderRadius: '16px',
+      padding: '24px',
+      marginBottom: '20px',
+      border: '1px solid #f1f5f9'
+    }}>
+      <div style={{ marginBottom: '16px' }}>
+        <Text style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
+          Audit Investigation Details
+        </Text>
+      </div>
 
-                    <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <Text style={{ color: '#64748b', fontSize: '14px' }}>Justification</Text>
-                        <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 500, textAlign: 'right', maxWidth: '280px' }}>
-                          {selectedTask.variables.auditJustification || 'N/A'}
-                        </Text>
-                      </div>
+      <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Text style={{ color: '#64748b', fontSize: '14px' }}>Justification</Text>
+          <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 500, textAlign: 'right', maxWidth: '280px' }}>
+            {selectedTask.variables.auditJustification || 'N/A'}
+          </Text>
+        </div>
 
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <Text style={{ color: '#64748b', fontSize: '14px' }}>Findings</Text>
-                        <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 500, textAlign: 'right', maxWidth: '280px' }}>
-                          {selectedTask.variables.auditFindings || 'N/A'}
-                        </Text>
-                      </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Text style={{ color: '#64748b', fontSize: '14px' }}>Findings</Text>
+          <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 500, textAlign: 'right', maxWidth: '280px' }}>
+            {selectedTask.variables.auditFindings || 'N/A'}
+          </Text>
+        </div>
 
-                      {(selectedTask.variables?.auditAttachment || selectedTask.variables?.auditAttachmentName) && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px' }}>
-                          <Text style={{ color: '#64748b', fontSize: '14px' }}>Investigation Attachment</Text>
-                          <a
-                            href={ApiService.getAttachmentUrl(
-                              selectedTask.variables.auditAttachment ||
-                              `/api/complaints/attachments/${selectedTask.variables.auditAttachmentName}`
-                            )}
-                            download={selectedTask.variables.auditAttachmentName || 'audit_attachment'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ fontSize: '14px', fontWeight: 600, color: BRAND_COLORS.primary }}
-                          >
-                            {selectedTask.variables.auditAttachmentName || 'Download Attachment'}
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+        {(selectedTask.variables?.auditAttachment || selectedTask.variables?.auditAttachmentName) && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px' }}>
+            <Text style={{ color: '#64748b', fontSize: '14px' }}>Investigation Attachment</Text>
+            <a
+              href={ApiService.getAttachmentUrl(
+                selectedTask.variables.auditAttachment ||
+                `/api/complaints/attachments/${selectedTask.variables.auditAttachmentName}`
+              )}
+              download={selectedTask.variables.auditAttachmentName || 'audit_attachment'}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontSize: '14px', fontWeight: 600, color: BRAND_COLORS.primary }}
+            >
+              {selectedTask.variables.auditAttachmentName || 'Download Attachment'}
+            </a>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
 function CmdProfileField({ label, value, monospace }) {
   return (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text style={{ color: '#64748b', fontSize: '14px' }}>{label}</Text>
-                          <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600, fontFamily: monospace ? 'monospace' : undefined, textAlign: 'right', maxWidth: '280px' }}>
-                            {value || 'N/A'}
-                          </Text>
-                        </div>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Text style={{ color: '#64748b', fontSize: '14px' }}>{label}</Text>
+      <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600, fontFamily: monospace ? 'monospace' : undefined, textAlign: 'right', maxWidth: '280px' }}>
+        {value || 'N/A'}
+      </Text>
+    </div>
   );
 }
 
@@ -2413,74 +2413,74 @@ function CmdCustomerProfileCard({ selectedTask, activeTab, editingFields, setEdi
   }
   const customer = selectedTask.variables.customer;
   return (
-                    <div style={{
-                      background: '#f8fafc',
-                      borderRadius: '16px',
-                      padding: '24px',
-                      marginBottom: '20px',
-                      border: '1px solid #e2e8f0',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
-                    }}>
-                      <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <UserOutlined style={{ color: BRAND_COLORS.primary, fontSize: '18px' }} />
-                        <Text style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
-                          Customer Profile
-                        </Text>
-                      </div>
+    <div style={{
+      background: '#f8fafc',
+      borderRadius: '16px',
+      padding: '24px',
+      marginBottom: '20px',
+      border: '1px solid #e2e8f0',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+    }}>
+      <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <UserOutlined style={{ color: BRAND_COLORS.primary, fontSize: '18px' }} />
+        <Text style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
+          Customer Profile
+        </Text>
+      </div>
 
-                      <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                        <CmdProfileField label="Customer Name" value={customer.name || selectedTask.customerName} />
+      <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <CmdProfileField label="Customer Name" value={customer.name || selectedTask.customerName} />
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text style={{ color: '#64748b', fontSize: '14px' }}>Customer Segment</Text>
-                          <Tag color={customer.customerSegment === 'Corporate' ? 'gold' : 'blue'} style={{ fontWeight: 600, margin: 0 }}>
-                            {customer.customerSegment || 'Retail'}
-                          </Tag>
-                        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={{ color: '#64748b', fontSize: '14px' }}>Customer Segment</Text>
+          <Tag color={customer.customerSegment === 'Corporate' ? 'gold' : 'blue'} style={{ fontWeight: 600, margin: 0 }}>
+            {customer.customerSegment || 'Retail'}
+          </Tag>
+        </div>
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text style={{ color: '#64748b', fontSize: '14px' }}>Account Number</Text>
-                          {activeTab === 'my_tasks' && editingFields.accountNumber ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <Input
-                                value={formData.accountNumber}
-                                onChange={(e) => setFormData(p => ({ ...p, accountNumber: e.target.value }))}
-                                style={{ width: '160px', fontFamily: 'monospace', borderRadius: '4px' }}
-                                size="small"
-                              />
-                              <Button
-                                type="text"
-                                size="small"
-                                icon={<CheckOutlined style={{ color: '#52c41a' }} />}
-                                onClick={() => setEditingFields(p => ({ ...p, accountNumber: false }))}
-                              />
-                            </div>
-                          ) : (
-                            <div style={{ display: 'flex', alignItems: 'center' }}>
-                              <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600, fontFamily: 'monospace' }}>
-                                {formData.accountNumber || customer.accountNumber || selectedTask.variables?.accountNumber || 'N/A'}
-                              </Text>
-                              {activeTab === 'my_tasks' && (
-                                <Tooltip title="Edit Account Number">
-                                  <EditOutlined
-                                    style={{ color: BRAND_COLORS.primary, cursor: 'pointer', marginLeft: '8px', fontSize: '14px' }}
-                                    onClick={() => setEditingFields(p => ({ ...p, accountNumber: true }))}
-                                  />
-                                </Tooltip>
-                              )}
-                            </div>
-                          )}
-                        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={{ color: '#64748b', fontSize: '14px' }}>Account Number</Text>
+          {activeTab === 'my_tasks' && editingFields.accountNumber ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Input
+                value={formData.accountNumber}
+                onChange={(e) => setFormData(p => ({ ...p, accountNumber: e.target.value }))}
+                style={{ width: '160px', fontFamily: 'monospace', borderRadius: '4px' }}
+                size="small"
+              />
+              <Button
+                type="text"
+                size="small"
+                icon={<CheckOutlined style={{ color: '#52c41a' }} />}
+                onClick={() => setEditingFields(p => ({ ...p, accountNumber: false }))}
+              />
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600, fontFamily: 'monospace' }}>
+                {formData.accountNumber || customer.accountNumber || selectedTask.variables?.accountNumber || 'N/A'}
+              </Text>
+              {activeTab === 'my_tasks' && (
+                <Tooltip title="Edit Account Number">
+                  <EditOutlined
+                    style={{ color: BRAND_COLORS.primary, cursor: 'pointer', marginLeft: '8px', fontSize: '14px' }}
+                    onClick={() => setEditingFields(p => ({ ...p, accountNumber: true }))}
+                  />
+                </Tooltip>
+              )}
+            </div>
+          )}
+        </div>
 
-                        <CmdProfileField label="Customer Home Branch" value={customerHomeBranch(customer)} />
-                        <CmdProfileField label="Customer Home District" value={customerHomeDistrict(customer)} />
-                        <CmdProfileField
-                          label="Registered Phone"
-                          value={resolveCoreBankingPhone(customer)}
-                          monospace
-                        />
-                      </div>
-                    </div>
+        <CmdProfileField label="Customer Home Branch" value={customerHomeBranch(customer)} />
+        <CmdProfileField label="Customer Home District" value={customerHomeDistrict(customer)} />
+        <CmdProfileField
+          label="Registered Phone"
+          value={resolveCoreBankingPhone(customer)}
+          monospace
+        />
+      </div>
+    </div>
   );
 }
 
@@ -2496,30 +2496,30 @@ function CmdDeclineReasonSection({ formData, setFormData }) {
     return null;
   }
   return (
-                              <div style={{ background: '#fff1f0', border: '1px solid #ffa39e', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
-                                <Text strong style={{ color: '#cf1322', fontSize: '14px', display: 'block', marginBottom: '8px' }}>
-                                  Decline Complaint
-                                </Text>
-                                <Form.Item label={<CmdFormLabel required style={CMD_LABEL_SMALL_STRONG_STYLE}>Decline Reason</CmdFormLabel>} required style={CMD_FORM_ITEM_12}>
-                                  <Input.TextArea
-                                    rows={3}
-                                    placeholder="Enter mandatory reason for declining this complaint..."
-                                    value={formData.declineReason}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, declineReason: e.target.value }))}
-                                    style={{ borderRadius: '6px' }}
-                                  />
-                                </Form.Item>
+    <div style={{ background: '#fff1f0', border: '1px solid #ffa39e', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
+      <Text strong style={{ color: '#cf1322', fontSize: '14px', display: 'block', marginBottom: '8px' }}>
+        Decline Complaint
+      </Text>
+      <Form.Item label={<CmdFormLabel required style={CMD_LABEL_SMALL_STRONG_STYLE}>Decline Reason</CmdFormLabel>} required style={CMD_FORM_ITEM_12}>
+        <Input.TextArea
+          rows={3}
+          placeholder="Enter mandatory reason for declining this complaint..."
+          value={formData.declineReason}
+          onChange={(e) => setFormData(prev => ({ ...prev, declineReason: e.target.value }))}
+          style={{ borderRadius: '6px' }}
+        />
+      </Form.Item>
 
-                                <Form.Item label={<CmdFormLabel style={CMD_LABEL_SMALL_STYLE}>Additional Remarks (Optional)</CmdFormLabel>} style={{ marginBottom: 0 }}>
-                                  <Input.TextArea
-                                    rows={2}
-                                    placeholder="Enter any additional remarks..."
-                                    value={formData.additionalRemarks}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, additionalRemarks: e.target.value }))}
-                                    style={{ borderRadius: '6px' }}
-                                  />
-                                </Form.Item>
-                              </div>
+      <Form.Item label={<CmdFormLabel style={CMD_LABEL_SMALL_STYLE}>Additional Remarks (Optional)</CmdFormLabel>} style={{ marginBottom: 0 }}>
+        <Input.TextArea
+          rows={2}
+          placeholder="Enter any additional remarks..."
+          value={formData.additionalRemarks}
+          onChange={(e) => setFormData(prev => ({ ...prev, additionalRemarks: e.target.value }))}
+          style={{ borderRadius: '6px' }}
+        />
+      </Form.Item>
+    </div>
   );
 }
 
@@ -2529,56 +2529,56 @@ function CmdScreeningSubmitActions({ selectedTask, formData, setFormData, isSubm
     actions = otherCmdSubmitButton(selectedTask, formData, isSubmitting);
   } else if (formData.isDeclining) {
     actions = (
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    <Button
-                                      type="primary"
-                                      danger
-                                      htmlType="submit"
-                                      loading={isSubmitting}
-                                      size="large"
-                                      style={{ width: '100%', borderRadius: '8px', height: '44px', fontWeight: 600 }}
-                                    >
-                                      {isSubmitting ? 'Processing...' : 'Submit'}
-                                    </Button>
-                                    <Button
-                                      type="default"
-                                      size="small"
-                                      onClick={() => setFormData(prev => ({ ...prev, isDeclining: false, declineReason: '' }))}
-                                      style={{ borderRadius: '6px' }}
-                                    >
-                                      Cancel Decline
-                                    </Button>
-                                  </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <Button
+          type="primary"
+          danger
+          htmlType="submit"
+          loading={isSubmitting}
+          size="large"
+          style={{ width: '100%', borderRadius: '8px', height: '44px', fontWeight: 600 }}
+        >
+          {isSubmitting ? 'Processing...' : 'Submit'}
+        </Button>
+        <Button
+          type="default"
+          size="small"
+          onClick={() => setFormData(prev => ({ ...prev, isDeclining: false, declineReason: '' }))}
+          style={{ borderRadius: '6px' }}
+        >
+          Cancel Decline
+        </Button>
+      </div>
     );
   } else {
     actions = (
-                                  <div style={{ display: 'flex', gap: '12px' }}>
-                                    <Button
-                                      type="primary"
-                                      htmlType="submit"
-                                      loading={isSubmitting}
-                                      size="large"
-                                      style={{ flex: 1, borderRadius: '8px', height: '44px', fontWeight: 600, backgroundColor: BRAND_COLORS.primary, borderColor: BRAND_COLORS.primary }}
-                                    >
-                                      {isSubmitting ? 'Processing...' : 'Submit'}
-                                    </Button>
-                                    <Button
-                                      type="primary"
-                                      danger
-                                      size="large"
-                                      icon={<WarningOutlined />}
-                                      onClick={() => setFormData(prev => ({ ...prev, isDeclining: true }))}
-                                      style={{ borderRadius: '8px', height: '44px', fontWeight: 600 }}
-                                    >
-                                      Decline Complaint
-                                    </Button>
-                                  </div>
+      <div style={{ display: 'flex', gap: '12px' }}>
+        <Button
+          type="primary"
+          htmlType="submit"
+          loading={isSubmitting}
+          size="large"
+          style={{ flex: 1, borderRadius: '8px', height: '44px', fontWeight: 600, backgroundColor: BRAND_COLORS.primary, borderColor: BRAND_COLORS.primary }}
+        >
+          {isSubmitting ? 'Processing...' : 'Submit'}
+        </Button>
+        <Button
+          type="primary"
+          danger
+          size="large"
+          icon={<WarningOutlined />}
+          onClick={() => setFormData(prev => ({ ...prev, isDeclining: true }))}
+          style={{ borderRadius: '8px', height: '44px', fontWeight: 600 }}
+        >
+          Decline Complaint
+        </Button>
+      </div>
     );
   }
   return (
-                            <div style={{ marginTop: '24px' }}>
-                              {actions}
-                            </div>
+    <div style={{ marginTop: '24px' }}>
+      {actions}
+    </div>
   );
 }
 
@@ -2593,363 +2593,373 @@ function CmdScreeningFormCard(props) {
     return null;
   }
   return (
-                      <div style={{
-                        background: '#f8fafc',
-                        borderRadius: '16px',
-                        padding: '24px',
-                        border: '1px solid #f1f5f9'
-                      }}>
-                        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
-                            {formData.ccoActionChoice === 'reassign_work_unit' ? 'Reassign Complaint to Work Unit' : 'CMD Screening'}
-                          </Text>
-                          {formData.ccoActionChoice === 'reassign_work_unit' && (
-                            <Button
-                              type="link"
-                              size="small"
-                              onClick={() => setFormData(prev => ({ ...prev, ccoActionChoice: 'close_complaint' }))}
-                              style={{ color: '#2563eb', fontWeight: 600, padding: 0 }}
-                            >
-                              ← Back to Resolution Review
-                            </Button>
-                          )}
-                        </div>
+    <div style={{
+      background: '#f8fafc',
+      borderRadius: '16px',
+      padding: '24px',
+      border: '1px solid #f1f5f9'
+    }}>
+      <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
+          {formData.ccoActionChoice === 'reassign_work_unit' ? 'Reassign Complaint to Work Unit' : 'CMD Screening'}
+        </Text>
+        {formData.ccoActionChoice === 'reassign_work_unit' && (
+          <Button
+            type="link"
+            size="small"
+            onClick={() => setFormData(prev => ({ ...prev, ccoActionChoice: 'close_complaint' }))}
+            style={{ color: '#2563eb', fontWeight: 600, padding: 0 }}
+          >
+            ← Back to Resolution Review
+          </Button>
+        )}
+      </div>
 
-                        <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
-                          <Form onFinish={handleSubmit} layout="vertical">
-                            {/* Case Classification Section - Hidden when reassigning to Work Unit */}
-                            {formData.ccoActionChoice !== 'reassign_work_unit' && (
-                              <Form.Item label={<CmdFormLabel required style={CMD_LABEL_STRONG_STYLE}>Case Classification</CmdFormLabel>} required style={CMD_FORM_ITEM_16}>
-                                <Radio.Group
-                                  value={formData.classification || 'COMPLAINT'}
-                                  onChange={(e) => setFormData(prev => ({ ...prev, classification: e.target.value, isDeclining: false, declineReason: '' }))}
-                                  style={{ width: '100%' }}
-                                >
-                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', width: '100%' }}>
-                                    <button
-                                      type="button"
-                                      onClick={() => setFormData(prev => ({ ...prev, classification: 'COMPLAINT', isDeclining: false, declineReason: '' }))}
-                                      style={{
-                                        border: (formData.classification || 'COMPLAINT') === 'COMPLAINT' ? '2px solid #2563eb' : '1px solid #cbd5e1',
-                                        background: (formData.classification || 'COMPLAINT') === 'COMPLAINT' ? '#eff6ff' : '#ffffff',
-                                        borderRadius: '10px',
-                                        padding: '12px 16px',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        transition: 'all 0.2s ease',
-                                        boxShadow: (formData.classification || 'COMPLAINT') === 'COMPLAINT' ? '0 2px 8px rgba(37,99,235,0.12)' : 'none',
-                                        width: '100%',
-                                        textAlign: 'left',
-                                        font: 'inherit'
-                                      }}
-                                    >
-                                      <Radio value="COMPLAINT" style={{ fontWeight: 600, fontSize: '14px', color: (formData.classification || 'COMPLAINT') === 'COMPLAINT' ? '#1e40af' : '#334155' }}>
-                                        Complaint
-                                      </Radio>
-                                      {(formData.classification || 'COMPLAINT') === 'COMPLAINT' && (
-                                        <CheckCircleFilled style={{ color: '#2563eb', fontSize: '16px' }} />
-                                      )}
-                                    </button>
+      <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
+        <Form onFinish={handleSubmit} layout="vertical">
+          {/* Case Classification Section - Hidden when reassigning to Work Unit */}
+          {formData.ccoActionChoice !== 'reassign_work_unit' && (
+            <Form.Item label={<CmdFormLabel required style={CMD_LABEL_STRONG_STYLE}>Case Classification</CmdFormLabel>} required style={CMD_FORM_ITEM_16}>
+              <Radio.Group
+                value={formData.classification || 'COMPLAINT'}
+                onChange={(e) => setFormData(prev => ({ ...prev, classification: e.target.value, isDeclining: false, declineReason: '' }))}
+                style={{ width: '100%' }}
+              >
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', width: '100%' }}>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, classification: 'COMPLAINT', isDeclining: false, declineReason: '' }))}
+                    style={{
+                      border: (formData.classification || 'COMPLAINT') === 'COMPLAINT' ? '2px solid #2563eb' : '1px solid #cbd5e1',
+                      background: (formData.classification || 'COMPLAINT') === 'COMPLAINT' ? '#eff6ff' : '#ffffff',
+                      borderRadius: '10px',
+                      padding: '12px 16px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      transition: 'all 0.2s ease',
+                      boxShadow: (formData.classification || 'COMPLAINT') === 'COMPLAINT' ? '0 2px 8px rgba(37,99,235,0.12)' : 'none',
+                      width: '100%',
+                      textAlign: 'left',
+                      font: 'inherit'
+                    }}
+                  >
+                    <Radio value="COMPLAINT" style={{ fontWeight: 600, fontSize: '14px', color: (formData.classification || 'COMPLAINT') === 'COMPLAINT' ? '#1e40af' : '#334155' }}>
+                      Complaint
+                    </Radio>
+                    {(formData.classification || 'COMPLAINT') === 'COMPLAINT' && (
+                      <CheckCircleFilled style={{ color: '#2563eb', fontSize: '16px' }} />
+                    )}
+                  </button>
 
-                                    <button
-                                      type="button"
-                                      onClick={() => setFormData(prev => ({ ...prev, classification: 'OTHER', isDeclining: false, declineReason: '' }))}
-                                      style={{
-                                        border: formData.classification === 'OTHER' ? '2px solid #2563eb' : '1px solid #cbd5e1',
-                                        background: formData.classification === 'OTHER' ? '#eff6ff' : '#ffffff',
-                                        borderRadius: '10px',
-                                        padding: '12px 16px',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        transition: 'all 0.2s ease',
-                                        boxShadow: formData.classification === 'OTHER' ? '0 2px 8px rgba(37,99,235,0.12)' : 'none',
-                                        width: '100%',
-                                        textAlign: 'left',
-                                        font: 'inherit'
-                                      }}
-                                    >
-                                      <Radio value="OTHER" style={{ fontWeight: 600, fontSize: '14px', color: formData.classification === 'OTHER' ? '#1e40af' : '#334155' }}>
-                                        Other
-                                      </Radio>
-                                      {formData.classification === 'OTHER' && (
-                                        <CheckCircleFilled style={{ color: '#2563eb', fontSize: '16px' }} />
-                                      )}
-                                    </button>
-                                  </div>
-                                </Radio.Group>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, classification: 'OTHER', isDeclining: false, declineReason: '' }))}
+                    style={{
+                      border: formData.classification === 'OTHER' ? '2px solid #2563eb' : '1px solid #cbd5e1',
+                      background: formData.classification === 'OTHER' ? '#eff6ff' : '#ffffff',
+                      borderRadius: '10px',
+                      padding: '12px 16px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      transition: 'all 0.2s ease',
+                      boxShadow: formData.classification === 'OTHER' ? '0 2px 8px rgba(37,99,235,0.12)' : 'none',
+                      width: '100%',
+                      textAlign: 'left',
+                      font: 'inherit'
+                    }}
+                  >
+                    <Radio value="OTHER" style={{ fontWeight: 600, fontSize: '14px', color: formData.classification === 'OTHER' ? '#1e40af' : '#334155' }}>
+                      Other
+                    </Radio>
+                    {formData.classification === 'OTHER' && (
+                      <CheckCircleFilled style={{ color: '#2563eb', fontSize: '16px' }} />
+                    )}
+                  </button>
+                </div>
+              </Radio.Group>
 
-                                <div style={{ marginTop: '12px' }}>
-                                  <Button
-                                    type="default"
-                                    size="small"
-                                    onClick={handleSaveClassification}
-                                    style={{
-                                      borderColor: '#2563eb',
-                                      color: '#2563eb',
-                                      fontWeight: 600,
-                                      borderRadius: '6px',
-                                      fontSize: '13px',
-                                      padding: '2px 16px',
-                                      height: '30px'
-                                    }}
-                                  >
-                                    Save
-                                  </Button>
-                                </div>
-                              </Form.Item>
-                            )}
+              <div style={{ marginTop: '12px' }}>
+                <Button
+                  type="default"
+                  size="small"
+                  onClick={handleSaveClassification}
+                  style={{
+                    borderColor: '#2563eb',
+                    color: '#2563eb',
+                    fontWeight: 600,
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    padding: '2px 16px',
+                    height: '30px'
+                  }}
+                >
+                  Save
+                </Button>
+              </div>
+            </Form.Item>
+          )}
 
-                            <CmdDeclineReasonSection formData={formData} setFormData={setFormData} />
+          <CmdDeclineReasonSection formData={formData} setFormData={setFormData} />
 
-                            {/* Routing & Details options if NOT declining and classification is NOT OTHER */}
-                            {!formData.isDeclining && formData.classification !== 'OTHER' && (
-                              <>
-                                <div style={{ borderTop: '1px solid #e2e8f0', margin: '28px 0' }} />
+          {/* Routing & Details options if NOT declining and classification is NOT OTHER */}
+          {!formData.isDeclining && formData.classification !== 'OTHER' && (
+            <>
+              <div style={{ borderTop: '1px solid #e2e8f0', margin: '28px 0' }} />
 
-                                {/* Work Unit Resolution Review Options for Customer Care Officer */}
-                                {Boolean(selectedTask.variables?.resolutionDetails || selectedTask.variables?.actionTaken || selectedTask.variables?.workUnitResolutionGiven || selectedTask.variables?.resolutionProvided) && (
-                                  <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '16px', marginBottom: '20px' }}>
-                                    <Text strong style={{ color: '#166534', fontSize: '14px', display: 'block', marginBottom: '8px' }}>
-                                      Review Work Unit Resolution &amp; Choose Action:
-                                    </Text>
-                                    <Radio.Group
-                                      value={formData.ccoActionChoice || 'close_complaint'}
-                                      onChange={(e) => setFormData(prev => ({ ...prev, ccoActionChoice: e.target.value }))}
-                                      style={{ width: '100%' }}
-                                    >
-                                      <Space direction="vertical" style={{ width: '100%' }}>
-                                        <Radio value="close_complaint" style={{ fontSize: '13px', fontWeight: 600, color: '#15803d' }}>
-                                          Close Complaint &amp; Notify Customer
-                                        </Radio>
-                                        <Radio value="reassign_work_unit" style={{ fontSize: '13px', fontWeight: 600, color: '#1e40af' }}>
-                                          Reassign Complaint to Work Unit for Additional Investigation / Resolution
-                                        </Radio>
-                                      </Space>
-                                    </Radio.Group>
-                                  </div>
-                                )}
+              {/* Work Unit Resolution Review Options for Customer Care Officer */}
+              {Boolean(selectedTask.variables?.resolutionDetails || selectedTask.variables?.actionTaken || selectedTask.variables?.workUnitResolutionGiven || selectedTask.variables?.resolutionProvided) && (
+                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '16px', marginBottom: '20px' }}>
+                  <Text strong style={{ color: '#166534', fontSize: '14px', display: 'block', marginBottom: '8px' }}>
+                    Review Work Unit Resolution &amp; Choose Action:
+                  </Text>
+                  <Radio.Group
+                    value={formData.ccoActionChoice || 'close_complaint'}
+                    onChange={(e) => setFormData(prev => ({ ...prev, ccoActionChoice: e.target.value }))}
+                    style={{ width: '100%' }}
+                  >
+                    <Space direction="vertical" style={{ width: '100%' }}>
+                      <Radio value="close_complaint" style={{ fontSize: '13px', fontWeight: 600, color: '#15803d' }}>
+                        Close Complaint &amp; Notify Customer
+                      </Radio>
+                      <Radio value="reassign_work_unit" style={{ fontSize: '13px', fontWeight: 600, color: '#1e40af' }}>
+                        Reassign Complaint to Work Unit for Additional Investigation / Resolution
+                      </Radio>
+                    </Space>
+                  </Radio.Group>
+                </div>
+              )}
 
-                                {selectedTask?.variables?.committeeDecision !== 'approved' && !(selectedTask.variables?.resolutionDetails || selectedTask.variables?.workUnitResolutionGiven) && (
-                                  <Form.Item style={{ marginBottom: '16px' }}>
-                                    <Checkbox
-                                      name="requiresInvestigation"
-                                      checked={formData.requiresInvestigation}
-                                      onChange={(e) => {
-                                        const checked = e.target.checked;
-                                        setFormData(prev => ({
-                                          ...prev,
-                                          requiresInvestigation: checked,
-                                          ...(checked ? {
-                                            district: '',
-                                            branch: '',
-                                            department: '',
-                                            manager: '',
-                                            adUnitId: '',
-                                            adUnitName: '',
-                                            assigneeUsername: '',
-                                            assigneeDisplayName: '',
-                                            assigneeTitle: ''
-                                          } : {})
-                                        }));
-                                      }}
-                                    >
-                                      <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '14px' }}>Requires Investigation</span>
-                                    </Checkbox>
-                                  </Form.Item>
-                                )}
+              {selectedTask?.variables?.committeeDecision !== 'approved' && !(selectedTask.variables?.resolutionDetails || selectedTask.variables?.workUnitResolutionGiven) && (
+                <Form.Item style={{ marginBottom: '16px' }}>
+                  <Checkbox
+                    name="requiresInvestigation"
+                    checked={formData.requiresInvestigation}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setFormData(prev => ({
+                        ...prev,
+                        requiresInvestigation: checked,
+                        ...(checked ? {
+                          district: '',
+                          branch: '',
+                          department: '',
+                          manager: '',
+                          adUnitId: '',
+                          adUnitName: '',
+                          assigneeUsername: '',
+                          assigneeDisplayName: '',
+                          assigneeTitle: ''
+                        } : {})
+                      }));
+                    }}
+                  >
+                    <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '14px' }}>Requires Investigation</span>
+                  </Checkbox>
+                </Form.Item>
+              )}
 
-                                {/* Upload Multiple Investigation Evidence Files */}
-                                {formData.requiresInvestigation && (
-                                  <div style={{ marginTop: '8px', marginBottom: '24px', backgroundColor: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
-                                    <Text strong style={{ color: '#0f172a', fontSize: '14px', display: 'block', marginBottom: '4px' }}>
-                                      Upload Investigation Evidence &amp; Documents (Multiple Files)
-                                    </Text>
-                                    <Text style={{ color: '#64748b', fontSize: '12px', display: 'block', marginBottom: '12px' }}>
-                                      Attach multiple evidence files, documents, screenshots, or receipts for the Chief Experience Officer review.
-                                    </Text>
-                                    <Upload
-                                      multiple
-                                      beforeUpload={(file) => {
-                                        const reader = new FileReader();
-                                        reader.onload = () => {
-                                          const fileObj = {
-                                            uid: file.uid || `${Date.now()}-${file.name}`,
-                                            name: file.name,
-                                            size: file.size,
-                                            type: file.type,
-                                            url: reader.result,
-                                            status: 'done'
-                                          };
-                                          setInvestigationFileList(prev => [...prev, fileObj]);
-                                        };
-                                        reader.readAsDataURL(file);
-                                        return false; // Prevent auto HTTP upload
-                                      }}
-                                      onRemove={(file) => {
-                                        setInvestigationFileList(prev => prev.filter(f => f.uid !== file.uid && f.name !== file.name));
-                                      }}
-                                      fileList={investigationFileList}
-                                    >
-                                      <Button icon={<UploadOutlined />} style={{ borderRadius: '6px' }}>
-                                        Select Multiple Evidence Files
-                                      </Button>
-                                    </Upload>
-                                  </div>
-                                )}
+              {/* Upload Multiple Investigation Evidence Files */}
+              {formData.requiresInvestigation && (
+                <div style={{ marginTop: '8px', marginBottom: '24px', backgroundColor: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
+                  <Text strong style={{ color: '#0f172a', fontSize: '14px', display: 'block', marginBottom: '4px' }}>
+                    Upload Investigation Evidence &amp; Documents (Multiple Files)
+                  </Text>
+                  <Text style={{ color: '#64748b', fontSize: '12px', display: 'block', marginBottom: '12px' }}>
+                    Attach multiple evidence files, documents, screenshots, or receipts for the Chief Experience Officer review.
+                  </Text>
+                  <Upload
+                    multiple
+                    beforeUpload={(file) => {
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        const fileObj = {
+                          uid: file.uid || `${Date.now()}-${file.name}`,
+                          name: file.name,
+                          size: file.size,
+                          type: file.type,
+                          url: reader.result,
+                          status: 'done'
+                        };
+                        setInvestigationFileList(prev => [...prev, fileObj]);
+                      };
+                      reader.readAsDataURL(file);
+                      return false; // Prevent auto HTTP upload
+                    }}
+                    onRemove={(file) => {
+                      setInvestigationFileList(prev => prev.filter(f => f.uid !== file.uid && f.name !== file.name));
+                    }}
+                    fileList={investigationFileList}
+                  >
+                    <Button icon={<UploadOutlined />} style={{ borderRadius: '6px' }}>
+                      Select Multiple Evidence Files
+                    </Button>
+                  </Upload>
+                </div>
+              )}
 
-                                {!formData.requiresInvestigation && (
-                                  (!(selectedTask.variables?.resolutionDetails || selectedTask.variables?.actionTaken || selectedTask.variables?.workUnitResolutionGiven || selectedTask.variables?.resolutionProvided)
-                                    || formData.ccoActionChoice === 'reassign_work_unit')
-                                ) && (
-                                    <>
-                                      <div style={{ borderTop: '1px solid #e2e8f0', margin: '28px 0' }} />
+              {!formData.requiresInvestigation && (
+                (!(selectedTask.variables?.resolutionDetails || selectedTask.variables?.actionTaken || selectedTask.variables?.workUnitResolutionGiven || selectedTask.variables?.resolutionProvided)
+                  || formData.ccoActionChoice === 'reassign_work_unit')
+              ) && (
+                  <>
+                    <div style={{ borderTop: '1px solid #e2e8f0', margin: '28px 0' }} />
 
-                                      <div style={{ marginBottom: '20px' }}>
-                                        <Text strong style={{ color: '#0f172a', fontSize: '15px', letterSpacing: '0.3px', display: 'block', marginBottom: '4px' }}>
-                                          Assignment Details
-                                        </Text>
-                                        <Text style={{ color: '#64748b', fontSize: '12px' }}>
-                                          Select the target organizational unit responsible for handling this complaint.
-                                        </Text>
-                                      </div>
+                    <div style={{ marginBottom: '20px' }}>
+                      <Text strong style={{ color: '#0f172a', fontSize: '15px', letterSpacing: '0.3px', display: 'block', marginBottom: '4px' }}>
+                        Assignment Details
+                      </Text>
+                      <Text style={{ color: '#64748b', fontSize: '12px' }}>
+                        Select the target organizational unit responsible for handling this complaint.
+                      </Text>
+                    </div>
 
-                                      {/* Assignment Scope Radio Buttons */}
-                                      <Form.Item label={<CmdFormLabel style={CMD_LABEL_STRONG_STYLE}>Assignment Scope</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
-                                        <Radio.Group
-                                          value={normalizeAssignmentScope(formData.assignmentType)}
-                                          onChange={(e) => {
-                                            const val = e.target.value;
-                                            setFormData(prev => ({
-                                              ...prev,
-                                              assignmentType: val,
-                                              district: '',
-                                              branch: '',
-                                              department: '',
-                                              manager: '',
-                                              adUnitId: '',
-                                              adUnitName: '',
-                                              assigneeUsername: '',
-                                              assigneeDisplayName: '',
-                                              assigneeTitle: ''
-                                            }));
-                                          }}
-                                          style={{ width: '100%' }}
-                                        >
-                                          <Space direction="vertical" style={{ width: '100%' }} size="small">
-                                            <Radio value="DISTRICT" style={{ fontSize: '14px', color: '#1e293b', fontWeight: 500 }}>
-                                              District
-                                            </Radio>
-                                            <Radio value="BRANCH" style={{ fontSize: '14px', color: '#1e293b', fontWeight: 500 }}>
-                                              Branch
-                                            </Radio>
-                                            <Radio value="HQ_DEPARTMENT" style={{ fontSize: '14px', color: '#1e293b', fontWeight: 500 }}>
-                                              Head Office Department
-                                            </Radio>
-                                          </Space>
-                                        </Radio.Group>
-                                      </Form.Item>
+                    {/* Assignment Scope Radio Buttons */}
+                    <Form.Item label={<CmdFormLabel style={CMD_LABEL_STRONG_STYLE}>Assignment Scope</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
+                      <Radio.Group
+                        value={normalizeAssignmentScope(formData.assignmentType)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setFormData(prev => ({
+                            ...prev,
+                            assignmentType: val,
+                            district: '',
+                            branch: '',
+                            department: '',
+                            manager: '',
+                            adUnitId: '',
+                            adUnitName: '',
+                            assigneeUsername: '',
+                            assigneeDisplayName: '',
+                            assigneeTitle: ''
+                          }));
+                        }}
+                        style={{ width: '100%' }}
+                      >
+                        <Space direction="vertical" style={{ width: '100%' }} size="small">
+                          <Radio value="DISTRICT" style={{ fontSize: '14px', color: '#1e293b', fontWeight: 500 }}>
+                            District
+                          </Radio>
+                          <Radio value="BRANCH" style={{ fontSize: '14px', color: '#1e293b', fontWeight: 500 }}>
+                            Branch
+                          </Radio>
+                          <Radio value="HQ_DEPARTMENT" style={{ fontSize: '14px', color: '#1e293b', fontWeight: 500 }}>
+                            Head Office Department
+                          </Radio>
+                        </Space>
+                      </Radio.Group>
+                    </Form.Item>
 
-                                      <Form.Item
-                                        label={(
-                                          <CmdFormLabel required>
-                                            {assignmentUnitLabel(normalizeAssignmentScope(formData.assignmentType))}
-                                          </CmdFormLabel>
-                                        )}
-                                        required
-                                        style={CMD_FORM_ITEM_24}
-                                      >
-                                        <Select
-                                          placeholder="Loaded from Active Directory"
-                                          loading={adOrgLoading}
-                                          value={formData.adUnitId || undefined}
-                                          onChange={(unitId) => {
-                                            const unit = (adOrgUnits || []).find(u => u.id === unitId);
-                                            const name = unit?.name || '';
-                                            const scope = normalizeAssignmentScope(formData.assignmentType);
-                                            setFormData(prev => ({
-                                              ...prev,
-                                              adUnitId: unitId,
-                                              adUnitName: name,
-                                              district: districtNameForAdUnit(scope, name, prev.district),
-                                              branch: scope === 'BRANCH' ? name : '',
-                                              department: scope === 'HQ_DEPARTMENT' ? name : '',
-                                              assigneeUsername: '',
-                                              assigneeDisplayName: '',
-                                              assigneeTitle: '',
-                                              manager: ''
-                                            }));
-                                          }}
-                                          notFoundContent={adOrgLoading ? 'Loading…' : 'No units found in Active Directory'}
-                                          style={{ width: '100%' }}
-                                        >
-                                          {(adOrgUnits || []).map(unit => (
-                                            <Option key={unit.id} value={unit.id}>{unit.name}</Option>
-                                          ))}
-                                        </Select>
-                                      </Form.Item>
+                    <Form.Item
+                      label={(
+                        <CmdFormLabel required>
+                          {assignmentUnitLabel(normalizeAssignmentScope(formData.assignmentType))}
+                        </CmdFormLabel>
+                      )}
+                      required
+                      style={CMD_FORM_ITEM_24}
+                    >
+                      <Select
+                        showSearch
+                        optionFilterProp="children"
+                        placeholder="Loaded from Active Directory"
+                        loading={adOrgLoading}
+                        value={formData.adUnitId || undefined}
+                        onChange={(unitId) => {
+                          const unit = (adOrgUnits || []).find(u => u.id === unitId);
+                          const name = unit?.name || '';
+                          const scope = normalizeAssignmentScope(formData.assignmentType);
+                          setFormData(prev => ({
+                            ...prev,
+                            adUnitId: unitId,
+                            adUnitName: name,
+                            district: districtNameForAdUnit(scope, name, prev.district),
+                            branch: scope === 'BRANCH' ? name : '',
+                            department: scope === 'HQ_DEPARTMENT' ? name : '',
+                            assigneeUsername: '',
+                            assigneeDisplayName: '',
+                            assigneeTitle: '',
+                            manager: ''
+                          }));
+                        }}
+                        notFoundContent={adOrgLoading ? 'Loading…' : 'No units found in Active Directory'}
+                        filterOption={(input, option) =>
+                          (option?.children ?? '').toString().toLowerCase().includes(input.toLowerCase())
+                        }
+                        style={{ width: '100%' }}
+                      >
+                        {(adOrgUnits || []).map(unit => (
+                          <Option key={unit.id} value={unit.id}>{unit.name}</Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
 
-                                      <Form.Item label={<CmdFormLabel required>Assignee</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
-                                        <Select
-                                          placeholder={formData.adUnitId ? 'Loaded from Active Directory' : 'Select a unit first'}
-                                          loading={adOfficerLoading}
-                                          disabled={!formData.adUnitId}
-                                          value={formData.assigneeUsername || undefined}
-                                          onChange={(username) => {
-                                            const officer = (adOfficers || []).find(o => o.username === username);
-                                            setFormData(prev => ({
-                                              ...prev,
-                                              assigneeUsername: username,
-                                              assigneeDisplayName: officer?.displayName || username,
-                                              assigneeTitle: officer?.title || '',
-                                              manager: officer
-                                                ? formatAdAssigneeLabel(officer.displayName, officer.title)
-                                                : username
-                                            }));
-                                          }}
-                                          notFoundContent={adOfficerLoading ? 'Loading…' : 'No matching officers in Active Directory'}
-                                          style={{ width: '100%' }}
-                                        >
-                                          {(adOfficers || []).map(officer => (
-                                            <Option key={officer.username} value={officer.username}>
-                                              {officer.displayName}{officer.title ? ` — ${officer.title}` : ''}
-                                            </Option>
-                                          ))}
-                                        </Select>
-                                      </Form.Item>
-                                    </>
-                                  )}
+                    <Form.Item label={<CmdFormLabel required>Assignee</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
+                      <Select
+                        showSearch
+                        optionFilterProp="children"
+                        placeholder={formData.adUnitId ? 'Loaded from Active Directory' : 'Select a unit first'}
+                        loading={adOfficerLoading}
+                        disabled={!formData.adUnitId}
+                        value={formData.assigneeUsername || undefined}
+                        onChange={(username) => {
+                          const officer = (adOfficers || []).find(o => o.username === username);
+                          setFormData(prev => ({
+                            ...prev,
+                            assigneeUsername: username,
+                            assigneeDisplayName: officer?.displayName || username,
+                            assigneeTitle: officer?.title || '',
+                            manager: officer
+                              ? formatAdAssigneeLabel(officer.displayName, officer.title)
+                              : username
+                          }));
+                        }}
+                        notFoundContent={adOfficerLoading ? 'Loading…' : 'No matching officers in Active Directory'}
+                        filterOption={(input, option) =>
+                          (option?.children ?? '').toString().toLowerCase().includes(input.toLowerCase())
+                        }
+                        style={{ width: '100%' }}
+                      >
+                        {(adOfficers || []).map(officer => (
+                          <Option key={officer.username} value={officer.username}>
+                            {officer.displayName}{officer.title ? ` — ${officer.title}` : ''}
+                          </Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  </>
+                )}
 
-                                <div style={{ borderTop: '1px solid #e2e8f0', margin: '28px 0' }} />
+              <div style={{ borderTop: '1px solid #e2e8f0', margin: '28px 0' }} />
 
-                                <Form.Item label={<CmdFormLabel>Complaint Classification</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
-                                  <Select
-                                    value={formData.complaintClassification}
-                                    onChange={(value) => handleSelectChange('complaintClassification', value)}
-                                    style={{ width: '100%' }}
-                                  >
-                                    <Option value="General">General</Option>
-                                    <Option value="Sensitive">Sensitive</Option>
-                                    <Option value="Highly Sensitive">Highly Sensitive</Option>
-                                  </Select>
-                                </Form.Item>
+              <Form.Item label={<CmdFormLabel>Complaint Classification</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
+                <Select
+                  value={formData.complaintClassification}
+                  onChange={(value) => handleSelectChange('complaintClassification', value)}
+                  style={{ width: '100%' }}
+                >
+                  <Option value="General">General</Option>
+                  <Option value="Sensitive">Sensitive</Option>
+                  <Option value="Highly Sensitive">Highly Sensitive</Option>
+                </Select>
+              </Form.Item>
 
-                                <CmdResolutionNotesField selectedTask={selectedTask} formData={formData} setFormData={setFormData} />
-                              </>
-                            )}
+              <CmdResolutionNotesField selectedTask={selectedTask} formData={formData} setFormData={setFormData} />
+            </>
+          )}
 
-                            <CmdScreeningSubmitActions
-                              selectedTask={selectedTask}
-                              formData={formData}
-                              setFormData={setFormData}
-                              isSubmitting={isSubmitting}
-                            />
-                          </Form>
-                        </div>
-                      </div>
+          <CmdScreeningSubmitActions
+            selectedTask={selectedTask}
+            formData={formData}
+            setFormData={setFormData}
+            isSubmitting={isSubmitting}
+          />
+        </Form>
+      </div>
+    </div>
   );
 }
 
@@ -3009,7 +3019,7 @@ function CmdScreeningSideColumn(props) {
 
 function CmdSelectedTaskWorkspace(props) {
   const { setSelectedTask, activeTab } = props;
-                                  return (
+  return (
     <div>
       <div style={{ marginBottom: '20px' }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => setSelectedTask(null)} aria-label="Back to task queue" style={{ borderRadius: '6px' }} />
@@ -3026,37 +3036,37 @@ function CmdSelectedTaskWorkspace(props) {
 
 function CmdDashboardView(props) {
   const {
-  user,
-  tasks,
-  selectedTask,
-  setSelectedTask,
-  loading,
-  error,
-  slaMetrics,
-  activeTab,
-  setActiveTab,
-  message,
-  setMessage,
-  searchQuery,
-  setSearchQuery,
-  isAssignModalOpen,
-  setIsAssignModalOpen,
-  setTaskToAssign,
-  taskToAssign,
-  activeOfficers,
-  selectedOfficerUsername,
-  setSelectedOfficerUsername,
-  isAssigning,
-  unresolvedFollowups,
-  selectedFollowup,
-  setSelectedFollowup,
-  isFollowupModalOpen,
-  setIsFollowupModalOpen,
-  handleStartFollowup,
-  handleCloseFollowup,
-  handleOpenAssignModal,
-  confirmTaskAssignment,
-  handleTaskSelect
+    user,
+    tasks,
+    selectedTask,
+    setSelectedTask,
+    loading,
+    error,
+    slaMetrics,
+    activeTab,
+    setActiveTab,
+    message,
+    setMessage,
+    searchQuery,
+    setSearchQuery,
+    isAssignModalOpen,
+    setIsAssignModalOpen,
+    setTaskToAssign,
+    taskToAssign,
+    activeOfficers,
+    selectedOfficerUsername,
+    setSelectedOfficerUsername,
+    isAssigning,
+    unresolvedFollowups,
+    selectedFollowup,
+    setSelectedFollowup,
+    isFollowupModalOpen,
+    setIsFollowupModalOpen,
+    handleStartFollowup,
+    handleCloseFollowup,
+    handleOpenAssignModal,
+    confirmTaskAssignment,
+    handleTaskSelect
   } = props;
   if (loading) {
     return (
@@ -3213,14 +3223,14 @@ function CmdDashboardView(props) {
                 {activeOfficers.map(off => {
                   const assigneeRole = off.role === 'ROLE_CUSTOMER_CARE_TEAM_LEADER' ? 'Team Leader' : 'Officer';
                   return (
-                  <Option key={off.username} value={off.username}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 600, color: '#0f172a' }}>{off.fullName || off.username}</span>
-                      <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '8px' }}>
-                        {assigneeRole} · @{off.username} {off.branch ? `(${off.branch})` : ''}
-                      </span>
-                    </div>
-                  </Option>
+                    <Option key={off.username} value={off.username}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 600, color: '#0f172a' }}>{off.fullName || off.username}</span>
+                        <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '8px' }}>
+                          {assigneeRole} · @{off.username} {off.branch ? `(${off.branch})` : ''}
+                        </span>
+                      </div>
+                    </Option>
                   );
                 })}
               </Select>
@@ -3303,14 +3313,14 @@ function CmdDashboardView(props) {
               <Text>
                 {selectedFollowup.submittedAt
                   ? new Date(selectedFollowup.submittedAt).toLocaleString('en-GB', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      second: '2-digit',
-                      hour12: false
-                    }).replace(',', '')
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                  }).replace(',', '')
                   : '-'}
               </Text>
             </Card>

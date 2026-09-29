@@ -140,7 +140,12 @@ public class AdRoleMappingService {
         putTitle(map, "Director - Customer Experience", Role.ROLE_DEPARTMENT_WORKUNIT);
         putTitle(map, "Customer Service Manager", Role.ROLE_CUSTOMER_SERVICE_MANAGER);
         putTitle(map, "Customer Care Officer", Role.ROLE_CUSTOMER_CARE_OFFICER);
+        putTitle(map, "Recruit Professional- IT Modernization", Role.ROLE_CUSTOMER_CARE_OFFICER);
+        putTitle(map, "Recruit Professional - IT Modernization", Role.ROLE_CUSTOMER_CARE_OFFICER);
+        putTitle(map, "Recruit Professional", Role.ROLE_CUSTOMER_CARE_OFFICER);
         putTitle(map, "Customer Care Team Leader", Role.ROLE_CUSTOMER_CARE_TEAM_LEADER);
+        putTitle(map, "Senior Compliant Management Officer", Role.ROLE_CUSTOMER_CARE_TEAM_LEADER);
+        putTitle(map, "Senior Complaint Management Officer", Role.ROLE_CUSTOMER_CARE_TEAM_LEADER);
         putTitle(map, "Customer Care Senior Manager", Role.ROLE_CUSTOMER_CARE_SENIOR_MANAGER);
         putTitle(map, "Department / Work Unit Manager", Role.ROLE_DEPARTMENT_WORKUNIT);
         putTitle(map, "Work Unit Specialist", Role.ROLE_DEPARTMENT_WORKUNIT);
