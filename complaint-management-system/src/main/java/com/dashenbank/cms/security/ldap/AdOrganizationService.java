@@ -85,28 +85,59 @@ public class AdOrganizationService {
         if (profile == null || !profile.enabled()) {
             return false;
         }
-        if (AdWorkUnitTitleMatcher.matchesTitle(profile.title(), scope)) {
-            return true;
-        }
-        if (AdWorkUnitTitleMatcher.matchesAnyWorkUnitTitle(profile.title())) {
+        String unit = orgUnitName(profile, scope);
+        if (!StringUtils.hasText(unit)) {
             return false;
         }
-        if (AdWorkUnitTitleMatcher.matchesGroup(profile.memberOf(), scope)) {
-            return true;
+        String lowerUnit = unit.toLowerCase(java.util.Locale.ROOT);
+        String normalizedTitle = AdWorkUnitTitleMatcher.normalize(profile.title());
+
+        if (scope == AdAssignmentScope.HEAD_OFFICE_DEPARTMENT) {
+            if (lowerUnit.contains("branch") || lowerUnit.contains("district") || lowerUnit.contains("region")) {
+                return false;
+            }
+            if (AdWorkUnitTitleMatcher.isBranchTitle(normalizedTitle)
+                    || AdWorkUnitTitleMatcher.isDistrictTitle(normalizedTitle)) {
+                return false;
+            }
+            return AdWorkUnitTitleMatcher.isHeadOfficeTitle(normalizedTitle)
+                    || lowerUnit.contains("department")
+                    || lowerUnit.contains("directorate")
+                    || lowerUnit.contains("division")
+                    || lowerUnit.contains("office")
+                    || lowerUnit.contains("unit")
+                    || lowerUnit.contains("center")
+                    || lowerUnit.contains("centre")
+                    || AdWorkUnitTitleMatcher.matchesGroup(profile.memberOf(), scope);
         }
-        String unit = orgUnitName(profile, scope);
-        if (StringUtils.hasText(unit)) {
-            String lowerUnit = unit.toLowerCase(java.util.Locale.ROOT);
-            if (scope == AdAssignmentScope.BRANCH) {
-                return lowerUnit.contains("branch") || !lowerUnit.contains("district");
+
+        if (scope == AdAssignmentScope.BRANCH) {
+            if (lowerUnit.contains("district") || lowerUnit.contains("region")) {
+                return false;
             }
-            if (scope == AdAssignmentScope.DISTRICT) {
-                return lowerUnit.contains("district") || lowerUnit.contains("region");
+            if ((lowerUnit.contains("department") || lowerUnit.contains("directorate")
+                    || lowerUnit.contains("division"))
+                    && !lowerUnit.contains("branch")) {
+                return false;
             }
-            if (scope == AdAssignmentScope.HEAD_OFFICE_DEPARTMENT) {
-                return !lowerUnit.contains("branch") && !lowerUnit.contains("district");
+            if (AdWorkUnitTitleMatcher.isDistrictTitle(normalizedTitle)) {
+                return false;
             }
+            return lowerUnit.contains("branch")
+                    || AdWorkUnitTitleMatcher.isBranchTitle(normalizedTitle)
+                    || AdWorkUnitTitleMatcher.matchesGroup(profile.memberOf(), scope);
         }
+
+        if (scope == AdAssignmentScope.DISTRICT) {
+            if (lowerUnit.contains("branch")) {
+                return false;
+            }
+            return lowerUnit.contains("district")
+                    || lowerUnit.contains("region")
+                    || AdWorkUnitTitleMatcher.isDistrictTitle(normalizedTitle)
+                    || AdWorkUnitTitleMatcher.matchesGroup(profile.memberOf(), scope);
+        }
+
         return false;
     }
 
@@ -117,10 +148,35 @@ public class AdOrganizationService {
         String office = blankToEmpty(profile.office());
         String ou = ouFromDn(profile.distinguishedName());
         String department = blankToEmpty(profile.department());
+
         if (scope == AdAssignmentScope.HEAD_OFFICE_DEPARTMENT) {
-            return firstNonBlank(department, ou, office);
+            String name = firstNonBlank(department, ou, office);
+            String lower = name.toLowerCase(java.util.Locale.ROOT);
+            if (lower.contains("branch") || lower.contains("district") || lower.contains("region")) {
+                return "";
+            }
+            return name;
         }
-        return firstNonBlank(office, ou, department);
+
+        if (scope == AdAssignmentScope.BRANCH) {
+            String name = firstNonBlank(office, ou, department);
+            String lower = name.toLowerCase(java.util.Locale.ROOT);
+            if (lower.contains("district") || lower.contains("region")) {
+                return "";
+            }
+            if ((lower.contains("department") || lower.contains("directorate") || lower.contains("division"))
+                    && !lower.contains("branch")) {
+                return "";
+            }
+            return name;
+        }
+
+        String name = firstNonBlank(office, ou, department);
+        String lower = name.toLowerCase(java.util.Locale.ROOT);
+        if (lower.contains("branch")) {
+            return "";
+        }
+        return name;
     }
 
     static String orgUnitName(AdUserProfile profile) {
