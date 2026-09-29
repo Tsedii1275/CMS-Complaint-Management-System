@@ -91,7 +91,23 @@ public class AdOrganizationService {
         if (AdWorkUnitTitleMatcher.matchesAnyWorkUnitTitle(profile.title())) {
             return false;
         }
-        return AdWorkUnitTitleMatcher.matchesGroup(profile.memberOf(), scope);
+        if (AdWorkUnitTitleMatcher.matchesGroup(profile.memberOf(), scope)) {
+            return true;
+        }
+        String unit = orgUnitName(profile, scope);
+        if (StringUtils.hasText(unit)) {
+            String lowerUnit = unit.toLowerCase(java.util.Locale.ROOT);
+            if (scope == AdAssignmentScope.BRANCH) {
+                return lowerUnit.contains("branch") || !lowerUnit.contains("district");
+            }
+            if (scope == AdAssignmentScope.DISTRICT) {
+                return lowerUnit.contains("district") || lowerUnit.contains("region");
+            }
+            if (scope == AdAssignmentScope.HEAD_OFFICE_DEPARTMENT) {
+                return !lowerUnit.contains("branch") && !lowerUnit.contains("district");
+            }
+        }
+        return false;
     }
 
     static String orgUnitName(AdUserProfile profile, AdAssignmentScope scope) {

@@ -57,33 +57,51 @@ public final class AdWorkUnitTitleMatcher {
     }
 
     static boolean isBranchTitle(String normalized) {
-        return normalized.equals("branch manager")
-                || normalized.startsWith("branch manager ")
-                || normalized.equals("senior branch manager")
-                || normalized.startsWith("senior branch manager ");
+        if (normalized.contains("branch manager") || normalized.contains("senior branch manager")) {
+            return true;
+        }
+        if (normalized.contains("district") || normalized.contains("regional")) {
+            return false;
+        }
+        return normalized.startsWith("branch ")
+                || normalized.equals("branch")
+                || normalized.contains("csm")
+                || normalized.contains("customer service manager")
+                || normalized.contains("branch operations manager")
+                || normalized.contains("branch head")
+                || normalized.contains("branch leader");
     }
 
     static boolean isDistrictTitle(String normalized) {
-        return normalized.equals("district director")
-                || normalized.startsWith("district director ")
-                || normalized.equals("district business director")
-                || normalized.startsWith("district business director ")
-                || normalized.equals("operational manager")
-                || normalized.startsWith("operational manager ");
+        if (normalized.contains("district director") || normalized.contains("district business director")
+                || normalized.contains("operational manager") || normalized.contains("district manager")
+                || normalized.contains("district head") || normalized.contains("district leader")
+                || normalized.contains("regional director") || normalized.contains("regional manager")) {
+            return true;
+        }
+        return normalized.startsWith("district ") || normalized.equals("district");
     }
 
     static boolean isHeadOfficeTitle(String normalized) {
         if (isDistrictTitle(normalized) || isBranchTitle(normalized)) {
             return false;
         }
-        if (normalized.equals("senior manager") || (normalized.startsWith("senior manager ")
-                && !normalized.contains("branch"))) {
+        if (normalized.contains("senior manager") && !normalized.contains("branch")) {
             return true;
         }
-        if (normalized.equals("director") || normalized.startsWith("director ")) {
-            return !normalized.contains("district");
+        if (normalized.contains("director") && !normalized.contains("district")) {
+            return true;
         }
-        return false;
+        return normalized.contains("department head")
+                || normalized.contains("head of department")
+                || normalized.contains("division head")
+                || normalized.contains("unit head")
+                || normalized.contains("chief officer")
+                || normalized.contains("chief")
+                || normalized.contains("vp")
+                || normalized.contains("vice president")
+                || normalized.contains("team leader")
+                || normalized.contains("manager");
     }
 
     private static String groupKey(String dn) {
