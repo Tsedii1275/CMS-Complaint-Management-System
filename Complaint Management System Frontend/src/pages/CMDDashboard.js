@@ -2411,15 +2411,13 @@ function CmdCustomerProfileCard({ selectedTask, activeTab, editingFields, setEdi
   const [liveCbs, setLiveCbs] = useState(null);
   const [loadingCbs, setLoadingCbs] = useState(false);
 
-  if (!selectedTask?.variables?.customer && !selectedTask?.variables?.accountNumber) {
-    return null;
-  }
-  const customer = selectedTask.variables?.customer || {};
-  const accNum = formData.accountNumber || customer.accountNumber || selectedTask.variables?.accountNumber;
+  const hasTaskData = Boolean(selectedTask?.variables?.customer || selectedTask?.variables?.accountNumber);
+  const customer = selectedTask?.variables?.customer || {};
+  const accNum = formData?.accountNumber || customer.accountNumber || selectedTask?.variables?.accountNumber;
 
   useEffect(() => {
     const cleanAccount = String(accNum || '').trim();
-    if (/^\d{13}$/.test(cleanAccount)) {
+    if (hasTaskData && /^\d{13}$/.test(cleanAccount)) {
       setLoadingCbs(true);
       ApiService.getCustomerByAccount(cleanAccount)
         .then(profile => {
@@ -2433,7 +2431,11 @@ function CmdCustomerProfileCard({ selectedTask, activeTab, editingFields, setEdi
     } else {
       setLiveCbs(null);
     }
-  }, [accNum]);
+  }, [accNum, hasTaskData]);
+
+  if (!hasTaskData) {
+    return null;
+  }
 
   const nameVal = liveCbs?.customerName || customer.name || selectedTask.customerName;
   const segmentVal = liveCbs?.customerSegment || customer.customerSegment;
