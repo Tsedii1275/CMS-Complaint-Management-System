@@ -32,8 +32,7 @@ public class CbsCustomerProfileRepository {
                 && !properties.getColumns().getAccountNumber().isBlank()
                         ? properties.getColumns().getAccountNumber().trim()
                         : "ACCOUNT_NUMBER";
-        this.profileSql = "SELECT * FROM " + tableName + " WHERE " + accountCol
-                + " = :accountNumber OR ACCOUNT_NO = :accountNumber";
+        this.profileSql = "SELECT * FROM " + tableName + " WHERE " + accountCol + " = :accountNumber";
     }
 
     public boolean isConfigured() {

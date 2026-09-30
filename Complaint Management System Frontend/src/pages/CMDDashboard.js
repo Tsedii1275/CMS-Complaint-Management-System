@@ -2434,7 +2434,7 @@ function CmdCustomerProfileCard({ selectedTask, activeTab, editingFields, setEdi
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={{ color: '#64748b', fontSize: '14px' }}>Customer Segment</Text>
           <Tag color={customer.customerSegment === 'Corporate' ? 'gold' : 'blue'} style={{ fontWeight: 600, margin: 0 }}>
-            {customer.customerSegment || 'Retail'}
+            {customer.customerSegment || 'N/A'}
           </Tag>
         </div>
 

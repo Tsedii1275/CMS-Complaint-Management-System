@@ -3,7 +3,8 @@ package com.dashenbank.cms.dto;
 import com.dashenbank.cms.integration.corebanking.CoreBankingProfile;
 
 /**
- * Live CBS customer profile returned by {@code GET /api/customer-profile/{accountNumber}}.
+ * Live CBS customer profile returned by
+ * {@code GET /api/customer-profile/{accountNumber}}.
  * Account number is the lookup key only and is not part of this payload.
  */
 public class CustomerProfileResponse {
@@ -13,14 +14,21 @@ public class CustomerProfileResponse {
     private final String homeBranch;
     private final String homeDistrict;
     private final String customerSegment;
+    private final String branchCode;
 
     public CustomerProfileResponse(String customerName, String phoneNumber, String homeBranch, String homeDistrict,
-            String customerSegment) {
+            String customerSegment, String branchCode) {
         this.customerName = nullToEmpty(customerName);
         this.phoneNumber = nullToEmpty(phoneNumber);
         this.homeBranch = nullToEmpty(homeBranch);
         this.homeDistrict = nullToEmpty(homeDistrict);
         this.customerSegment = nullToEmpty(customerSegment);
+        this.branchCode = nullToEmpty(branchCode);
+    }
+
+    public CustomerProfileResponse(String customerName, String phoneNumber, String homeBranch, String homeDistrict,
+            String customerSegment) {
+        this(customerName, phoneNumber, homeBranch, homeDistrict, customerSegment, homeBranch);
     }
 
     public static CustomerProfileResponse from(CoreBankingProfile profile) {
@@ -29,7 +37,8 @@ public class CustomerProfileResponse {
                 profile.phoneNumber(),
                 profile.homeBranch(),
                 profile.homeDistrict(),
-                profile.customerSegment());
+                profile.customerSegment(),
+                profile.branchCode());
     }
 
     public String getCustomerName() {
@@ -50,6 +59,10 @@ public class CustomerProfileResponse {
 
     public String getCustomerSegment() {
         return customerSegment;
+    }
+
+    public String getBranchCode() {
+        return branchCode;
     }
 
     private static String nullToEmpty(String value) {
