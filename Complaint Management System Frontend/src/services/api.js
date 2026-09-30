@@ -404,11 +404,6 @@ class ApiService {
     return this.get(`/api/ad/departments/${encodeURIComponent(departmentId)}/leaders`);
   }
 
-  // Get Districts, Branches, and Departments hierarchy
-  async getHierarchy() {
-    return this.get('/api/hierarchy');
-  }
-
   ticketFromTask(task) {
     if (!task) {
       return undefined;
@@ -720,6 +715,14 @@ class ApiService {
 
   async toggleUserStatus(id) {
     return this.put(`/api/admin/users/${id}/toggle-status`, {});
+  }
+
+  async approveUser(id, role) {
+    return this.put(`/api/admin/users/${id}/approve`, { role });
+  }
+
+  async rejectUser(id) {
+    return this.put(`/api/admin/users/${id}/reject`, {});
   }
 
   async resetUserPassword(id, newPassword) {

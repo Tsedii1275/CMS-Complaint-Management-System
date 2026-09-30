@@ -23,14 +23,23 @@ export const ROLE_ROUTES = {
   'ROLE_COMMITTEE_SECRETARY': '/chief-committee',
   'ROLE_CHIEF_COMMITTEE': '/chief-committee',
 
+  // Pending Approval Role
+  'ROLE_PENDING': '/pending-access',
+
   // Other Existing Roles
   'ROLE_DEPARTMENT_WORKUNIT': '/work-unit',
   'ROLE_ADMIN': '/admin'
 };
 
-export const getRouteForRole = (role) => {
+export const getRouteForRole = (role, user) => {
+  if (user && (user.approved === false || user.approvalStatus === 'PENDING_APPROVAL' || user.approvalStatus === 'REJECTED' || role === 'ROLE_PENDING')) {
+    return '/pending-access';
+  }
   if (!role) return '/staff-login';
   const key = typeof role === 'string' ? role.toUpperCase() : '';
+  if (key === 'ROLE_PENDING') {
+    return '/pending-access';
+  }
   if (key === 'ROLE_CONTACT_CENTER_MANAGER') {
     return ROLE_ROUTES.ROLE_CONTACT_CENTER_SENIOR_MANAGER;
   }

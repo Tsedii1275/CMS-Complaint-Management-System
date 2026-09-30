@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Card, Typography, Button, Tag, Modal, Form, Input, Select, Switch, Space, Row, Col, Alert, Tooltip, Popconfirm, message as antMessage } from 'antd';
-import { UserOutlined, PlusOutlined, EditOutlined, KeyOutlined, SearchOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Table, Card, Typography, Button, Tag, Modal, Form, Input, Select, Switch, Space, Row, Col, Alert, Tooltip, Popconfirm, Tabs, Badge, message as antMessage } from 'antd';
+import { UserOutlined, PlusOutlined, EditOutlined, KeyOutlined, SearchOutlined, DeleteOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import DashboardLayout from '../components/DashboardLayout';
 import Pagination from '../components/Pagination';
 import ApiService from '../services/api';
@@ -34,7 +34,8 @@ const ROLE_OPTIONS = [
 const RETIRED_ROLE_LABELS = {
   ROLE_SERVICE_QUALITY: 'Service Quality Officer',
   ROLE_CHIEF_COMMITTEE: 'Chief Committee',
-  ROLE_BRANCH_STAFF: 'Branch Staff'
+  ROLE_BRANCH_STAFF: 'Branch Staff',
+  ROLE_PENDING: 'Pending Approval'
 };
 
 function roleLabel(role) {
@@ -52,27 +53,21 @@ function assignableRoleOptions(currentRole) {
 
 function UserManagementPage() {
   const [users, setUsers] = useState([]);
-  const [hierarchy, setHierarchy] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('approved');
 
   // Modals
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
+  const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
 
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
   const [resetForm] = Form.useForm();
-
-  // Dynamic dropdown selections for creation
-  const [selectedDistrict, setSelectedDistrict] = useState('');
-  const [selectedBranch, setSelectedBranch] = useState('');
-
-  // Dynamic dropdown selections for edit
-  const [editDistrict, setEditDistrict] = useState('');
-  const [editBranch, setEditBranch] = useState('');
+  const [approveForm] = Form.useForm();
 
   useEffect(() => {
     fetchData();
@@ -81,21 +76,14 @@ function UserManagementPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [usersData, hierarchyData] = await Promise.all([
-        ApiService.getUsers().catch(err => {
-          console.error('Error fetching users:', err);
-          return [];
-        }),
-        ApiService.getHierarchy().catch(err => {
-          console.error('Error fetching hierarchy:', err);
-          return [];
-        })
-      ]);
+      const usersData = await ApiService.getUsers().catch(err => {
+        console.error('Error fetching users:', err);
+        return [];
+      });
       const list = Array.isArray(usersData) ? usersData : (usersData?.users || usersData?.content || []);
       setUsers(list);
-      setHierarchy(Array.isArray(hierarchyData) ? hierarchyData : []);
     } catch (err) {
-      antMessage.error('Failed to load user accounts or organizational hierarchy.');
+      antMessage.error('Failed to load user accounts.');
       console.error(err);
     } finally {
       setLoading(false);
@@ -108,8 +96,6 @@ function UserManagementPage() {
       antMessage.success(`User '${values.username}' created successfully!`);
       setIsCreateModalOpen(false);
       createForm.resetFields();
-      setSelectedDistrict('');
-      setSelectedBranch('');
       fetchData();
     } catch (err) {
       antMessage.error(err.message || 'Failed to create user');
@@ -127,6 +113,30 @@ function UserManagementPage() {
       fetchData();
     } catch (err) {
       antMessage.error(err.message || 'Failed to update user');
+    }
+  };
+
+  const handleApproveUser = async (values) => {
+    if (!selectedUser) return;
+    try {
+      await ApiService.approveUser(selectedUser.id, values.role);
+      antMessage.success(`User '${selectedUser.username}' approved successfully with role '${roleLabel(values.role)}'!`);
+      setIsApproveModalOpen(false);
+      approveForm.resetFields();
+      setSelectedUser(null);
+      fetchData();
+    } catch (err) {
+      antMessage.error(err.message || 'Failed to approve user access request');
+    }
+  };
+
+  const handleRejectUser = async (record) => {
+    try {
+      await ApiService.rejectUser(record.id);
+      antMessage.info(`User access request for '${record.username}' rejected.`);
+      fetchData();
+    } catch (err) {
+      antMessage.error(err.message || 'Failed to reject user access request');
     }
   };
 
@@ -165,18 +175,21 @@ function UserManagementPage() {
 
   const openEditModal = (record) => {
     setSelectedUser(record);
-    setEditDistrict(record.district || '');
-    setEditBranch(record.branch || '');
     editForm.setFieldsValue({
       fullName: record.fullName,
       email: record.email,
       role: record.role,
-      district: record.district,
-      branch: record.branch,
-      department: record.department,
       enabled: record.enabled
     });
     setIsEditModalOpen(true);
+  };
+
+  const openApproveModal = (record) => {
+    setSelectedUser(record);
+    approveForm.setFieldsValue({
+      role: record.role !== 'ROLE_PENDING' ? record.role : undefined
+    });
+    setIsApproveModalOpen(true);
   };
 
   const openResetPasswordModal = (record) => {
@@ -185,21 +198,13 @@ function UserManagementPage() {
     setIsResetPasswordModalOpen(true);
   };
 
-  // Helper arrays for hierarchy
-  const availableBranchesForDistrict = (distName) => {
-    const distObj = hierarchy.find(d => d.name === distName);
-    return distObj ? distObj.branches : [];
-  };
+  // Group Users into Pending vs Approved
+  const pendingUsers = users.filter(u => u.approved === false || u.approvalStatus === 'PENDING_APPROVAL' || u.role === 'ROLE_PENDING');
+  const approvedUsers = users.filter(u => u.approved !== false && u.approvalStatus !== 'PENDING_APPROVAL' && u.role !== 'ROLE_PENDING');
 
-  const availableDepartmentsForBranch = (distName, branchName) => {
-    const branches = availableBranchesForDistrict(distName);
-    const branchObj = branches.find(b => b.name === branchName);
-    return (branchObj ? branchObj.departments : []).filter(
-      dept => !/service\s*quality/i.test(dept.name || '')
-    );
-  };
+  const activeUserList = activeTab === 'pending' ? pendingUsers : approvedUsers;
 
-  const filteredUsers = users.filter(u => {
+  const filteredUsers = activeUserList.filter(u => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -207,12 +212,12 @@ function UserManagementPage() {
       u.username?.toLowerCase().includes(q) ||
       u.email?.toLowerCase().includes(q) ||
       u.role?.toLowerCase().includes(q) ||
-      u.branch?.toLowerCase().includes(q) ||
+      u.adJobTitle?.toLowerCase().includes(q) ||
       u.department?.toLowerCase().includes(q)
     );
   });
 
-  const columns = [
+  const columnsApproved = [
     {
       title: 'Full Name / Username',
       dataIndex: 'fullName',
@@ -228,7 +233,17 @@ function UserManagementPage() {
       title: 'Email',
       dataIndex: 'email',
       key: 'email',
-      render: text => <Text copyable style={{ fontSize: '13px' }}>{text}</Text>
+      render: text => <Text copyable style={{ fontSize: '13px' }}>{text || 'N/A'}</Text>
+    },
+    {
+      title: 'AD Job Title / Work Unit',
+      key: 'jobInfo',
+      render: (_, record) => (
+        <div style={{ fontSize: '12px', color: '#475569' }}>
+          <div><strong>Title:</strong> {record.adJobTitle || 'N/A'}</div>
+          <div><strong>Unit:</strong> {record.department || 'N/A'}</div>
+        </div>
+      )
     },
     {
       title: 'Assigned Role',
@@ -243,17 +258,6 @@ function UserManagementPage() {
       dataIndex: 'authSource',
       key: 'authSource',
       render: source => <Tag>{source === 'AD' ? 'Active Directory' : 'Local'}</Tag>
-    },
-    {
-      title: 'District / Branch / Department',
-      key: 'location',
-      render: (_, record) => (
-        <div style={{ fontSize: '12px', color: '#475569' }}>
-          <div><strong>District:</strong> {record.district || 'Enterprise Wide'}</div>
-          <div><strong>Branch:</strong> {record.branch || 'N/A'}</div>
-          <div><strong>Department:</strong> {record.department || 'N/A'}</div>
-        </div>
-      )
     },
     {
       title: 'Status',
@@ -313,12 +317,89 @@ function UserManagementPage() {
     }
   ];
 
+  const columnsPending = [
+    {
+      title: 'Username / Full Name',
+      dataIndex: 'username',
+      key: 'username',
+      render: (text, record) => (
+        <div>
+          <div style={{ fontWeight: 600, color: BRAND_COLORS.primary }}>{record.fullName || text}</div>
+          <Text type="secondary" style={{ fontSize: '12px' }}>@{text}</Text>
+        </div>
+      )
+    },
+    {
+      title: 'Email',
+      dataIndex: 'email',
+      key: 'email',
+      render: text => <Text copyable style={{ fontSize: '13px' }}>{text || 'N/A'}</Text>
+    },
+    {
+      title: 'Job Title',
+      dataIndex: 'adJobTitle',
+      key: 'adJobTitle',
+      render: text => <Text style={{ fontSize: '13px', fontWeight: 500 }}>{text || 'N/A'}</Text>
+    },
+    {
+      title: 'Work Unit / Department',
+      dataIndex: 'department',
+      key: 'department',
+      render: text => <Text style={{ fontSize: '13px' }}>{text || 'N/A'}</Text>
+    },
+    {
+      title: 'Account Status',
+      dataIndex: 'approvalStatus',
+      key: 'approvalStatus',
+      render: (status) => {
+        if (status === 'REJECTED') {
+          return <Tag color="error" icon={<CloseCircleOutlined />}>Access Rejected</Tag>;
+        }
+        return <Tag color="warning" icon={<ClockCircleOutlined />}>Pending Approval</Tag>;
+      }
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_, record) => (
+        <Space size="small">
+          <Button
+            type="primary"
+            size="small"
+            icon={<CheckCircleOutlined />}
+            onClick={() => openApproveModal(record)}
+            style={{ backgroundColor: '#16a34a', borderColor: '#16a34a', borderRadius: '6px' }}
+          >
+            Approve & Assign Role
+          </Button>
+          <Popconfirm
+            title="Reject Access Request"
+            description={`Are you sure you want to reject access for user "${record.username}"?`}
+            onConfirm={() => handleRejectUser(record)}
+            okText="Yes, Reject"
+            cancelText="Cancel"
+            okButtonProps={{ danger: true }}
+          >
+            <Button
+              type="default"
+              danger
+              size="small"
+              icon={<CloseCircleOutlined />}
+            >
+              Reject
+            </Button>
+          </Popconfirm>
+        </Space>
+      )
+    }
+  ];
+
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]);
+  }, [searchQuery, activeTab]);
 
   const paginatedUsers = filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
@@ -331,7 +412,7 @@ function UserManagementPage() {
               User Management & Access Control
             </Title>
             <Text type="secondary" style={{ fontSize: '14px' }}>
-              Manage system users, roles, organizational mapping (District, Branch, Department), and account status.
+              Manage Active Directory access approvals, application roles, and user account status.
             </Text>
           </div>
           <Button
@@ -341,14 +422,39 @@ function UserManagementPage() {
             onClick={() => setIsCreateModalOpen(true)}
             style={{ backgroundColor: BRAND_COLORS.primary, borderRadius: '6px' }}
           >
-            Create New User
+            Create New Local User
           </Button>
         </div>
 
+        {/* Tab Selection Bar */}
         <Card bordered={false} style={{ borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <Tabs
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            items={[
+              {
+                key: 'approved',
+                label: (
+                  <span>
+                    <UserOutlined /> Active & Approved Users ({approvedUsers.length})
+                  </span>
+                )
+              },
+              {
+                key: 'pending',
+                label: (
+                  <span>
+                    <ClockCircleOutlined /> User Access Approvals{' '}
+                    <Badge count={pendingUsers.length} offset={[6, -2]} style={{ backgroundColor: '#f59e0b' }} />
+                  </span>
+                )
+              }
+            ]}
+          />
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', marginTop: '12px' }}>
             <Input
-              placeholder="Search users by name, username, role, branch, department..."
+              placeholder="Search users by name, username, role, job title..."
               prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
@@ -358,7 +464,7 @@ function UserManagementPage() {
           </div>
 
           <Table
-            columns={columns}
+            columns={activeTab === 'pending' ? columnsPending : columnsApproved}
             dataSource={paginatedUsers}
             rowKey="id"
             loading={loading}
@@ -432,57 +538,6 @@ function UserManagementPage() {
                 ))}
               </Select>
             </Form.Item>
-
-            <Title level={5} style={{ marginTop: '12px', color: BRAND_COLORS.primary }}>Organizational Hierarchy Mapping</Title>
-            <Row gutter={16}>
-              <Col span={8}>
-                <Form.Item name="district" label="District">
-                  <Select
-                    placeholder="Select District"
-                    allowClear
-                    onChange={val => {
-                      setSelectedDistrict(val);
-                      createForm.setFieldsValue({ branch: undefined, department: undefined });
-                      setSelectedBranch('');
-                    }}
-                  >
-                    {hierarchy.map(d => (
-                      <Option key={d.name} value={d.name}>{d.name}</Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item name="branch" label="Branch">
-                  <Select
-                    placeholder="Select Branch"
-                    allowClear
-                    disabled={!selectedDistrict}
-                    onChange={val => {
-                      setSelectedBranch(val);
-                      createForm.setFieldsValue({ department: undefined });
-                    }}
-                  >
-                    {availableBranchesForDistrict(selectedDistrict).map(b => (
-                      <Option key={b.name} value={b.name}>{b.name}</Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item name="department" label="Department">
-                  <Select
-                    placeholder="Select Department"
-                    allowClear
-                    disabled={!selectedBranch}
-                  >
-                    {availableDepartmentsForBranch(selectedDistrict, selectedBranch).map(dept => (
-                      <Option key={dept.name} value={dept.name}>{dept.name}</Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
-            </Row>
           </Form>
         </Modal>
 
@@ -517,51 +572,46 @@ function UserManagementPage() {
                 ))}
               </Select>
             </Form.Item>
+          </Form>
+        </Modal>
 
-            <Row gutter={16}>
-              <Col span={8}>
-                <Form.Item name="district" label="District">
-                  <Select
-                    placeholder="Select District"
-                    allowClear
-                    onChange={val => {
-                      setEditDistrict(val);
-                      editForm.setFieldsValue({ branch: undefined, department: undefined });
-                      setEditBranch('');
-                    }}
-                  >
-                    {hierarchy.map(d => (
-                      <Option key={d.name} value={d.name}>{d.name}</Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item name="branch" label="Branch">
-                  <Select
-                    placeholder="Select Branch"
-                    allowClear
-                    onChange={val => {
-                      setEditBranch(val);
-                      editForm.setFieldsValue({ department: undefined });
-                    }}
-                  >
-                    {availableBranchesForDistrict(editDistrict).map(b => (
-                      <Option key={b.name} value={b.name}>{b.name}</Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item name="department" label="Department">
-                  <Select placeholder="Select Department" allowClear>
-                    {availableDepartmentsForBranch(editDistrict, editBranch).map(dept => (
-                      <Option key={dept.name} value={dept.name}>{dept.name}</Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
-            </Row>
+        {/* Approve Access & Assign Role Modal */}
+        <Modal
+          title={<span style={{ color: '#16a34a', fontWeight: 'bold' }}><CheckCircleOutlined /> Approve User Access & Assign Role</span>}
+          open={isApproveModalOpen}
+          onCancel={() => { setIsApproveModalOpen(false); approveForm.resetFields(); setSelectedUser(null); }}
+          onOk={() => approveForm.submit()}
+          okText="Approve & Grant Access"
+          okButtonProps={{ style: { backgroundColor: '#16a34a', borderColor: '#16a34a' } }}
+          width="100%"
+          style={{ maxWidth: 600 }}
+        >
+          <Alert
+            message={`Approving access request for: ${selectedUser?.fullName || selectedUser?.username}`}
+            description={
+              <div style={{ fontSize: '13px', marginTop: '6px' }}>
+                <div><strong>Username:</strong> @{selectedUser?.username}</div>
+                <div><strong>Email:</strong> {selectedUser?.email || 'N/A'}</div>
+                <div><strong>AD Job Title:</strong> {selectedUser?.adJobTitle || 'N/A'}</div>
+                <div><strong>Work Unit:</strong> {selectedUser?.department || 'N/A'}</div>
+              </div>
+            }
+            type="info"
+            showIcon
+            style={{ marginBottom: '20px' }}
+          />
+          <Form form={approveForm} layout="vertical" onFinish={handleApproveUser}>
+            <Form.Item
+              name="role"
+              label="Select Application Role to Authorize"
+              rules={[{ required: true, message: 'Please select an application role to authorize this user.' }]}
+            >
+              <Select placeholder="Select application role">
+                {ROLE_OPTIONS.map(r => (
+                  <Option key={r.value} value={r.value}>{r.label}</Option>
+                ))}
+              </Select>
+            </Form.Item>
           </Form>
         </Modal>
 

@@ -143,8 +143,6 @@ function BranchStaffDashboard() {
 
   const [otherComplaints, setOtherComplaints] = useState([]);
   const [scopedComplaints, setScopedComplaints] = useState([]);
-  const [hierarchy, setHierarchy] = useState([]);
-  const [selectedDistrict, setSelectedDistrict] = useState('');
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('tracking');
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
@@ -191,16 +189,12 @@ function BranchStaffDashboard() {
 
   const loadComplaintsData = async () => {
     try {
-      const [slaData, otherData, hierarchyData] = await Promise.all([
+      const [slaData, otherData] = await Promise.all([
         ApiService.getAllSlaMetrics().catch(() => []),
-        ApiService.getOtherSlaMetrics().catch(() => []),
-        ApiService.getHierarchy().catch(() => [])
+        ApiService.getOtherSlaMetrics().catch(() => [])
       ]);
 
       setOtherComplaints(Array.isArray(otherData) ? otherData : []);
-      if (Array.isArray(hierarchyData)) {
-        setHierarchy(hierarchyData);
-      }
 
       // Fetch ALL registered complaints EXCLUDING OTHER and INTAKE-only records.
       const filtered = (slaData || []).filter(item => {
@@ -226,18 +220,6 @@ function BranchStaffDashboard() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const availableBranchesForDistrict = (distName) => {
-    if (!distName) {
-      const allBranches = [];
-      (hierarchy || []).forEach(d => {
-        if (d.branches) allBranches.push(...d.branches);
-      });
-      return allBranches;
-    }
-    const distObj = (hierarchy || []).find(d => d.name === distName);
-    return distObj ? (distObj.branches || []) : [];
   };
 
   // Metric Calculations
@@ -362,7 +344,6 @@ function BranchStaffDashboard() {
       setTimeout(() => setMessage(''), 4000);
 
       form.resetFields();
-      setSelectedDistrict('');
       setFcrChecked(false);
       setEvidenceUrl('');
       setEvidenceName('');
@@ -659,21 +640,7 @@ function BranchStaffDashboard() {
                   name="district"
                   label={<StaffFormLabel>Complaint District</StaffFormLabel>}
                 >
-                  <Select
-                    placeholder="— Select District —"
-                    allowClear
-                    onChange={(val) => {
-                      setSelectedDistrict(val || '');
-                      form.setFieldsValue({ branch: undefined });
-                    }}
-                    style={selectControlStyle}
-                  >
-                    {(hierarchy || []).map((dist) => (
-                      <Select.Option key={dist.id || dist.name} value={dist.name}>
-                        {dist.name}
-                      </Select.Option>
-                    ))}
-                  </Select>
+                  <Input placeholder="Enter Complaint District" style={controlStyle} />
                 </Form.Item>
               </Col>
               <Col xs={24} md={8}>
@@ -681,21 +648,7 @@ function BranchStaffDashboard() {
                   name="branch"
                   label={<StaffFormLabel>Complaint Branch</StaffFormLabel>}
                 >
-                  <Select
-                    placeholder={selectedDistrict ? "— Select Branch —" : "— Select District or Choose Branch —"}
-                    allowClear
-                    showSearch
-                    filterOption={(input, option) =>
-                      (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
-                    }
-                    style={selectControlStyle}
-                  >
-                    {availableBranchesForDistrict(selectedDistrict).map((br) => (
-                      <Select.Option key={br.id || br.name} value={br.name}>
-                        {br.name}
-                      </Select.Option>
-                    ))}
-                  </Select>
+                  <Input placeholder="Enter Complaint Branch" style={controlStyle} />
                 </Form.Item>
               </Col>
             </Row>

@@ -52,6 +52,14 @@ public class User {
     private boolean enabled = true;
 
     @Builder.Default
+    @Column(name = "approved", nullable = false)
+    private boolean approved = true;
+
+    @Builder.Default
+    @Column(name = "approval_status", length = 30)
+    private String approvalStatus = "APPROVED";
+
+    @Builder.Default
     @Column(name = "must_change_password")
     private boolean mustChangePassword = false;
 

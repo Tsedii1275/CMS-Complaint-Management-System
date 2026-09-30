@@ -474,11 +474,6 @@ function CustomerForm() {
     }
   ];
 
-  // Prefetch hierarchy so district/branch data is available to the public form.
-  useEffect(() => {
-    ApiService.getHierarchy().catch(err => console.error('Failed to load hierarchy:', err));
-  }, []);
-
   // Synchronize Ethiopian date states to formData.date
   useEffect(() => {
     syncEthiopianFormDate(language, ethMonth, ethDay, ethYear, setFormData);

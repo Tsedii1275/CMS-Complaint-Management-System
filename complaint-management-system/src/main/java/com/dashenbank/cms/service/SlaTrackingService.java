@@ -49,7 +49,6 @@ public class SlaTrackingService {
     private final TaskTimeTrackingRepository taskTimeTrackingRepository;
     private final SlaConfigService slaConfigService;
     private final BusinessHoursService businessHoursService;
-    private final BranchRepository branchRepository;
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
     private final RuntimeService runtimeService;
 
@@ -57,14 +56,12 @@ public class SlaTrackingService {
             TaskTimeTrackingRepository taskTimeTrackingRepository,
             SlaConfigService slaConfigService,
             BusinessHoursService businessHoursService,
-            BranchRepository branchRepository,
             org.springframework.jdbc.core.JdbcTemplate jdbcTemplate,
             ObjectProvider<RuntimeService> runtimeServiceProvider) {
         this.slaMetricsRepository = slaMetricsRepository;
         this.taskTimeTrackingRepository = taskTimeTrackingRepository;
         this.slaConfigService = slaConfigService;
         this.businessHoursService = businessHoursService;
-        this.branchRepository = branchRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.runtimeService = runtimeServiceProvider.getIfAvailable();
     }
@@ -101,7 +98,8 @@ public class SlaTrackingService {
                 return PRIORITY_HIGHLY_SENSITIVE;
             } else if (p.contains(PRIORITY_SENSITIVE) || p.contains("HIGH")) {
                 return PRIORITY_SENSITIVE;
-            } else if (p.contains("NORMAL") || p.contains("LOW") || p.contains("MEDIUM") || p.contains(PRIORITY_GENERAL)) {
+            } else if (p.contains("NORMAL") || p.contains("LOW") || p.contains("MEDIUM")
+                    || p.contains(PRIORITY_GENERAL)) {
                 return PRIORITY_GENERAL;
             }
             return p;
@@ -552,12 +550,14 @@ public class SlaTrackingService {
                             .complaintId(firstNonNull(m.getDbcTicketId(), m.getComplaintId(), target))
                             .taskName(firstNonNull(m.getCurrentStage(), "Stage Workflow Processing"))
                             .laneName(firstNonNull(m.getDepartment(), m.getBranch(), "Customer Care Unit (CMD)"))
-                            .assignedUser(firstNonNull(m.getStaffHandling(), m.getManager(), ACTOR_CUSTOMER_CARE_OFFICER))
+                            .assignedUser(
+                                    firstNonNull(m.getStaffHandling(), m.getManager(), ACTOR_CUSTOMER_CARE_OFFICER))
                             .startedAt(m.getCreatedAt() != null ? m.getCreatedAt()
                                     : LocalDateTime.now(SYSTEM_ZONE).minusHours(2))
                             .completedAt((STATUS_CLOSED.equalsIgnoreCase(m.getStatus())
                                     || STATUS_RESOLVED.equalsIgnoreCase(m.getStatus())) ? m.getResolvedAt() : null)
-                            .responseSlaTargetMinutes(slaConfigService.resolveAllowedMinutes(STAGE_CMD_SCREENING).orElse(null))
+                            .responseSlaTargetMinutes(
+                                    slaConfigService.resolveAllowedMinutes(STAGE_CMD_SCREENING).orElse(null))
                             .responseSlaStatus(SLA_ON_TIME)
                             .resolutionSlaTargetMinutes(m.getCurrentStageAllowedMinutes())
                             .resolutionSlaStatus(m.getSlaStatus() != null ? m.getSlaStatus() : SLA_ON_TIME)
@@ -599,9 +599,11 @@ public class SlaTrackingService {
                         .laneName(LANE_DEPARTMENT_WORKUNIT)
                         .assignedUser(assignedUser)
                         .startedAt(LocalDateTime.now(SYSTEM_ZONE).minusHours(1))
-                        .responseSlaTargetMinutes(slaConfigService.resolveAllowedMinutes(STAGE_CMD_SCREENING).orElse(null))
+                        .responseSlaTargetMinutes(
+                                slaConfigService.resolveAllowedMinutes(STAGE_CMD_SCREENING).orElse(null))
                         .responseSlaStatus(SLA_ON_TIME)
-                        .resolutionSlaTargetMinutes(calculateStageSlaMinutes(STAGE_CMD_SCREENING, PRIORITY_GENERAL, null))
+                        .resolutionSlaTargetMinutes(
+                                calculateStageSlaMinutes(STAGE_CMD_SCREENING, PRIORITY_GENERAL, null))
                         .resolutionSlaStatus(SLA_ON_TIME)
                         .build();
                 list = List.of(fallback);
@@ -732,8 +734,8 @@ public class SlaTrackingService {
                     isDeclined = true;
                 }
             } catch (Exception ignored) {
-            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-        }
+                log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+            }
         }
 
         if (isDeclined) {
@@ -749,8 +751,10 @@ public class SlaTrackingService {
     }
 
     /**
-     * Persist FCR resolution onto the SLA row used by Branch Staff / Admin analytics.
-     * Must run in the same request as FCR Close Case so "Resolved at FCR" updates immediately.
+     * Persist FCR resolution onto the SLA row used by Branch Staff / Admin
+     * analytics.
+     * Must run in the same request as FCR Close Case so "Resolved at FCR" updates
+     * immediately.
      */
     @Transactional
     public void markFcrResolved(String processInstanceId, String complaintId) {
@@ -863,20 +867,20 @@ public class SlaTrackingService {
                                     +
                                     "SET c.dbc_ticket_id = cri.unique_id_no, c.complaint_id = cri.unique_id_no WHERE cri.unique_id_no LIKE 'DBC-%'");
                 } catch (Exception ignored) {
-            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-        }
+                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+                }
                 try {
                     jdbcTemplate.update(
                             "UPDATE complaint_sla_metrics SET dbc_ticket_id = complaint_id WHERE complaint_id LIKE 'DBC-%' AND (dbc_ticket_id IS NULL OR dbc_ticket_id = '')");
                 } catch (Exception ignored) {
-            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-        }
+                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+                }
                 try {
                     jdbcTemplate.update(
                             "UPDATE complaint_sla_metrics SET complaint_id = dbc_ticket_id WHERE dbc_ticket_id LIKE 'DBC-%' AND (complaint_id IS NULL OR complaint_id NOT LIKE 'DBC-%')");
                 } catch (Exception ignored) {
-            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-        }
+                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+                }
 
                 // 1.5 Repair any existing Committee Rejection records incorrectly marked as
                 // DECLINED
@@ -888,8 +892,8 @@ public class SlaTrackingService {
                     jdbcTemplate.update(
                             "UPDATE complainant_related_information cri INNER JOIN complaint_sla_metrics m ON (cri.process_instance_id IS NOT NULL AND cri.process_instance_id = m.process_instance_id) SET cri.case_status = 'ESCALATED' WHERE (m.current_stage LIKE '%COMMITTEE%' OR m.current_stage = 'COMMITTEE_REJECTED') AND UPPER(COALESCE(cri.case_status,'')) NOT IN ('RESOLVED','CLOSED','DECLINED')");
                 } catch (Exception ignored) {
-            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-        }
+                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+                }
 
                 // 2. Sync any declined complaint status from audit_log
                 try {
@@ -900,8 +904,8 @@ public class SlaTrackingService {
                     jdbcTemplate.update(
                             "UPDATE complainant_related_information cri INNER JOIN audit_log a ON (cri.unique_id_no = a.complaint_id OR cri.unique_id_no = a.general_ticket_id) SET cri.case_status = 'DECLINED' WHERE (a.action = 'COMPLAINT_DECLINED' OR a.action = 'DECLINED')");
                 } catch (Exception ignored) {
-            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-        }
+                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+                }
 
                 // 3. Generate or update DBC- ticket IDs for any declined complaint missing a
                 // DBC- ticket ID
@@ -923,8 +927,8 @@ public class SlaTrackingService {
                             existingDbcId = found.get(0);
                         }
                     } catch (Exception ignored) {
-            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-        }
+                        log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+                    }
 
                     // The decline may already have issued a DBC ticket that only reached the
                     // complaints table or the audit trail; reuse it instead of minting a second one
@@ -949,22 +953,22 @@ public class SlaTrackingService {
                                     "UPDATE complaints SET ticket_number = ?, general_ticket_id = ?, status = 'DECLINED', classification = 'DECLINED' WHERE ticket_number = ? OR general_ticket_id = ? OR process_instance_id = ?",
                                     newDbcId, oldId, oldId, oldId, m.getProcessInstanceId());
                         } catch (Exception ignored) {
-            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-        }
+                            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+                        }
                         try {
                             jdbcTemplate.update(
                                     "UPDATE complainant_related_information SET unique_id_no = ?, case_status = 'DECLINED' WHERE unique_id_no = ?",
                                     newDbcId, oldId);
                         } catch (Exception ignored) {
-            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-        }
+                            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+                        }
                         try {
                             jdbcTemplate.update(
                                     "UPDATE audit_log SET complaint_id = ? WHERE complaint_id = ? OR general_ticket_id = ? OR process_instance_id = ?",
                                     newDbcId, oldId, oldId, m.getProcessInstanceId());
                         } catch (Exception ignored) {
-            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-        }
+                            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+                        }
                     }
                 }
 
@@ -1006,8 +1010,8 @@ public class SlaTrackingService {
                                         runtimeService.setVariable(pId, "dbcTicketId", freshDbcId);
                                         runtimeService.setVariable(pId, KEY_COMPLAINT_ID, freshDbcId);
                                     } catch (Exception ignored) {
-            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-        }
+                                        log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+                                    }
                                 }
                                 try {
                                     jdbcTemplate.update(
@@ -1017,51 +1021,51 @@ public class SlaTrackingService {
                                             "UPDATE ACT_RU_VARIABLE SET TEXT_ = ? WHERE PROC_INST_ID_ = ? AND NAME_ IN ('dbcTicketId', 'complaintId')",
                                             freshDbcId, pId);
                                 } catch (Exception ignored) {
-            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-        }
+                                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+                                }
                                 try {
                                     jdbcTemplate.update(
                                             "UPDATE complaints SET ticket_number = ? WHERE process_instance_id = ?",
                                             freshDbcId, pId);
                                 } catch (Exception ignored) {
-            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-        }
+                                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+                                }
                                 try {
                                     jdbcTemplate.update(
                                             "UPDATE complainant_related_information SET unique_id_no = ? WHERE process_instance_id = ?",
                                             freshDbcId, pId);
                                 } catch (Exception ignored) {
-            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-        }
+                                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+                                }
                                 try {
                                     jdbcTemplate.update(
                                             "UPDATE audit_log SET complaint_id = ? WHERE process_instance_id = ?",
                                             freshDbcId, pId);
                                 } catch (Exception ignored) {
-            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-        }
+                                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+                                }
                             } else if (gId != null && !gId.isBlank()) {
                                 try {
                                     jdbcTemplate.update(
                                             "UPDATE complaints SET ticket_number = ? WHERE general_ticket_id = ? OR ticket_number = ?",
                                             freshDbcId, gId, gId);
                                 } catch (Exception ignored) {
-            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-        }
+                                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+                                }
                                 try {
                                     jdbcTemplate.update(
                                             "UPDATE complainant_related_information SET unique_id_no = ? WHERE unique_id_no = ?",
                                             freshDbcId, gId);
                                 } catch (Exception ignored) {
-            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-        }
+                                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+                                }
                                 try {
                                     jdbcTemplate.update(
                                             "UPDATE audit_log SET complaint_id = ? WHERE general_ticket_id = ? OR complaint_id = ?",
                                             freshDbcId, gId, gId);
                                 } catch (Exception ignored) {
-            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-        }
+                                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+                                }
                             }
                         }
                     }
@@ -1085,8 +1089,8 @@ public class SlaTrackingService {
                         }
                     }
                 } catch (Exception ignored) {
-            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-        }
+                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+                }
 
             }
         } catch (Exception e) {
@@ -1152,8 +1156,8 @@ public class SlaTrackingService {
             try {
                 entityManager.clear();
             } catch (Exception ignored) {
-            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-        }
+                log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+            }
         }
         List<ComplaintSlaMetrics> all = slaMetricsRepository.findAll();
         for (ComplaintSlaMetrics m : all) {
@@ -1175,8 +1179,10 @@ public class SlaTrackingService {
     }
 
     /**
-     * Non-complaint items screened as OTHER. Kept out of getAllMetrics so they never
-     * enter complaint analytics, but they must still be listed on the Contact Center
+     * Non-complaint items screened as OTHER. Kept out of getAllMetrics so they
+     * never
+     * enter complaint analytics, but they must still be listed on the Contact
+     * Center
      * Other tab.
      */
     public List<ComplaintSlaMetrics> getOtherMetrics() {
@@ -1197,9 +1203,12 @@ public class SlaTrackingService {
     }
 
     /**
-     * A CMD classification writes DBC + COMPLAINT onto the workflow, but the SLA row
-     * can still hold the pre-classification INTAKE / CM- snapshot. Those rows carry a
-     * live investigation or work-unit task yet fall outside the reporting population,
+     * A CMD classification writes DBC + COMPLAINT onto the workflow, but the SLA
+     * row
+     * can still hold the pre-classification INTAKE / CM- snapshot. Those rows carry
+     * a
+     * live investigation or work-unit task yet fall outside the reporting
+     * population,
      * so realign them from the authoritative workflow variables.
      */
     @Transactional
@@ -1408,9 +1417,6 @@ public class SlaTrackingService {
     private void applyComplaintBranchAndDistrict(ComplaintSlaMetrics m, String branch, String district) {
         if (branch != null && !branch.isBlank()) {
             m.setBranch(branch);
-            if (district == null || district.isBlank()) {
-                m.setDistrict(getDistrictForBranch(branch));
-            }
         }
         if (district != null && !district.isBlank()) {
             m.setDistrict(district);
@@ -1418,13 +1424,7 @@ public class SlaTrackingService {
     }
 
     public String getDistrictForBranch(String branchName) {
-        if (branchName == null || branchName.isBlank())
-            return "Central District";
-        var bOpt = branchRepository.findByName(branchName.trim());
-        if (bOpt.isPresent() && bOpt.get().getDistrict() != null) {
-            return bOpt.get().getDistrict().getName();
-        }
-        return "Central District";
+        return null;
     }
 
     public List<TaskTimeTracking> getTaskTrackingByProcessInstanceId(String processInstanceId) {

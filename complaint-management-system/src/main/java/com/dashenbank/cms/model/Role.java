@@ -28,5 +28,8 @@ public enum Role {
     ROLE_OPERATIONAL_AUDIT_DIRECTOR,
 
     // Committee Role
-    ROLE_COMMITTEE_SECRETARY
+    ROLE_COMMITTEE_SECRETARY,
+
+    // Pending Approval Role
+    ROLE_PENDING
 }

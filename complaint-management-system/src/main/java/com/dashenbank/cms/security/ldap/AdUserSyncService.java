@@ -22,58 +22,26 @@ public class AdUserSyncService {
     private static final Logger log = LoggerFactory.getLogger(AdUserSyncService.class);
 
     private final UserRepository userRepository;
-    private final AdRoleMappingService roleMappingService;
     private final PasswordEncoder passwordEncoder;
     private final Clock clock;
 
     @Autowired
-    public AdUserSyncService(UserRepository userRepository, AdRoleMappingService roleMappingService,
-            PasswordEncoder passwordEncoder) {
-        this(userRepository, roleMappingService, passwordEncoder, Clock.systemDefaultZone());
+    public AdUserSyncService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        this(userRepository, passwordEncoder, Clock.systemDefaultZone());
     }
 
-    AdUserSyncService(UserRepository userRepository, AdRoleMappingService roleMappingService,
-            PasswordEncoder passwordEncoder, Clock clock) {
+    AdUserSyncService(UserRepository userRepository, PasswordEncoder passwordEncoder, Clock clock) {
         this.userRepository = userRepository;
-        this.roleMappingService = roleMappingService;
         this.passwordEncoder = passwordEncoder;
         this.clock = clock;
     }
 
     /**
-     * Login path: role must resolve or {@link RoleNotMappedException}.
+     * Login path: Identity verified via AD. If user does not have an approved role,
+     * record is initialized as PENDING_APPROVAL with ROLE_PENDING.
      */
     @Transactional
     public User upsertForLogin(AdUserProfile profile) {
-        RoleResolution resolution = roleMappingService.resolve(profile);
-        if (!resolution.resolved()) {
-            throw new RoleNotMappedException(
-                    "No CMS role is mapped for this Active Directory job title or group. Ask an administrator to review the mapping.");
-        }
-        return upsert(profile, resolution.role(), true);
-    }
-
-    /**
-     * Scheduled path: existing users keep their CMS role if AD mapping is missing.
-     * New users are created only when a role resolves. Org fields are never overwritten.
-     */
-    @Transactional
-    public boolean syncIdentity(AdUserProfile profile) {
-        RoleResolution resolution = roleMappingService.resolve(profile);
-        User existing = findExisting(profile);
-        if (existing == null) {
-            if (!resolution.resolved()) {
-                return false;
-            }
-            upsert(profile, resolution.role(), true);
-            return true;
-        }
-        Role role = resolution.resolved() ? resolution.role() : existing.getRole();
-        upsert(profile, role, resolution.resolved());
-        return true;
-    }
-
-    private User upsert(AdUserProfile profile, Role role, boolean applyRole) {
         User user = findExisting(profile);
         boolean created = user == null;
         if (created) {
@@ -82,9 +50,11 @@ public class AdUserSyncService {
                     .email(emailOrPlaceholder(profile))
                     .password(passwordEncoder.encode(UUID.randomUUID().toString()))
                     .fullName(name(profile))
-                    .role(role)
+                    .role(Role.ROLE_PENDING)
                     .authSource(AuthSource.AD)
-                    .enabled(profile.enabled())
+                    .approved(false)
+                    .approvalStatus("PENDING_APPROVAL")
+                    .enabled(true)
                     .mustChangePassword(false)
                     .build();
         } else {
@@ -92,23 +62,44 @@ public class AdUserSyncService {
             if (StringUtils.hasText(profile.email())) {
                 user.setEmail(profile.email().trim());
             }
-            user.setFullName(name(profile));
-            user.setEnabled(profile.enabled());
+            if (StringUtils.hasText(name(profile))) {
+                user.setFullName(name(profile));
+            }
             user.setAuthSource(AuthSource.AD);
             user.setMustChangePassword(false);
-            if (applyRole) {
-                user.setRole(role);
-            }
         }
+
         if (StringUtils.hasText(profile.objectGuid())) {
             user.setObjectGuid(profile.objectGuid());
         }
-        user.setAdJobTitle(profile.title());
+        if (StringUtils.hasText(profile.title())) {
+            user.setAdJobTitle(profile.title().trim());
+        }
+        if (StringUtils.hasText(profile.department())) {
+            user.setDepartment(profile.department().trim());
+        }
         user.setLastLdapSyncAt(LocalDateTime.now(clock));
+
         User saved = userRepository.save(user);
-        log.info("{} AD user {} role={} orgPreserved=true", created ? "Created" : "Updated",
-                saved.getUsername(), saved.getRole());
+        log.info("{} AD user {} approved={} status={} role={}", created ? "Created" : "Updated",
+                saved.getUsername(), saved.isApproved(), saved.getApprovalStatus(), saved.getRole());
         return saved;
+    }
+
+    @Transactional
+    public boolean syncIdentity(AdUserProfile profile) {
+        User user = findExisting(profile);
+        if (user != null) {
+            if (StringUtils.hasText(profile.title())) {
+                user.setAdJobTitle(profile.title().trim());
+            }
+            if (StringUtils.hasText(profile.department())) {
+                user.setDepartment(profile.department().trim());
+            }
+            user.setLastLdapSyncAt(LocalDateTime.now(clock));
+            userRepository.save(user);
+        }
+        return true;
     }
 
     private User findExisting(AdUserProfile profile) {

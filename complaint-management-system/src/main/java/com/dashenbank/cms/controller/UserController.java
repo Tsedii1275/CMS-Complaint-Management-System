@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@RequestMapping({"/api/admin/users", "/api/users"})
+@RequestMapping({ "/api/admin/users", "/api/users" })
 public class UserController {
 
     private static final String KEY_ERROR = "error";
@@ -126,6 +126,8 @@ public class UserController {
                 .district(district)
                 .branch(branch)
                 .department(department)
+                .approved(true)
+                .approvalStatus("APPROVED")
                 .enabled(true)
                 .mustChangePassword(true)
                 .build();
@@ -146,11 +148,16 @@ public class UserController {
         }
 
         User user = userOpt.get();
-        if (payload.containsKey(KEY_FULL_NAME)) user.setFullName(payload.get(KEY_FULL_NAME));
-        if (payload.containsKey(KEY_EMAIL)) user.setEmail(payload.get(KEY_EMAIL));
-        if (payload.containsKey(KEY_DISTRICT)) user.setDistrict(payload.get(KEY_DISTRICT));
-        if (payload.containsKey(KEY_BRANCH)) user.setBranch(payload.get(KEY_BRANCH));
-        if (payload.containsKey(KEY_DEPARTMENT)) user.setDepartment(payload.get(KEY_DEPARTMENT));
+        if (payload.containsKey(KEY_FULL_NAME))
+            user.setFullName(payload.get(KEY_FULL_NAME));
+        if (payload.containsKey(KEY_EMAIL))
+            user.setEmail(payload.get(KEY_EMAIL));
+        if (payload.containsKey(KEY_DISTRICT))
+            user.setDistrict(payload.get(KEY_DISTRICT));
+        if (payload.containsKey(KEY_BRANCH))
+            user.setBranch(payload.get(KEY_BRANCH));
+        if (payload.containsKey(KEY_DEPARTMENT))
+            user.setDepartment(payload.get(KEY_DEPARTMENT));
 
         if (payload.containsKey("role") && payload.get("role") != null) {
             try {
@@ -188,10 +195,68 @@ public class UserController {
         User updated = userRepository.save(user);
         updated.setPassword(null);
         return ResponseEntity.ok(Map.of(
-            "id", updated.getId(),
-            KEY_ENABLED, updated.isEnabled(),
-            KEY_MESSAGE, "User " + updated.getUsername() + " status changed to " + (updated.isEnabled() ? "Active" : "Inactive")
-        ));
+                "id", updated.getId(),
+                KEY_ENABLED, updated.isEnabled(),
+                KEY_MESSAGE, "User " + updated.getUsername() + " status changed to "
+                        + (updated.isEnabled() ? "Active" : "Inactive")));
+    }
+
+    @PutMapping("/{id}/approve")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<Object> approveUser(@PathVariable Long id, @RequestBody Map<String, String> payload,
+            HttpServletRequest request) {
+        Optional<User> userOpt = userRepository.findById(id);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        User user = userOpt.get();
+        String roleStr = payload.get("role");
+        if (roleStr == null || roleStr.isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of(KEY_ERROR, "A valid application role must be selected for approval."));
+        }
+
+        Role newRole;
+        try {
+            newRole = Role.valueOf(roleStr);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(KEY_ERROR, "Invalid role specified: " + roleStr));
+        }
+
+        user.setRole(newRole);
+        user.setApproved(true);
+        user.setApprovalStatus("APPROVED");
+        user.setEnabled(true);
+
+        User saved = userRepository.save(user);
+        saved.setPassword(null);
+        securityAuditService.log(user.getUsername(), SecurityAuditEvent.ROLE_CHANGED, ClientIp.from(request));
+
+        return ResponseEntity.ok(Map.of(
+                KEY_MESSAGE, "User " + saved.getUsername() + " approved successfully with role " + saved.getRole(),
+                "user", saved));
+    }
+
+    @PutMapping("/{id}/reject")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<Object> rejectUser(@PathVariable Long id) {
+        Optional<User> userOpt = userRepository.findById(id);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        User user = userOpt.get();
+        user.setApproved(false);
+        user.setApprovalStatus("REJECTED");
+        user.setEnabled(false);
+
+        User saved = userRepository.save(user);
+        saved.setPassword(null);
+
+        return ResponseEntity.ok(Map.of(
+                KEY_MESSAGE, "User " + saved.getUsername() + " access request rejected.",
+                "user", saved));
     }
 
     @PostMapping("/{id}/reset-password")
@@ -226,7 +291,8 @@ public class UserController {
         userRepository.save(user);
         securityAuditService.log(user.getUsername(), SecurityAuditEvent.PASSWORD_RESET, ClientIp.from(request));
 
-        return ResponseEntity.ok(Map.of(KEY_MESSAGE, "Password for user " + user.getUsername() + " successfully reset."));
+        return ResponseEntity
+                .ok(Map.of(KEY_MESSAGE, "Password for user " + user.getUsername() + " successfully reset."));
     }
 
     @DeleteMapping("/{id}")

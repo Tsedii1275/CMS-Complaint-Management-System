@@ -19,6 +19,7 @@ import ExecutiveDashboard from './pages/ExecutiveDashboard';
 import UserManagementPage from './pages/UserManagementPage';
 import LdapMaintenancePage from './pages/LdapMaintenancePage';
 import Unauthorized from './pages/Unauthorized';
+import PendingAccessPage from './pages/PendingAccessPage';
 import { RequireAuth, RequireRole } from './components/RoleGuard';
 import { AuthProvider } from './contexts/AuthContext';
 import SessionIdleWatch from './components/SessionIdleWatch';
@@ -33,6 +34,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<CustomerForm />} />
       <Route path="/staff-login" element={<Login />} />
+      <Route path="/pending-access" element={<RequireAuth><PendingAccessPage /></RequireAuth>} />
       <Route path="/customer-feedback" element={<CustomerFeedbackPage />} />
       <Route path="/unauthorized" element={<RequireAuth><Unauthorized /></RequireAuth>} />
       <Route path="/branch-staff" element={guarded(<BranchStaffDashboard />)} />

@@ -70,7 +70,8 @@ function LdapMaintenancePage() {
           <Alert
             type="info"
             showIcon
-            message="Bind credentials are never shown here. Put LDAP_BIND_PASSWORD in the server .env.prod.local file."
+            message="Active Directory Authentication & Approval Workflow"
+            description="Active Directory is strictly used for identity verification. Automatic role assignment based on Job Title, Group, or OU is disabled. All new AD users are initialized with PENDING_APPROVAL status until an administrator assigns a role in User Management."
           />
           <Space>
             <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>Refresh</Button>
@@ -102,33 +103,11 @@ function LdapMaintenancePage() {
                   <Descriptions.Item label="Users synchronized">{status?.usersSynced ?? 0}</Descriptions.Item>
                   <Descriptions.Item label="Failed synchronizations">{status?.failedSynchronizations ?? 0}</Descriptions.Item>
                   <Descriptions.Item label="AD users in CMS">{status?.adUsersInCms ?? 0}</Descriptions.Item>
-                  <Descriptions.Item label="Role priority">{status?.rolePriority || '—'}</Descriptions.Item>
+                  <Descriptions.Item label="Role assignment model"><Tag color="gold">Admin Approval Required</Tag></Descriptions.Item>
                 </Descriptions>
               </Card>
             </Col>
           </Row>
-          <Card title="Job title mappings" loading={loading}>
-            <Table
-              size="small"
-              pagination={false}
-              dataSource={mappingRows(status?.titleMappings)}
-              columns={[
-                { title: 'Normalized title', dataIndex: 'key' },
-                { title: 'CMS role', dataIndex: 'role' },
-              ]}
-            />
-          </Card>
-          <Card title="AD group fallback mappings (CN, not full DN)" loading={loading}>
-            <Table
-              size="small"
-              pagination={false}
-              dataSource={mappingRows(status?.groupMappings)}
-              columns={[
-                { title: 'Group CN', dataIndex: 'key' },
-                { title: 'CMS role', dataIndex: 'role' },
-              ]}
-            />
-          </Card>
         </Space>
       </div>
     </DashboardLayout>

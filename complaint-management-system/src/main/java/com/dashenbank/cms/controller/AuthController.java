@@ -127,10 +127,13 @@ public class AuthController {
             response.put(KEY_USERNAME, userDetails.getUsername());
             response.put("role", userDetails.getAuthorities().iterator().next().getAuthority());
             if (user != null) {
-                response.put("district", user.getDistrict());
-                response.put("branch", user.getBranch());
-                response.put("department", user.getDepartment());
+                response.put("email", user.getEmail());
                 response.put("fullName", user.getFullName());
+                response.put("adJobTitle", user.getAdJobTitle());
+                response.put("department", user.getDepartment());
+                response.put("approved", user.isApproved());
+                response.put("approvalStatus", user.getApprovalStatus() != null ? user.getApprovalStatus()
+                        : (user.isApproved() ? "APPROVED" : "PENDING_APPROVAL"));
                 response.put("authSource", user.getAuthSource() == null ? AuthSource.LOCAL.name()
                         : user.getAuthSource().name());
                 response.put("mustChangePassword",
@@ -202,10 +205,13 @@ public class AuthController {
             response.put("token", jwt);
             response.put(KEY_USERNAME, userDetails.getUsername());
             response.put("role", userDetails.getAuthorities().iterator().next().getAuthority());
-            response.put("district", user.getDistrict());
-            response.put("branch", user.getBranch());
-            response.put("department", user.getDepartment());
+            response.put("email", user.getEmail());
             response.put("fullName", user.getFullName());
+            response.put("adJobTitle", user.getAdJobTitle());
+            response.put("department", user.getDepartment());
+            response.put("approved", user.isApproved());
+            response.put("approvalStatus", user.getApprovalStatus() != null ? user.getApprovalStatus()
+                    : (user.isApproved() ? "APPROVED" : "PENDING_APPROVAL"));
             response.put("authSource", AuthSource.AD.name());
             response.put("mustChangePassword", false);
             return ResponseEntity.ok(response);

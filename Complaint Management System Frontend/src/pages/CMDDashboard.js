@@ -966,15 +966,6 @@ async function loadActiveOfficersCmd(ref) {
   }
 }
 
-async function loadHierarchyCmd(ref) {
-  try {
-    const data = await ApiService.getHierarchy();
-    sget(ref).setDistrictsList(data);
-  } catch (err) {
-    console.error('Failed to load hierarchy:', err);
-  }
-}
-
 async function fetchSlaMetricsCmd(ref) {
   try {
     const data = await ApiService.getAllSlaMetrics().catch(() => []);

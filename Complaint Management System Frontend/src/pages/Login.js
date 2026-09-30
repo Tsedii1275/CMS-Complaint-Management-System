@@ -46,15 +46,17 @@ const Login = () => {
         role: response.role,
         token: response.token,
         fullName: response.fullName,
-        district: response.district,
-        branch: response.branch,
+        email: response.email,
+        adJobTitle: response.adJobTitle,
         department: response.department,
+        approved: response.approved,
+        approvalStatus: response.approvalStatus,
         authSource: response.authSource || 'LOCAL',
         mustChangePassword: response.authSource === 'AD' ? false : !!response.mustChangePassword
       };
 
       login(userData);
-      navigate(getRouteForRole(response.role));
+      navigate(getRouteForRole(response.role, userData));
     } catch (err) {
       if (err?.code === 'PASSWORD_EXPIRED') {
         setExpiredState({

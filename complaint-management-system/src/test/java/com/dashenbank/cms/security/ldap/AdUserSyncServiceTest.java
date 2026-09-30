@@ -13,8 +13,8 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -38,23 +38,23 @@ class AdUserSyncServiceTest {
             }
             return user;
         });
-        syncService = new AdUserSyncService(userRepository, new AdRoleMappingService(new LdapProperties()), encoder);
+        syncService = new AdUserSyncService(userRepository, encoder);
     }
 
     @Test
-    void firstLoginCreatesUser() {
+    void firstLoginCreatesPendingUser() {
         when(userRepository.findByObjectGuid("guid-1")).thenReturn(Optional.empty());
         when(userRepository.findByUsernameIgnoreCase("abebe")).thenReturn(Optional.empty());
         User created = syncService.upsertForLogin(officer("abebe", "guid-1"));
         assertEquals("abebe", created.getUsername());
-        assertEquals(Role.ROLE_CUSTOMER_CARE_OFFICER, created.getRole());
+        assertEquals(Role.ROLE_PENDING, created.getRole());
+        assertFalse(created.isApproved());
+        assertEquals("PENDING_APPROVAL", created.getApprovalStatus());
         assertEquals(AuthSource.AD, created.getAuthSource());
-        assertEquals(null, created.getBranch());
-        assertEquals(null, created.getDistrict());
     }
 
     @Test
-    void secondLoginUpdatesWithoutDuplicatingOrTouchingOrg() {
+    void secondLoginUpdatesProfileWithoutOverwritingRole() {
         User existing = User.builder()
                 .id(9L)
                 .username("abebe")
@@ -62,45 +62,17 @@ class AdUserSyncServiceTest {
                 .password("hash")
                 .role(Role.ROLE_CUSTOMER_CARE_OFFICER)
                 .authSource(AuthSource.AD)
+                .approved(true)
+                .approvalStatus("APPROVED")
                 .objectGuid("guid-1")
-                .district("East")
-                .branch("Bole")
-                .department("Cards")
                 .enabled(true)
                 .build();
         when(userRepository.findByObjectGuid("guid-1")).thenReturn(Optional.of(existing));
         User updated = syncService.upsertForLogin(officer("abebe", "guid-1"));
         assertEquals(9L, updated.getId());
-        assertEquals("East", updated.getDistrict());
-        assertEquals("Bole", updated.getBranch());
-        assertEquals("Cards", updated.getDepartment());
         assertEquals("Abebe Bekele", updated.getFullName());
-    }
-
-    @Test
-    void loginWithoutRoleIsRejected() {
-        when(userRepository.findByObjectGuid(any())).thenReturn(Optional.empty());
-        when(userRepository.findByUsernameIgnoreCase(any())).thenReturn(Optional.empty());
-        AdUserProfile unknown = new AdUserProfile("abebe", "g", "Abebe", "a@b.com", "Unknown", true, List.of());
-        assertThrows(RoleNotMappedException.class, () -> syncService.upsertForLogin(unknown));
-    }
-
-    @Test
-    void scheduledSyncKeepsPreviousRoleWhenUnmapped() {
-        User existing = User.builder()
-                .id(3L)
-                .username("abebe")
-                .email("a@b.com")
-                .password("hash")
-                .role(Role.ROLE_BRANCH_MANAGER)
-                .authSource(AuthSource.AD)
-                .objectGuid("guid-1")
-                .enabled(true)
-                .build();
-        when(userRepository.findByObjectGuid("guid-1")).thenReturn(Optional.of(existing));
-        AdUserProfile unknown = new AdUserProfile("abebe", "guid-1", "Abebe", "a@b.com", "Unknown", true, List.of());
-        assertTrue(syncService.syncIdentity(unknown));
-        assertEquals(Role.ROLE_BRANCH_MANAGER, existing.getRole());
+        assertEquals(Role.ROLE_CUSTOMER_CARE_OFFICER, updated.getRole());
+        assertTrue(updated.isApproved());
     }
 
     @Test
