@@ -1458,7 +1458,6 @@ function useCmdDashboardState() {
   useEffect(() => {
     loadCmdTasks(stateRef, true);
     fetchSlaMetricsCmd(stateRef);
-    loadHierarchyCmd(stateRef);
     loadActiveOfficersCmd(stateRef);
     loadUnresolvedFollowupsCmd(stateRef);
     const interval = setInterval(() => {
