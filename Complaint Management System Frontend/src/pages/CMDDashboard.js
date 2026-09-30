@@ -2408,10 +2408,39 @@ function CmdProfileField({ label, value, monospace }) {
 }
 
 function CmdCustomerProfileCard({ selectedTask, activeTab, editingFields, setEditingFields, formData, setFormData }) {
-  if (!selectedTask.variables?.customer) {
+  const [liveCbs, setLiveCbs] = useState(null);
+  const [loadingCbs, setLoadingCbs] = useState(false);
+
+  if (!selectedTask?.variables?.customer && !selectedTask?.variables?.accountNumber) {
     return null;
   }
-  const customer = selectedTask.variables.customer;
+  const customer = selectedTask.variables?.customer || {};
+  const accNum = formData.accountNumber || customer.accountNumber || selectedTask.variables?.accountNumber;
+
+  useEffect(() => {
+    const cleanAccount = String(accNum || '').trim();
+    if (/^\d{13}$/.test(cleanAccount)) {
+      setLoadingCbs(true);
+      ApiService.getCustomerByAccount(cleanAccount)
+        .then(profile => {
+          setLiveCbs(profile);
+        })
+        .catch(err => {
+          console.warn('Live CBS lookup failed or account not found:', err);
+          setLiveCbs(null);
+        })
+        .finally(() => setLoadingCbs(false));
+    } else {
+      setLiveCbs(null);
+    }
+  }, [accNum]);
+
+  const nameVal = liveCbs?.customerName || customer.name || selectedTask.customerName;
+  const segmentVal = liveCbs?.customerSegment || customer.customerSegment;
+  const branchVal = liveCbs?.homeBranch || customerHomeBranch(customer);
+  const districtVal = liveCbs?.homeDistrict || customerHomeDistrict(customer);
+  const phoneVal = liveCbs?.phoneNumber || resolveCoreBankingPhone(customer);
+
   return (
     <div style={{
       background: '#f8fafc',
@@ -2421,20 +2450,25 @@ function CmdCustomerProfileCard({ selectedTask, activeTab, editingFields, setEdi
       border: '1px solid #e2e8f0',
       boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
     }}>
-      <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <UserOutlined style={{ color: BRAND_COLORS.primary, fontSize: '18px' }} />
-        <Text style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
-          Customer Profile
-        </Text>
+      <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <UserOutlined style={{ color: BRAND_COLORS.primary, fontSize: '18px' }} />
+          <Text style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
+            Customer Profile
+          </Text>
+        </div>
+        {loadingCbs && (
+          <Tag color="processing" style={{ margin: 0 }}>Fetching Live CBS...</Tag>
+        )}
       </div>
 
       <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-        <CmdProfileField label="Customer Name" value={customer.name || selectedTask.customerName} />
+        <CmdProfileField label="Customer Name" value={nameVal || 'N/A'} />
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={{ color: '#64748b', fontSize: '14px' }}>Customer Segment</Text>
-          <Tag color={customer.customerSegment === 'Corporate' ? 'gold' : 'blue'} style={{ fontWeight: 600, margin: 0 }}>
-            {customer.customerSegment || 'N/A'}
+          <Tag color={segmentVal === 'Corporate' ? 'gold' : 'blue'} style={{ fontWeight: 600, margin: 0 }}>
+            {segmentVal || 'N/A'}
           </Tag>
         </div>
 
@@ -2458,7 +2492,7 @@ function CmdCustomerProfileCard({ selectedTask, activeTab, editingFields, setEdi
           ) : (
             <div style={{ display: 'flex', alignItems: 'center' }}>
               <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600, fontFamily: 'monospace' }}>
-                {formData.accountNumber || customer.accountNumber || selectedTask.variables?.accountNumber || 'N/A'}
+                {accNum || 'N/A'}
               </Text>
               {activeTab === 'my_tasks' && (
                 <Tooltip title="Edit Account Number">
@@ -2472,11 +2506,11 @@ function CmdCustomerProfileCard({ selectedTask, activeTab, editingFields, setEdi
           )}
         </div>
 
-        <CmdProfileField label="Customer Home Branch" value={customerHomeBranch(customer)} />
-        <CmdProfileField label="Customer Home District" value={customerHomeDistrict(customer)} />
+        <CmdProfileField label="Customer Home Branch" value={branchVal || 'N/A'} />
+        <CmdProfileField label="Customer Home District" value={districtVal || 'N/A'} />
         <CmdProfileField
           label="Registered Phone"
-          value={resolveCoreBankingPhone(customer)}
+          value={phoneVal || 'N/A'}
           monospace
         />
       </div>
