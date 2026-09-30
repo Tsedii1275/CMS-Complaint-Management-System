@@ -14,7 +14,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Maps {@code SELECT *} from {@code RTVSCBS_CUST_PROFILE} using the exact column
+ * Maps {@code SELECT *} from {@code RTVSCBS_CUST_PROFILE} using the exact
+ * column
  * names configured for this environment. Extra CBS columns are ignored.
  */
 public final class CbsProfileRowMapper implements RowMapper<CoreBankingProfile> {
@@ -40,12 +41,15 @@ public final class CbsProfileRowMapper implements RowMapper<CoreBankingProfile> 
     public CoreBankingProfile mapRow(ResultSet rs, int rowNum) throws SQLException {
         Map<String, String> columns = readColumns(rs);
         logViewColumnsOnce(columns);
+        String branch = value(columns, homeBranchColumn, "BRANCH_CODE", "HOME_BRANCH", "BRANCH", "BRANCH_NAME");
+        String code = value(columns, "BRANCH_CODE", homeBranchColumn, "BRANCH");
         return new CoreBankingProfile(
-                value(columns, customerNameColumn),
-                value(columns, phoneNumberColumn),
-                value(columns, homeBranchColumn),
-                value(columns, homeDistrictColumn),
-                value(columns, customerSegmentColumn));
+                value(columns, customerNameColumn, "CUSTOMER_NAME", "FULL_NAME"),
+                value(columns, phoneNumberColumn, "REGISTERED_PHONE", "PHONE_NUMBER", "TELEPHONE", "MOBILE"),
+                branch,
+                value(columns, homeDistrictColumn, "DISTRICT_NAME", "HOME_DISTRICT", "DISTRICT"),
+                value(columns, customerSegmentColumn, "CUST_SEGMENT", "CUSTOMER_SEGMENT", "SEGMENT"),
+                code != null ? code : branch);
     }
 
     static Map<String, String> readColumns(ResultSet rs) throws SQLException {
@@ -72,8 +76,18 @@ public final class CbsProfileRowMapper implements RowMapper<CoreBankingProfile> 
         }
     }
 
-    private static String value(Map<String, String> columns, String columnName) {
-        return columns.get(normalize(columnName));
+    private static String value(Map<String, String> columns, String primaryName, String... fallbacks) {
+        String val = columns.get(normalize(primaryName));
+        if (val != null && !val.isBlank()) {
+            return val;
+        }
+        for (String fallback : fallbacks) {
+            val = columns.get(normalize(fallback));
+            if (val != null && !val.isBlank()) {
+                return val;
+            }
+        }
+        return null;
     }
 
     static String normalize(String name) {

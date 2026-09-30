@@ -14,6 +14,16 @@ public class CbsProperties {
     private int queryTimeoutSeconds = 8;
     private int connectTimeoutMs = 5000;
 
+    private String tableName = "FCUBSLIVE.RTVSCBS_CUST_PROFILE";
+
+    public String getTableName() {
+        return tableName;
+    }
+
+    public void setTableName(String tableName) {
+        this.tableName = tableName;
+    }
+
     public Datasource getDatasource() {
         return datasource;
     }
@@ -78,15 +88,17 @@ public class CbsProperties {
     }
 
     /**
-     * Exact Oracle column names on {@code RTVSCBS_CUST_PROFILE}. Override with
-     * {@code CBS_COL_*} after the CBS/DBA team confirms the live view.
+     * Exact Oracle column names on {@code FCUBSLIVE.RTVSCBS_CUST_PROFILE}. Override
+     * with
+     * {@code CBS_COL_*} if needed.
      */
     public static class Columns {
         private String customerName = "CUSTOMER_NAME";
-        private String phoneNumber = "PHONE_NUMBER";
-        private String homeBranch = "HOME_BRANCH";
-        private String homeDistrict = "HOME_DISTRICT";
-        private String customerSegment = "CUSTOMER_SEGMENT";
+        private String phoneNumber = "REGISTERED_PHONE";
+        private String homeBranch = "BRANCH_CODE";
+        private String homeDistrict = "DISTRICT_NAME";
+        private String customerSegment = "CUST_SEGMENT";
+        private String accountNumber = "ACCOUNT_NUMBER";
 
         public String getCustomerName() {
             return customerName;
@@ -126,6 +138,14 @@ public class CbsProperties {
 
         public void setCustomerSegment(String customerSegment) {
             this.customerSegment = customerSegment;
+        }
+
+        public String getAccountNumber() {
+            return accountNumber;
+        }
+
+        public void setAccountNumber(String accountNumber) {
+            this.accountNumber = accountNumber;
         }
     }
 }

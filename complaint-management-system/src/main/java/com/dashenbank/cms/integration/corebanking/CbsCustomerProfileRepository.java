@@ -16,23 +16,33 @@ import java.util.Map;
 @Repository
 public class CbsCustomerProfileRepository {
 
-    static final String PROFILE_SQL = "SELECT * FROM RTVSCBS_CUST_PROFILE WHERE ACCOUNT_NO = :accountNumber";
-
     private final NamedParameterJdbcTemplate cbsJdbc;
     private final CbsProfileRowMapper rowMapper;
+    private final String profileSql;
 
     public CbsCustomerProfileRepository(
             @Autowired(required = false) @Qualifier(CbsDataSourceConfig.CBS_JDBC_TEMPLATE) NamedParameterJdbcTemplate cbsJdbc,
             CbsProperties properties) {
         this.cbsJdbc = cbsJdbc;
         this.rowMapper = new CbsProfileRowMapper(properties.getColumns());
+        String tableName = properties.getTableName() != null && !properties.getTableName().isBlank()
+                ? properties.getTableName().trim()
+                : "FCUBSLIVE.RTVSCBS_CUST_PROFILE";
+        String accountCol = properties.getColumns().getAccountNumber() != null
+                && !properties.getColumns().getAccountNumber().isBlank()
+                        ? properties.getColumns().getAccountNumber().trim()
+                        : "ACCOUNT_NUMBER";
+        this.profileSql = "SELECT * FROM " + tableName + " WHERE " + accountCol
+                + " = :accountNumber OR ACCOUNT_NO = :accountNumber";
     }
 
     public boolean isConfigured() {
         return cbsJdbc != null;
     }
 
+    @SuppressWarnings("null")
     public List<CoreBankingProfile> findByAccountNumber(String accountNumber) {
-        return cbsJdbc.query(PROFILE_SQL, Map.of("accountNumber", accountNumber), rowMapper);
+        String cleanAccount = accountNumber == null ? "" : accountNumber.trim();
+        return cbsJdbc.query(profileSql, Map.of("accountNumber", cleanAccount), rowMapper);
     }
 }

@@ -62,7 +62,7 @@ public class AdOrganizationService {
         }
         List<AdOrgUnit> units = new ArrayList<>();
         byId.forEach((id, name) -> units.add(new AdOrgUnit(id, name)));
-        units.sort(Comparator.comparing(AdOrgUnit::name, String.CASE_INSENSITIVE_ORDER));
+        units.sort(Comparator.comparing(u -> u.name() != null ? u.name() : "", String.CASE_INSENSITIVE_ORDER));
         return units;
     }
 
@@ -77,7 +77,8 @@ public class AdOrganizationService {
                         profile.title() == null ? "" : profile.title().trim()));
             }
         }
-        officers.sort(Comparator.comparing(AdOrgOfficer::displayName, String.CASE_INSENSITIVE_ORDER));
+        officers.sort(Comparator.comparing(o -> o.displayName() != null ? o.displayName() : "",
+                String.CASE_INSENSITIVE_ORDER));
         return officers;
     }
 

@@ -55,6 +55,29 @@ class CbsProfileRowMapperTest {
         assertNull(profile.customerSegment());
     }
 
+    @Test
+    void mapsLiveOracleViewColumns() throws SQLException {
+        ResultSet rs = mock(ResultSet.class);
+        ResultSetMetaData meta = mock(ResultSetMetaData.class);
+        when(rs.getMetaData()).thenReturn(meta);
+        when(meta.getColumnCount()).thenReturn(6);
+        stubColumn(meta, rs, 1, "ACCOUNT_NUMBER", "1001234567890");
+        stubColumn(meta, rs, 2, "CUSTOMER_NAME", "Abebe Kebede");
+        stubColumn(meta, rs, 3, "REGISTERED_PHONE", "0912345678");
+        stubColumn(meta, rs, 4, "BRANCH_CODE", "Bole Branch");
+        stubColumn(meta, rs, 5, "DISTRICT_NAME", "Addis District");
+        stubColumn(meta, rs, 6, "CUST_SEGMENT", "Retail");
+
+        CoreBankingProfile profile = new CbsProfileRowMapper(new CbsProperties.Columns()).mapRow(rs, 0);
+
+        assertEquals("Abebe Kebede", profile.customerName());
+        assertEquals("0912345678", profile.phoneNumber());
+        assertEquals("Bole Branch", profile.homeBranch());
+        assertEquals("Addis District", profile.homeDistrict());
+        assertEquals("Retail", profile.customerSegment());
+        assertEquals("Bole Branch", profile.branchCode());
+    }
+
     private static void stubColumn(ResultSetMetaData meta, ResultSet rs, int index, String label, String value)
             throws SQLException {
         when(meta.getColumnLabel(index)).thenReturn(label);
