@@ -68,10 +68,7 @@ public class UserController {
     @GetMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<List<User>> getAllUsers() {
-        List<User> users = userRepository.findAll();
-        // Hide hashed password in API responses
-        users.forEach(u -> u.setPassword(null));
-        return ResponseEntity.ok(users);
+        return ResponseEntity.ok(userRepository.findAll());
     }
 
     @GetMapping("/officers")
@@ -81,7 +78,6 @@ public class UserController {
                 .filter(u -> u.isEnabled() && (u.getRole() == Role.ROLE_CUSTOMER_CARE_OFFICER
                         || u.getRole() == Role.ROLE_CUSTOMER_CARE_TEAM_LEADER))
                 .toList();
-        officers.forEach(u -> u.setPassword(null));
         return ResponseEntity.ok(officers);
     }
 
@@ -134,7 +130,6 @@ public class UserController {
         passwordPolicyService.stampInitialPasswordMetadata(newUser);
 
         User saved = userRepository.save(newUser);
-        saved.setPassword(null);
         return ResponseEntity.ok(saved);
     }
 
@@ -178,7 +173,6 @@ public class UserController {
         }
 
         User updated = userRepository.save(user);
-        updated.setPassword(null);
         return ResponseEntity.ok(updated);
     }
 
@@ -193,7 +187,6 @@ public class UserController {
         User user = userOpt.get();
         user.setEnabled(!user.isEnabled());
         User updated = userRepository.save(user);
-        updated.setPassword(null);
         return ResponseEntity.ok(Map.of(
                 "id", updated.getId(),
                 KEY_ENABLED, updated.isEnabled(),
@@ -233,7 +226,6 @@ public class UserController {
         }
 
         User saved = userRepository.save(user);
-        saved.setPassword(null);
         securityAuditService.log(user.getUsername(), SecurityAuditEvent.ROLE_CHANGED, ClientIp.from(request));
 
         return ResponseEntity.ok(Map.of(
@@ -258,7 +250,6 @@ public class UserController {
         }
 
         User saved = userRepository.save(user);
-        saved.setPassword(null);
 
         return ResponseEntity.ok(Map.of(
                 KEY_MESSAGE, "User " + saved.getUsername() + " access request rejected.",
