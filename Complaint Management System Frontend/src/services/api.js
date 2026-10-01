@@ -82,6 +82,14 @@ function redirectIfSessionExpired(response, bodyData, options) {
 }
 
 class ApiService {
+  async logout() {
+    try {
+      await this.request('/api/auth/logout', { method: 'POST', skipSessionRedirect: true });
+    } catch {
+      // Ignore network errors during logout
+    }
+  }
+
   getAttachmentUrl(url) {
     if (!url) return '';
     const base = API_BASE_URL || '';

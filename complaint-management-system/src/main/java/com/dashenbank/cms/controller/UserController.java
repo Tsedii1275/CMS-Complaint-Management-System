@@ -228,6 +228,9 @@ public class UserController {
         user.setApproved(true);
         user.setApprovalStatus("APPROVED");
         user.setEnabled(true);
+        if (user.getPassword() == null || user.getPassword().isBlank()) {
+            user.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
+        }
 
         User saved = userRepository.save(user);
         saved.setPassword(null);
@@ -250,6 +253,9 @@ public class UserController {
         user.setApproved(false);
         user.setApprovalStatus("REJECTED");
         user.setEnabled(false);
+        if (user.getPassword() == null || user.getPassword().isBlank()) {
+            user.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
+        }
 
         User saved = userRepository.save(user);
         saved.setPassword(null);

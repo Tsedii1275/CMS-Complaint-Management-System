@@ -67,6 +67,9 @@ public class AdUserSyncService {
             }
             user.setAuthSource(AuthSource.AD);
             user.setMustChangePassword(false);
+            if (!StringUtils.hasText(user.getPassword())) {
+                user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+            }
         }
 
         if (StringUtils.hasText(profile.objectGuid())) {

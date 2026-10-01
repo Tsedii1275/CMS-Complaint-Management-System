@@ -1,14 +1,20 @@
 import React from 'react';
 import { Card, Typography, Button, Tag, Space, Row, Col, Alert } from 'antd';
 import { ClockCircleOutlined, LogoutOutlined, UserOutlined, MailOutlined, IdcardOutlined, ClusterOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import ApiService from '../services/api';
 import { BRAND_COLORS } from '../constants/theme';
 
 const { Title, Text, Paragraph } = Typography;
 
 function PendingAccessPage({ user }) {
+    const { logout } = useAuth();
+    const navigate = useNavigate();
+
     const handleLogout = () => {
-        ApiService.logout();
+        logout();
+        navigate('/staff-login');
     };
 
     const storedUser = user || JSON.parse(localStorage.getItem('user') || '{}');
