@@ -339,9 +339,9 @@ public class AuditController {
         map.put("processInstanceId", m.getProcessInstanceId());
         map.put(COMPLAINT_ID, m.getComplaintId());
         map.put(GENERAL_TICKET_ID, m.getGeneralTicketId());
-        map.put("dbcTicketId",
-                m.getComplaintId() != null && m.getComplaintId().startsWith("DBC-") ? m.getComplaintId()
-                        : m.getGeneralTicketId());
+        String dbcTicket = m.getDbcTicketId() != null && !m.getDbcTicketId().isBlank() ? m.getDbcTicketId()
+                : (m.getComplaintId() != null && m.getComplaintId().startsWith("DBC-") ? m.getComplaintId() : null);
+        map.put("dbcTicketId", dbcTicket);
         map.put("complaintCategory", m.getComplaintCategory());
         map.put("category", m.getComplaintCategory());
         map.put("classification", m.getClassification());

@@ -294,7 +294,8 @@ public class ProcessController {
         } catch (Exception eAudit) {
             log.warn("Audit log exception: {}", eAudit.getMessage());
         }
-        recordSecurityEvent(getCurrentUsernameOrCustomer(), com.dashenbank.cms.model.SecurityAuditEvent.COMPLAINT_CREATED,
+        recordSecurityEvent(getCurrentUsernameOrCustomer(),
+                com.dashenbank.cms.model.SecurityAuditEvent.COMPLAINT_CREATED,
                 sourceIp);
     }
 
@@ -793,14 +794,16 @@ public class ProcessController {
         if (isClassified) {
             if (vars.get(KEY_DBC_TICKET_ID) != null && !vars.get(KEY_DBC_TICKET_ID).toString().isBlank()) {
                 dbcId = vars.get(KEY_DBC_TICKET_ID).toString();
-            } else if (complaint.get(KEY_DBC_TICKET_ID) != null && !complaint.get(KEY_DBC_TICKET_ID).toString().isBlank()) {
+            } else if (complaint.get(KEY_DBC_TICKET_ID) != null
+                    && !complaint.get(KEY_DBC_TICKET_ID).toString().isBlank()) {
                 dbcId = complaint.get(KEY_DBC_TICKET_ID).toString();
             } else if (vars.get(KEY_COMPLAINT_ID) != null && vars.get(KEY_COMPLAINT_ID).toString().startsWith("DBC-")) {
                 dbcId = vars.get(KEY_COMPLAINT_ID).toString();
             }
 
             if (dbcId == null || dbcId.isBlank() || !dbcId.startsWith("DBC-")) {
-                dbcId = getOrCreateDbcTicketId(vars, (String) vars.get(KEY_GENERAL_TICKET_ID), task.getProcessInstanceId());
+                dbcId = getOrCreateDbcTicketId(vars, (String) vars.get(KEY_GENERAL_TICKET_ID),
+                        task.getProcessInstanceId());
             }
         }
 
@@ -1031,8 +1034,8 @@ public class ProcessController {
         try {
             vars = taskService.getVariables(taskId);
         } catch (Exception ignored) {
-                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-                }
+            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+        }
         Map<String, Object> complaint = castToMap(vars.getOrDefault(KEY_COMPLAINT, Map.of()));
         String ticketId = complaint.getOrDefault("id", taskId).toString();
 
@@ -1125,7 +1128,8 @@ public class ProcessController {
         if (!processVars.containsKey(KEY_DECISION) || processVars.get(KEY_DECISION) == null) {
             processVars.put(KEY_DECISION, "ONTRACK");
         }
-        if (!processVars.containsKey(KEY_REQUIRES_INVESTIGATION) || processVars.get(KEY_REQUIRES_INVESTIGATION) == null) {
+        if (!processVars.containsKey(KEY_REQUIRES_INVESTIGATION)
+                || processVars.get(KEY_REQUIRES_INVESTIGATION) == null) {
             processVars.put(KEY_REQUIRES_INVESTIGATION, false);
         }
 
@@ -1348,7 +1352,8 @@ public class ProcessController {
                     jdbcTemplate.update(
                             "UPDATE complaint_sla_metrics SET fcr_status = false, current_stage = 'CMD_SCREENING' WHERE process_instance_id = ? OR complaint_id = ?",
                             task.getProcessInstanceId(), ticketId);
-                    auditService.log(ticketId, task.getProcessInstanceId(), task.getId(), "FCR_REJECTED", ACTOR_CMD_OFFICER,
+                    auditService.log(ticketId, task.getProcessInstanceId(), task.getId(), "FCR_REJECTED",
+                            ACTOR_CMD_OFFICER,
                             getCurrentUsername(),
                             "Customer care officer rejected FCR resolution and routed case to work unit.",
                             "", "", "");
@@ -1573,7 +1578,8 @@ public class ProcessController {
     }
 
     /**
-     * JDBC classification updates bypass JPA. Overlay the managed SLA row so a later
+     * JDBC classification updates bypass JPA. Overlay the managed SLA row so a
+     * later
      * save cannot restore INTAKE / CM- and drop the complaint from reporting.
      */
     private void syncClassifiedComplaintMetricsEntity(String processInstanceId, String formalDbcId,
@@ -2274,11 +2280,17 @@ public class ProcessController {
                 && !VAL_DECLINED.equalsIgnoreCase(classification)) {
             return false;
         }
+        if (VAL_DECLINED.equalsIgnoreCase(classification) || VAL_DECLINED.equalsIgnoreCase(status)) {
+            return true;
+        }
         boolean isFcr = Boolean.TRUE.equals(vars.get(KEY_FCR_STATUS))
                 || VAL_VERIFIED.equalsIgnoreCase(String.valueOf(vars.get(KEY_FCR_STATUS)));
-        return isFcr
-                || VAL_COMPLAINT.equalsIgnoreCase(classification)
-                || VAL_DECLINED.equalsIgnoreCase(classification);
+        if (isFcr) {
+            return true;
+        }
+        String dbcId = String.valueOf(vars.getOrDefault(KEY_DBC_TICKET_ID, ""));
+        String compId = String.valueOf(vars.getOrDefault(KEY_COMPLAINT_ID, ""));
+        return dbcId.startsWith("DBC-") || compId.startsWith("DBC-");
     }
 
     @SuppressWarnings("java:S107")
@@ -2522,8 +2534,8 @@ public class ProcessController {
                 runtimeService.deleteProcessInstance(metrics.getProcessInstanceId(), "Closed by staff");
             }
         } catch (Exception ignored) {
-                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-                }
+            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+        }
 
         return ResponseEntity
                 .ok(Map.of(KEY_MESSAGE, "Complaint " + metrics.getComplaintId() + " successfully closed."));
@@ -2623,9 +2635,11 @@ public class ProcessController {
             if (district == null) {
                 district = "";
             }
-            String category = (String) payload.getOrDefault(KEY_COMPLAINT_CATEGORY, payload.getOrDefault(KEY_CATEGORY, ""));
+            String category = (String) payload.getOrDefault(KEY_COMPLAINT_CATEGORY,
+                    payload.getOrDefault(KEY_CATEGORY, ""));
             String serviceType = (String) payload.getOrDefault(KEY_SERVICE_TYPE, "");
-            String channel = (String) payload.getOrDefault(KEY_COMPLAINT_MADE_ON, payload.getOrDefault(KEY_CHANNEL, ""));
+            String channel = (String) payload.getOrDefault(KEY_COMPLAINT_MADE_ON,
+                    payload.getOrDefault(KEY_CHANNEL, ""));
             String receivedBy = (String) payload.getOrDefault(KEY_RECEIVED_BY, "");
             String accNum = (String) payload.getOrDefault(KEY_ACCOUNT_NUMBER, "");
             String desc = (String) payload.getOrDefault(KEY_COMPLAINT_DESCRIPTION,
@@ -2772,7 +2786,8 @@ public class ProcessController {
             Map<String, Object> customer = castToMap(vars.get(KEY_CUSTOMER));
             Map<String, Object> complaint = castToMap(vars.get(KEY_COMPLAINT));
 
-            String generalId = resolveVarString(vars, complaint, KEY_GENERAL_TICKET_ID, KEY_TICKET_NUMBER, fallbackTicketId);
+            String generalId = resolveVarString(vars, complaint, KEY_GENERAL_TICKET_ID, KEY_TICKET_NUMBER,
+                    fallbackTicketId);
             String formalDbcId = getOrCreateDbcTicketId(vars, generalId, procInstId);
             if (formalDbcId == null || !formalDbcId.startsWith("DBC-")) {
                 formalDbcId = generateDbcTicketId();
@@ -2784,7 +2799,8 @@ public class ProcessController {
             String cifNumber = textOrNull(customer.get(KEY_CIF_NUMBER));
             String customerHomeBranch = LocationKeys.customerHomeBranch(customer);
             String customerDistrict = LocationKeys.customerHomeDistrict(customer);
-            String contactMethod = resolveVarString(vars, customer, KEY_PREFERRED_CONTACT_METHOD, "contactMethod", null);
+            String contactMethod = resolveVarString(vars, customer, KEY_PREFERRED_CONTACT_METHOD, "contactMethod",
+                    null);
             String district = LocationKeys.complaintDistrict(vars, complaint);
             String branch = LocationKeys.complaintBranch(vars, complaint);
             String description = resolveVarString(vars, complaint, KEY_DESCRIPTION, KEY_COMPLAINT_DESCRIPTION, null);
@@ -2802,7 +2818,8 @@ public class ProcessController {
                 return;
             }
 
-            // Fill missing name from live CBS only. Never copy CBS phone onto current contact.
+            // Fill missing name from live CBS only. Never copy CBS phone onto current
+            // contact.
             if (accountNumber != null && !accountNumber.isBlank() && customerName == null
                     && coreBankingClient != null) {
                 try {
@@ -2818,7 +2835,8 @@ public class ProcessController {
             String sql = "INSERT INTO complaints (" +
                     "general_ticket_id, ticket_number, customer_name, preferred_contact_number, core_banking_phone, preferred_contact_method, "
                     +
-                    "home_branch, customer_home_branch, district, customer_district, complaint_detail, complaint_category, service_type, " +
+                    "home_branch, customer_home_branch, district, customer_district, complaint_detail, complaint_category, service_type, "
+                    +
                     "complaint_made_on, received_by, account_number, cif_number, classification, complaint_classification, status) "
                     +
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
@@ -2847,7 +2865,8 @@ public class ProcessController {
                     +
                     "status = COALESCE(VALUES(status), status)";
 
-            String complaintClass = resolveVarString(processVars, null, KEY_COMPLAINT_CLASSIFICATION, KEY_PRIORITY_LEVEL,
+            String complaintClass = resolveVarString(processVars, null, KEY_COMPLAINT_CLASSIFICATION,
+                    KEY_PRIORITY_LEVEL,
                     CAT_GENERAL);
             jdbcTemplate.update(sql,
                     generalId, formalDbcId, customerName, contactNumber, coreBankingPhone, contactMethod,
@@ -2933,8 +2952,8 @@ public class ProcessController {
                     return existingDbList.get(0);
                 }
             } catch (Exception ignored) {
-                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-                }
+                log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+            }
 
             try {
                 List<String> existingComplaintsList = jdbcTemplate.queryForList(
@@ -2945,8 +2964,8 @@ public class ProcessController {
                     return existingComplaintsList.get(0);
                 }
             } catch (Exception ignored) {
-                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-                }
+                log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+            }
 
             try {
                 List<String> existingCriList = jdbcTemplate.queryForList(
@@ -2957,8 +2976,8 @@ public class ProcessController {
                     return existingCriList.get(0);
                 }
             } catch (Exception ignored) {
-                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-                }
+                log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+            }
 
             try {
                 List<String> existingAuditList = jdbcTemplate.queryForList(
@@ -2969,8 +2988,8 @@ public class ProcessController {
                     return existingAuditList.get(0);
                 }
             } catch (Exception ignored) {
-                    log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
-                }
+                log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+            }
         }
 
         String newDbcTicketId = generateDbcTicketId();

@@ -1305,12 +1305,9 @@ public class SlaTrackingService {
         if (Boolean.TRUE.equals(m.getFcrStatus())) {
             return true;
         }
-        if (CLASSIFICATION_COMPLAINT.equalsIgnoreCase(m.getClassification())) {
-            return true;
-        }
-        return startsWithDbcOrFcr(m.getComplaintId())
-                || startsWithDbcOrFcr(m.getGeneralTicketId())
-                || startsWithDbcOrFcr(m.getDbcTicketId());
+        boolean hasDbcTicket = (m.getDbcTicketId() != null && !m.getDbcTicketId().isBlank())
+                || (m.getComplaintId() != null && m.getComplaintId().startsWith("DBC-"));
+        return hasDbcTicket;
     }
 
     public static boolean isOtherClassification(ComplaintSlaMetrics m) {

@@ -204,14 +204,16 @@ function BranchStaffDashboard() {
         if (cls === 'OTHER' || st === 'OTHER') {
           return false;
         }
-        if (cls === 'INTAKE') {
-          const cId = String(item.dbcTicketId || item.complaintId || item.generalTicketId || '');
-          return cId.startsWith('DBC-') || cId.startsWith('FCR-');
+        if (cls === 'DECLINED' || st === 'DECLINED') {
+          return true;
         }
-        return cls === 'COMPLAINT' || cls === 'DECLINED' || st === 'DECLINED'
-          || String(item.dbcTicketId || item.complaintId || '').startsWith('DBC-')
-          || String(item.complaintId || '').startsWith('FCR-')
-          || item.fcrStatus === true;
+        if (item.fcrStatus === true || String(item.complaintId || '').startsWith('FCR-')) {
+          return true;
+        }
+        const dbcTicket = String(item.dbcTicketId || '');
+        const compId = String(item.complaintId || '');
+        return (dbcTicket !== '' && dbcTicket !== 'null' && dbcTicket.startsWith('DBC-'))
+          || compId.startsWith('DBC-');
       });
 
       setScopedComplaints(filtered);

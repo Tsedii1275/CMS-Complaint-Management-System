@@ -258,11 +258,19 @@ public class NbeComplianceReportService {
                 && !CLASSIFICATION_DECLINED.equalsIgnoreCase(classification)) {
             return false;
         }
-        String ticket = firstTicket(row);
-        return ticket.startsWith(PREFIX_DBC) || ticket.startsWith(PREFIX_FCR)
-                || CLASSIFICATION_DECLINED.equalsIgnoreCase(classification)
-                || CLASSIFICATION_DECLINED.equalsIgnoreCase(status)
-                || CLASSIFICATION_COMPLAINT.equalsIgnoreCase(classification);
+        if (CLASSIFICATION_DECLINED.equalsIgnoreCase(classification)
+                || CLASSIFICATION_DECLINED.equalsIgnoreCase(status)) {
+            return true;
+        }
+        boolean isFcr = Boolean.TRUE.equals(row.get("fcrStatus"))
+                || PREFIX_FCR.equalsIgnoreCase(stringValue(row.get(KEY_DBC_TICKET_ID)));
+        if (isFcr) {
+            return true;
+        }
+        String dbcTicketId = stringValue(row.get(KEY_DBC_TICKET_ID));
+        String complaintId = stringValue(row.get(KEY_COMPLAINT_ID));
+        boolean hasDbcTicket = (dbcTicketId.startsWith(PREFIX_DBC) || complaintId.startsWith(PREFIX_DBC));
+        return hasDbcTicket;
     }
 
     /**
