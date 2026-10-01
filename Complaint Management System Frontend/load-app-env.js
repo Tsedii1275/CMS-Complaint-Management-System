@@ -39,7 +39,12 @@ if (args.length === 0) {
   process.exit(1);
 }
 
-const child = spawn(args[0], args.slice(1), { stdio: 'inherit', shell: true, env, cwd: root });
+let command = args[0];
+if (process.platform === 'win32' && !command.toLowerCase().endsWith('.cmd') && !command.toLowerCase().endsWith('.exe')) {
+  command = `${command}.cmd`;
+}
+
+const child = spawn(command, args.slice(1), { stdio: 'inherit', shell: false, env, cwd: root });
 child.on('exit', (code, signal) => {
   if (signal) {
     process.kill(process.pid, signal);

@@ -11,8 +11,8 @@ import java.util.Map;
 public class LdapProperties {
 
     private boolean enabled = false;
-    private String url = "ldaps://192.168.0.4:636";
-    private String fallbackUrl = "ldap://192.168.0.4:389";
+    private String url = "";
+    private String fallbackUrl = "";
     private String bindDn = "";
     private String bindPassword = "";
     private String baseDn = "DC=dashenbank,DC=local";
@@ -29,7 +29,10 @@ public class LdapProperties {
     private LdapRolePriority rolePriority = LdapRolePriority.TITLE_THEN_GROUP;
     /** Semicolon map: {@code Branch Manager=ROLE_BRANCH_MANAGER;...} */
     private String titleMappings = "";
-    /** Semicolon map of group CN (not full DN): {@code CMS_BRANCH_MANAGER=ROLE_BRANCH_MANAGER} */
+    /**
+     * Semicolon map of group CN (not full DN):
+     * {@code CMS_BRANCH_MANAGER=ROLE_BRANCH_MANAGER}
+     */
     private String groupMappings = "";
     private final Sync sync = new Sync();
 
