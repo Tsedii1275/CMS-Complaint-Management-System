@@ -666,7 +666,8 @@ public class ComplainantRelatedInformationService {
         List<ComplainantRelatedInformation> all = new ArrayList<>(repository.findAll(spec,
                 Sort.by(Sort.Direction.ASC, KEY_UNIQUE_ID_NO)));
         all.forEach(this::overlayLiveCaseStatus);
-        all = all.stream().filter(this::isClassifiedComplaintRecord).collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        all = all.stream().filter(this::isClassifiedComplaintRecord)
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
 
         String statusFilter = status != null ? status.trim() : "";
         if (!statusFilter.isEmpty() && !"ALL".equalsIgnoreCase(statusFilter)) {
@@ -720,6 +721,10 @@ public class ComplainantRelatedInformationService {
         }
         if ("OTHER".equalsIgnoreCase(info.getCaseStatus()) || "INTAKE".equalsIgnoreCase(info.getCaseStatus())) {
             return false;
+        }
+        if ("DECLINED".equalsIgnoreCase(info.getCaseStatus())
+                || "DECLINED".equalsIgnoreCase(info.getComplaintClassification())) {
+            return true;
         }
         return ticket != null && (ticket.startsWith("DBC-") || ticket.startsWith("FCR-"));
     }

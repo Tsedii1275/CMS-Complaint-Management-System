@@ -1323,6 +1323,10 @@ public class SlaTrackingService {
             return true;
         }
         String classification = m.getClassification() != null ? m.getClassification() : "";
+        String status = m.getStatus() != null ? m.getStatus() : "";
+        if (STATUS_DECLINED.equalsIgnoreCase(classification) || STATUS_DECLINED.equalsIgnoreCase(status)) {
+            return false;
+        }
         if (CLASSIFICATION_OTHER.equalsIgnoreCase(classification)) {
             return true;
         }
@@ -1333,7 +1337,6 @@ public class SlaTrackingService {
             return true;
         }
         // Operational status OTHER only excludes unclassified / OTHER cases.
-        String status = m.getStatus() != null ? m.getStatus() : "";
         return CLASSIFICATION_OTHER.equalsIgnoreCase(status)
                 && !CLASSIFICATION_COMPLAINT.equalsIgnoreCase(classification)
                 && !STATUS_DECLINED.equalsIgnoreCase(classification);
