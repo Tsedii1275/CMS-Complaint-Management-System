@@ -1364,9 +1364,9 @@ public class SlaTrackingService {
             return true;
         }
         if (CLASSIFICATION_INTAKE.equalsIgnoreCase(classification)
-                && !startsWithDbcOrFcr(m.getComplaintId())
-                && !startsWithDbcOrFcr(m.getGeneralTicketId())
-                && !startsWithDbcOrFcr(m.getDbcTicketId())) {
+                && !startsWithDbc(m.getComplaintId())
+                && !startsWithDbc(m.getGeneralTicketId())
+                && !startsWithDbc(m.getDbcTicketId())) {
             return true;
         }
         // Operational status OTHER only excludes unclassified / OTHER cases.
@@ -1667,8 +1667,8 @@ public class SlaTrackingService {
                 m.setClassification(CLASSIFICATION_COMPLAINT);
             }
         } else if (CLASSIFICATION_INTAKE.equalsIgnoreCase(m.getClassification())
-                && (startsWithDbcOrFcr(m.getComplaintId()) || startsWithDbcOrFcr(m.getDbcTicketId())
-                        || startsWithDbcOrFcr(m.getGeneralTicketId()))) {
+                && (startsWithDbc(m.getComplaintId()) || startsWithDbc(m.getDbcTicketId())
+                        || startsWithDbc(m.getGeneralTicketId()))) {
             m.setClassification(CLASSIFICATION_COMPLAINT);
         }
     }
