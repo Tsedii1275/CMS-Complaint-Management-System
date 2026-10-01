@@ -708,16 +708,8 @@ public class ComplainantRelatedInformationService {
             return false;
         }
         String ticket = info.getUniqueIdNo();
-        Optional<ComplaintSlaMetrics> sla = ticket == null ? Optional.empty()
-                : slaMetricsRepository.findByComplaintId(ticket);
-        if (sla.isEmpty() && ticket != null) {
-            sla = slaMetricsRepository.findByGeneralTicketId(ticket);
-        }
-        if (sla.isEmpty() && ticket != null) {
-            sla = slaMetricsRepository.findByDbcTicketId(ticket);
-        }
-        if (sla.isPresent()) {
-            return SlaTrackingService.isClassifiedComplaint(sla.get());
+        if (ticket == null || ticket.isBlank()) {
+            return false;
         }
         if ("OTHER".equalsIgnoreCase(info.getCaseStatus()) || "INTAKE".equalsIgnoreCase(info.getCaseStatus())) {
             return false;
@@ -726,7 +718,17 @@ public class ComplainantRelatedInformationService {
                 || "DECLINED".equalsIgnoreCase(info.getComplaintClassification())) {
             return true;
         }
-        return ticket != null && (ticket.startsWith("DBC-") || ticket.startsWith("FCR-"));
+        if (ticket.startsWith("DBC-")) {
+            return true;
+        }
+        Optional<ComplaintSlaMetrics> sla = slaMetricsRepository.findByDbcTicketId(ticket);
+        if (sla.isEmpty()) {
+            sla = slaMetricsRepository.findByComplaintId(ticket);
+        }
+        if (sla.isPresent()) {
+            return SlaTrackingService.isClassifiedComplaint(sla.get());
+        }
+        return false;
     }
 
     @Transactional

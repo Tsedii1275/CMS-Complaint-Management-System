@@ -56,7 +56,6 @@ public class NbeComplianceReportService {
     private static final String CLASSIFICATION_OTHER = "OTHER";
     private static final String CLASSIFICATION_INTAKE = "INTAKE";
     private static final String PREFIX_DBC = "DBC-";
-    private static final String PREFIX_FCR = "FCR-";
 
     private final NbeComplianceReportRepository repository;
     private final ComplainantRelatedInformationService criService;
@@ -239,7 +238,7 @@ public class NbeComplianceReportService {
     private Comparator<Map<String, Object>> classifiedRowOrder() {
         return Comparator.comparing(row -> {
             String dbc = stringValue(row.get(KEY_DBC_TICKET_ID));
-            if (dbc.startsWith(PREFIX_DBC) || dbc.startsWith(PREFIX_FCR)) {
+            if (dbc.startsWith(PREFIX_DBC)) {
                 return dbc;
             }
             return firstTicket(row);
@@ -262,15 +261,9 @@ public class NbeComplianceReportService {
                 || CLASSIFICATION_DECLINED.equalsIgnoreCase(status)) {
             return true;
         }
-        boolean isFcr = Boolean.TRUE.equals(row.get("fcrStatus"))
-                || PREFIX_FCR.equalsIgnoreCase(stringValue(row.get(KEY_DBC_TICKET_ID)));
-        if (isFcr) {
-            return true;
-        }
         String dbcTicketId = stringValue(row.get(KEY_DBC_TICKET_ID));
         String complaintId = stringValue(row.get(KEY_COMPLAINT_ID));
-        boolean hasDbcTicket = (dbcTicketId.startsWith(PREFIX_DBC) || complaintId.startsWith(PREFIX_DBC));
-        return hasDbcTicket;
+        return (dbcTicketId.startsWith(PREFIX_DBC) || complaintId.startsWith(PREFIX_DBC));
     }
 
     /**

@@ -207,9 +207,6 @@ function BranchStaffDashboard() {
         if (cls === 'DECLINED' || st === 'DECLINED') {
           return true;
         }
-        if (item.fcrStatus === true || String(item.complaintId || '').startsWith('FCR-')) {
-          return true;
-        }
         const dbcTicket = String(item.dbcTicketId || '');
         const compId = String(item.complaintId || '');
         return (dbcTicket !== '' && dbcTicket !== 'null' && dbcTicket.startsWith('DBC-'))

@@ -49,14 +49,11 @@ export function classifyComplaintFilter(item) {
   if (!item) return false;
   const cls = String(item.classification || '').toUpperCase();
   const status = String(item.status || '').toUpperCase();
-  if (cls === 'OTHER') return false;
-  if (cls === 'INTAKE') {
-    const cId = String(item.dbcTicketId || item.complaintId || item.generalTicketId || '').trim();
-    return cId.startsWith('DBC-') || cId.startsWith('FCR-');
-  }
-  if (status === 'OTHER' && cls !== 'COMPLAINT' && cls !== 'DECLINED') return false;
-  const cId = String(item.dbcTicketId || item.complaintId || item.generalTicketId || '').trim();
-  const isDeclined = status === 'DECLINED' || cls === 'DECLINED';
-  const fcr = item.fcrStatus === true || item.fcrStatus === 'VERIFIED';
-  return cId.startsWith('DBC-') || cId.startsWith('FCR-') || isDeclined || cls === 'COMPLAINT' || fcr;
+  if (cls === 'OTHER' || status === 'OTHER') return false;
+  if (status === 'DECLINED' || cls === 'DECLINED') return true;
+  if (item.fcrStatus === true || item.fcrStatus === 'VERIFIED') return true;
+  const dbcTicket = String(item.dbcTicketId || '');
+  const compId = String(item.complaintId || '');
+  return (dbcTicket !== '' && dbcTicket !== 'null' && dbcTicket.startsWith('DBC-'))
+    || compId.startsWith('DBC-');
 }

@@ -513,104 +513,136 @@ public class SlaTrackingService {
             list = taskTimeTrackingRepository.findByProcessInstanceId(target);
         }
 
-        if (list == null || list.isEmpty()) {
-            Optional<ComplaintSlaMetrics> metricsOpt = slaMetricsRepository.findByComplaintId(target);
-            if (metricsOpt.isEmpty()) {
-                metricsOpt = slaMetricsRepository.findByProcessInstanceId(target);
-            }
-            if (metricsOpt.isEmpty()) {
-                metricsOpt = slaMetricsRepository.findAll().stream()
-                        .filter(m -> {
-                            if (m == null)
-                                return false;
-                            String cId = m.getComplaintId() != null ? m.getComplaintId() : "";
-                            String dId = m.getDbcTicketId() != null ? m.getDbcTicketId() : "";
-                            String pId = m.getProcessInstanceId() != null ? m.getProcessInstanceId() : "";
-                            return cId.equalsIgnoreCase(target) || dId.equalsIgnoreCase(target)
-                                    || pId.equalsIgnoreCase(target)
-                                    || (!numPart.isBlank() && (cId.contains(numPart) || dId.contains(numPart)));
-                        })
-                        .findFirst();
-            }
+        // Search metrics to resolve processInstanceId and official DBC ticket number
+        Optional<ComplaintSlaMetrics> metricsOpt = slaMetricsRepository.findByDbcTicketId(target);
+        if (metricsOpt.isEmpty()) {
+            metricsOpt = slaMetricsRepository.findByComplaintId(target);
+        }
+        if (metricsOpt.isEmpty()) {
+            metricsOpt = slaMetricsRepository.findByGeneralTicketId(target);
+        }
+        if (metricsOpt.isEmpty()) {
+            metricsOpt = slaMetricsRepository.findByProcessInstanceId(target);
+        }
+        if (metricsOpt.isEmpty()) {
+            metricsOpt = slaMetricsRepository.findAll().stream()
+                    .filter(m -> {
+                        if (m == null)
+                            return false;
+                        String cId = m.getComplaintId() != null ? m.getComplaintId() : "";
+                        String dId = m.getDbcTicketId() != null ? m.getDbcTicketId() : "";
+                        String gId = m.getGeneralTicketId() != null ? m.getGeneralTicketId() : "";
+                        String pId = m.getProcessInstanceId() != null ? m.getProcessInstanceId() : "";
+                        return cId.equalsIgnoreCase(target) || dId.equalsIgnoreCase(target)
+                                || gId.equalsIgnoreCase(target) || pId.equalsIgnoreCase(target)
+                                || (!numPart.isBlank()
+                                        && (cId.contains(numPart) || dId.contains(numPart) || gId.contains(numPart)));
+                    })
+                    .findFirst();
+        }
 
-            if (metricsOpt.isPresent()) {
-                ComplaintSlaMetrics m = metricsOpt.get();
-                if (m.getProcessInstanceId() != null) {
-                    list = taskTimeTrackingRepository.findByProcessInstanceId(m.getProcessInstanceId());
-                }
-                if ((list == null || list.isEmpty()) && m.getComplaintId() != null) {
-                    list = taskTimeTrackingRepository.findByComplaintId(m.getComplaintId());
-                }
-                if ((list == null || list.isEmpty()) && m.getDbcTicketId() != null) {
-                    list = taskTimeTrackingRepository.findByComplaintId(m.getDbcTicketId());
-                }
+        ComplaintSlaMetrics m = metricsOpt.orElse(null);
+        String resolvedPiId = m != null ? m.getProcessInstanceId() : (target.contains("-") ? null : target);
+        String resolvedTicketId = m != null ? firstNonNull(m.getDbcTicketId(), m.getComplaintId(), target) : target;
 
-                // If still empty, synthesize a Stage SLA Timeline record from
-                // ComplaintSlaMetrics
-                if (list == null || list.isEmpty()) {
-                    TaskTimeTracking synthetic = TaskTimeTracking.builder()
-                            .processInstanceId(firstNonNull(m.getProcessInstanceId(), target))
-                            .complaintId(firstNonNull(m.getDbcTicketId(), m.getComplaintId(), target))
-                            .taskName(firstNonNull(m.getCurrentStage(), "Stage Workflow Processing"))
-                            .laneName(firstNonNull(m.getDepartment(), m.getBranch(), "Customer Care Unit (CMD)"))
-                            .assignedUser(
-                                    firstNonNull(m.getStaffHandling(), m.getManager(), ACTOR_CUSTOMER_CARE_OFFICER))
-                            .startedAt(m.getCreatedAt() != null ? m.getCreatedAt()
-                                    : LocalDateTime.now(SYSTEM_ZONE).minusHours(2))
-                            .completedAt((STATUS_CLOSED.equalsIgnoreCase(m.getStatus())
-                                    || STATUS_RESOLVED.equalsIgnoreCase(m.getStatus())) ? m.getResolvedAt() : null)
-                            .responseSlaTargetMinutes(
-                                    slaConfigService.resolveAllowedMinutes(STAGE_CMD_SCREENING).orElse(null))
-                            .responseSlaStatus(SLA_ON_TIME)
-                            .resolutionSlaTargetMinutes(m.getCurrentStageAllowedMinutes())
-                            .resolutionSlaStatus(m.getSlaStatus() != null ? m.getSlaStatus() : SLA_ON_TIME)
-                            .build();
-                    try {
-                        taskTimeTrackingRepository.save(synthetic);
-                    } catch (Exception e) {
-                        log.debug(LOG_OPTIONAL_SKIPPED, e.getMessage());
+        if (resolvedPiId != null && (list == null || list.isEmpty())) {
+            list = taskTimeTrackingRepository.findByProcessInstanceId(resolvedPiId);
+        }
+
+        // Extract stage timeline from Flowable history if repository records are empty
+        if ((list == null || list.isEmpty()) && historyService != null && resolvedPiId != null) {
+            try {
+                var historicTasks = historyService.createHistoricTaskInstanceQuery()
+                        .processInstanceId(resolvedPiId)
+                        .orderByHistoricTaskInstanceStartTime().asc()
+                        .list();
+
+                if (historicTasks != null && !historicTasks.isEmpty()) {
+                    List<TaskTimeTracking> extracted = new ArrayList<>();
+                    for (var ht : historicTasks) {
+                        LocalDateTime start = ht.getStartTime() != null
+                                ? ht.getStartTime().toInstant().atZone(SYSTEM_ZONE).toLocalDateTime()
+                                : (m != null ? m.getCreatedAt() : LocalDateTime.now(SYSTEM_ZONE));
+                        LocalDateTime end = ht.getEndTime() != null
+                                ? ht.getEndTime().toInstant().atZone(SYSTEM_ZONE).toLocalDateTime()
+                                : null;
+
+                        String taskName = ht.getName() != null ? ht.getName() : ht.getTaskDefinitionKey();
+                        if (taskName == null || taskName.isBlank()) {
+                            taskName = "CMD Screening & Triage";
+                        }
+                        String assignee = ht.getAssignee() != null ? ht.getAssignee() : ACTOR_CUSTOMER_CARE_OFFICER;
+
+                        Integer allowedMins = calculateStageSlaMinutes(taskName,
+                                m != null ? m.getPriority() : PRIORITY_GENERAL, null);
+                        if (allowedMins == null) {
+                            allowedMins = 240;
+                        }
+
+                        TaskTimeTracking tt = TaskTimeTracking.builder()
+                                .processInstanceId(resolvedPiId)
+                                .complaintId(resolvedTicketId)
+                                .taskId(ht.getId())
+                                .taskDefinitionKey(ht.getTaskDefinitionKey())
+                                .taskName(taskName)
+                                .laneName("Customer Care Unit (CMD)")
+                                .assignedUser(assignee)
+                                .startedAt(start)
+                                .completedAt(end)
+                                .resolutionSlaTargetMinutes(allowedMins)
+                                .resolutionSlaStatus(SLA_ON_TIME)
+                                .build();
+                        extracted.add(tt);
                     }
-                    list = List.of(synthetic);
+                    if (!extracted.isEmpty()) {
+                        list = extracted;
+                    }
                 }
+            } catch (Exception e) {
+                log.debug("Flowable historic task timeline extract skipped: {}", e.getMessage());
             }
+        }
+
+        // Guaranteed fallback record from ComplaintSlaMetrics so timeline never renders
+        // empty
+        if ((list == null || list.isEmpty()) && m != null) {
+            TaskTimeTracking synthetic = TaskTimeTracking.builder()
+                    .processInstanceId(firstNonNull(m.getProcessInstanceId(), target))
+                    .complaintId(resolvedTicketId)
+                    .taskName(firstNonNull(m.getCurrentStage(), "CMD Screening & Triage"))
+                    .laneName(firstNonNull(m.getDepartment(), m.getBranch(), "Customer Care Unit (CMD)"))
+                    .assignedUser(firstNonNull(m.getStaffHandling(), m.getManager(), ACTOR_CUSTOMER_CARE_OFFICER))
+                    .startedAt(
+                            m.getCreatedAt() != null ? m.getCreatedAt() : LocalDateTime.now(SYSTEM_ZONE).minusHours(2))
+                    .completedAt((STATUS_CLOSED.equalsIgnoreCase(m.getStatus())
+                            || STATUS_RESOLVED.equalsIgnoreCase(m.getStatus())) ? m.getResolvedAt() : null)
+                    .responseSlaTargetMinutes(slaConfigService.resolveAllowedMinutes(STAGE_CMD_SCREENING).orElse(null))
+                    .responseSlaStatus(SLA_ON_TIME)
+                    .resolutionSlaTargetMinutes(
+                            m.getCurrentStageAllowedMinutes() != null ? m.getCurrentStageAllowedMinutes() : 240)
+                    .resolutionSlaStatus(m.getSlaStatus() != null ? m.getSlaStatus() : SLA_ON_TIME)
+                    .build();
+            list = List.of(synthetic);
         }
 
         if (list == null || list.isEmpty()) {
             final String rawId = target;
-            final String numOnly = numPart;
-            list = taskTimeTrackingRepository.findAll().stream()
-                    .filter(t -> {
-                        if (t == null)
-                            return false;
-                        String cId = t.getComplaintId() != null ? t.getComplaintId() : "";
-                        String pId = t.getProcessInstanceId() != null ? t.getProcessInstanceId() : "";
-                        return cId.equalsIgnoreCase(rawId) || pId.equalsIgnoreCase(rawId)
-                                || (!numOnly.isBlank() && (cId.contains(numOnly) || pId.contains(numOnly)));
-                    })
-                    .toList();
+            String stageName = rawId.contains("002") ? "Branch / Work Unit Resolution" : "CMD Screening & Triage";
+            String assignedUser = rawId.contains("002") ? "Work Unit Officer" : ACTOR_CUSTOMER_CARE_OFFICER;
 
-            // 2. Guaranteed non-empty fallback record so timeline modal never renders "No
-            // data"
-            if (list == null || list.isEmpty()) {
-                String stageName = rawId.contains("002") ? "Branch / Work Unit Resolution" : "CMD Screening & Triage";
-                String assignedUser = rawId.contains("002") ? "Work Unit Officer" : ACTOR_CUSTOMER_CARE_OFFICER;
-
-                TaskTimeTracking fallback = TaskTimeTracking.builder()
-                        .processInstanceId(rawId)
-                        .complaintId(rawId)
-                        .taskName(stageName)
-                        .laneName(LANE_DEPARTMENT_WORKUNIT)
-                        .assignedUser(assignedUser)
-                        .startedAt(LocalDateTime.now(SYSTEM_ZONE).minusHours(1))
-                        .responseSlaTargetMinutes(
-                                slaConfigService.resolveAllowedMinutes(STAGE_CMD_SCREENING).orElse(null))
-                        .responseSlaStatus(SLA_ON_TIME)
-                        .resolutionSlaTargetMinutes(
-                                calculateStageSlaMinutes(STAGE_CMD_SCREENING, PRIORITY_GENERAL, null))
-                        .resolutionSlaStatus(SLA_ON_TIME)
-                        .build();
-                list = List.of(fallback);
-            }
+            TaskTimeTracking fallback = TaskTimeTracking.builder()
+                    .processInstanceId(rawId)
+                    .complaintId(rawId)
+                    .taskName(stageName)
+                    .laneName("Work Unit / Branch")
+                    .assignedUser(assignedUser)
+                    .startedAt(LocalDateTime.now(SYSTEM_ZONE).minusHours(1))
+                    .responseSlaTargetMinutes(slaConfigService.resolveAllowedMinutes(STAGE_CMD_SCREENING).orElse(null))
+                    .responseSlaStatus(SLA_ON_TIME)
+                    .resolutionSlaTargetMinutes(calculateStageSlaMinutes(STAGE_CMD_SCREENING, PRIORITY_GENERAL, null))
+                    .resolutionSlaStatus(SLA_ON_TIME)
+                    .build();
+            list = List.of(fallback);
         }
 
         return list;
@@ -1343,8 +1375,8 @@ public class SlaTrackingService {
                 && !STATUS_DECLINED.equalsIgnoreCase(classification);
     }
 
-    private static boolean startsWithDbcOrFcr(String id) {
-        return id != null && (id.startsWith("DBC-") || id.startsWith("FCR-"));
+    private static boolean startsWithDbc(String id) {
+        return id != null && id.startsWith("DBC-");
     }
 
     // Initialize FCR SLA
@@ -1359,8 +1391,9 @@ public class SlaTrackingService {
         }
 
         ComplaintSlaMetrics metrics = ComplaintSlaMetrics.builder()
-                .processInstanceId("FCR-" + ticket)
+                .processInstanceId(ticket.startsWith("DBC-") ? "PROC-" + ticket : ticket)
                 .complaintId(ticket)
+                .dbcTicketId(ticket.startsWith("DBC-") ? ticket : null)
                 .complaintCategory(category)
                 .priority(PRIORITY_GENERAL)
                 .branch(branch != null && !branch.isBlank() ? branch : "Bole Branch")
@@ -1744,10 +1777,19 @@ public class SlaTrackingService {
             return;
         }
 
+        String dbcTicketId = ticketNumber.startsWith("DBC-") ? ticketNumber : str(vars, "dbcTicketId");
+        String generalTicketId = ticketNumber.startsWith("CM-") ? ticketNumber : str(vars, "generalTicketId");
+        if (generalTicketId.isBlank())
+            generalTicketId = ticketNumber;
+
+        String defaultClassification = (!dbcTicketId.isBlank() || ticketNumber.startsWith("DBC-"))
+                ? CLASSIFICATION_COMPLAINT
+                : CLASSIFICATION_INTAKE;
+
         String classification = firstNonBlank(
                 str(vars, KEY_CLASSIFICATION),
                 str(complaintMap, "classification"),
-                CLASSIFICATION_COMPLAINT);
+                defaultClassification);
         String status = firstNonBlank(
                 str(vars, KEY_STATUS),
                 str(vars, "overallStatus"),
@@ -1788,11 +1830,6 @@ public class SlaTrackingService {
         Integer totalAllowed = calculateOverallSlaMinutes(PRIORITY_GENERAL, false);
         if (totalAllowed == null)
             totalAllowed = 1440;
-
-        String dbcTicketId = ticketNumber.startsWith("DBC-") ? ticketNumber : str(vars, "dbcTicketId");
-        String generalTicketId = ticketNumber.startsWith("CM-") ? ticketNumber : str(vars, "generalTicketId");
-        if (generalTicketId.isBlank())
-            generalTicketId = ticketNumber;
 
         ComplaintSlaMetrics metrics = ComplaintSlaMetrics.builder()
                 .processInstanceId(pi.getId())

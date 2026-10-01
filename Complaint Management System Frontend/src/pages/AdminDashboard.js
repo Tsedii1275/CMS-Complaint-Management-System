@@ -309,9 +309,10 @@ function isClassifiedComplaint(item) {
   if (status === 'OTHER' && cls !== 'COMPLAINT' && cls !== 'DECLINED') {
     return false;
   }
-  const cId = item.dbcTicketId || item.variables?.dbcTicketId || item.complaintId || item.generalTicketId || '';
-  const fcr = item.fcrStatus === true || item.variables?.fcrStatus === 'VERIFIED';
-  return cls === 'COMPLAINT' || cls === 'DECLINED' || status === 'DECLINED' || String(cId).startsWith('DBC-') || String(cId).startsWith('FCR-') || fcr;
+  const dbcTicket = item.dbcTicketId || item.variables?.dbcTicketId || '';
+  const compId = item.complaintId || '';
+  const hasDbcTicket = String(dbcTicket).startsWith('DBC-') || String(compId).startsWith('DBC-');
+  return status === 'DECLINED' || cls === 'DECLINED' || hasDbcTicket;
 }
 
 function buildAnalyticsFilters(filters) {

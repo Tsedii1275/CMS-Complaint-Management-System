@@ -147,7 +147,7 @@ function NBEReports() {
         }
         const cId = String(r.dbcTicketId || r.complaintId || '');
         return cls === 'COMPLAINT' || cls === 'DECLINED' || status === 'DECLINED'
-          || cId.startsWith('DBC-') || cId.startsWith('FCR-');
+          || cId.startsWith('DBC-');
       }).sort((a, b) => compareTicketNumbersAsc(
         a.dbcTicketId || a.complaintId,
         b.dbcTicketId || b.complaintId
