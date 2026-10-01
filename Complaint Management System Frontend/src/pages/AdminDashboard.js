@@ -463,12 +463,30 @@ function AdminDashboard() {
 
       const apiFilters = buildAnalyticsFilters(filters);
 
-      await ApiService.getAnalyticsStats(apiFilters);
+      try {
+        await ApiService.getAnalyticsStats(apiFilters);
+      } catch (err) {
+        if (err.message && err.message.includes('403')) {
+          setError('Access Denied: You are not authorized to view analytics for this organizational scope.');
+        } else if (err.message && err.message.includes('401')) {
+          setError('Authentication expired. Please log in again.');
+        }
+      }
 
-      const trendRes = await ApiService.getAnalyticsTrend(trendInterval, apiFilters);
+      const trendRes = await ApiService.getAnalyticsTrend(trendInterval, apiFilters).catch(err => {
+        if (err.message && (err.message.includes('403') || err.message.includes('Access denied'))) {
+          setError('Access Denied: You are not authorized to view analytics trends for this scope.');
+        }
+        return [];
+      });
       setTrendData(trendRes || []);
 
-      const reportsRes = await ApiService.getAnalyticsReports(apiFilters).catch(() => []);
+      const reportsRes = await ApiService.getAnalyticsReports(apiFilters).catch(err => {
+        if (err.message && (err.message.includes('403') || err.message.includes('Access denied'))) {
+          setError('Access Denied: You are not authorized to view analytics reports for this scope.');
+        }
+        return [];
+      });
       const allReports = (reportsRes || []).filter(isClassifiedComplaint)
         .filter(item => !filters.complaintId || matchesTicketSearch(item, filters.complaintId));
       setReportsData(allReports);
@@ -479,10 +497,10 @@ function AdminDashboard() {
       let criError = '';
       try {
         criRes = await ApiService.getComplainantRelatedInformation({
-        search: filters.complaintId,
-        status: filters.status,
-        category: filters.category,
-        district: filters.district
+          search: filters.complaintId,
+          status: filters.status,
+          category: filters.category,
+          district: filters.district
         });
       } catch (criErr) {
         criError = `Could not load Complainant Related Information: ${criErr.message}`;
@@ -503,7 +521,7 @@ function AdminDashboard() {
       const auditRes = await ApiService.getAuditLogs(apiFilters).catch(() => []);
       setLogs(auditRes || []);
     } catch (err) {
-      setError('Failed to load analytics dashboard data.');
+      setError(err.message || 'Failed to load analytics dashboard data.');
       console.error(err);
     } finally {
       setLoading(false);
@@ -549,52 +567,52 @@ function AdminDashboard() {
     setSavingRow(true);
     try {
       const saved = await ApiService.updateComplainantRelatedInformation(targetId, {
-          nameOfComplainant: rowToSave.nameOfComplainant,
-          accountNo: rowToSave.accountNo,
-          contactAddress: rowToSave.contactAddress,
-          customerSegment: rowToSave.customerSegment,
-          receivedBy: rowToSave.receivedBy,
-          complaintMadeOnChannel: rowToSave.complaintMadeOnChannel || rowToSave.complaintMadeOn,
-          specificChannelName: rowToSave.specificChannelName,
-          districtDepartment: rowToSave.districtDepartment,
-          serviceType: rowToSave.serviceType,
-          detailsOfComplaint: rowToSave.detailsOfComplaint,
-          complaintClassification: rowToSave.complaintClassification,
-          supportingEvidence: rowToSave.supportingEvidence,
-          complainantAcknowledged: rowToSave.complainantAcknowledged,
-          complaintJustified: rowToSave.complaintJustified || rowToSave.isComplaintJustified,
-          validityReasonForJustifiedComplaints: rowToSave.validityReasonForJustifiedComplaints || rowToSave.validityReasonJustified,
-          natureOfComplaints: rowToSave.natureOfComplaints,
-          complaintsCategory: rowToSave.complaintsCategory,
-          caseAssignedTo: rowToSave.caseAssignedTo,
-          caseForwardedTo: rowToSave.caseForwardedTo,
-          reasonForForwarding: rowToSave.reasonForForwarding,
-          caseStatus: rowToSave.caseStatus,
+        nameOfComplainant: rowToSave.nameOfComplainant,
+        accountNo: rowToSave.accountNo,
+        contactAddress: rowToSave.contactAddress,
+        customerSegment: rowToSave.customerSegment,
+        receivedBy: rowToSave.receivedBy,
+        complaintMadeOnChannel: rowToSave.complaintMadeOnChannel || rowToSave.complaintMadeOn,
+        specificChannelName: rowToSave.specificChannelName,
+        districtDepartment: rowToSave.districtDepartment,
+        serviceType: rowToSave.serviceType,
+        detailsOfComplaint: rowToSave.detailsOfComplaint,
+        complaintClassification: rowToSave.complaintClassification,
+        supportingEvidence: rowToSave.supportingEvidence,
+        complainantAcknowledged: rowToSave.complainantAcknowledged,
+        complaintJustified: rowToSave.complaintJustified || rowToSave.isComplaintJustified,
+        validityReasonForJustifiedComplaints: rowToSave.validityReasonForJustifiedComplaints || rowToSave.validityReasonJustified,
+        natureOfComplaints: rowToSave.natureOfComplaints,
+        complaintsCategory: rowToSave.complaintsCategory,
+        caseAssignedTo: rowToSave.caseAssignedTo,
+        caseForwardedTo: rowToSave.caseForwardedTo,
+        reasonForForwarding: rowToSave.reasonForForwarding,
+        caseStatus: rowToSave.caseStatus,
         dateOfComplaint: toIsoDateTime(rowToSave.dateOfComplaint),
         expectedResolutionDate: toIsoDateTime(rowToSave.expectedResolutionDate),
         actualResolutionDate: toIsoDateTime(rowToSave.actualResolutionDate),
         dateCaseForwarded: toIsoDateTime(rowToSave.dateCaseForwarded),
         dateOfEscalation: toIsoDateTime(rowToSave.dateOfEscalation),
-          escalatedTo: rowToSave.escalatedTo,
-          reasonForEscalation: rowToSave.reasonForEscalation,
-          resolutionPlan: rowToSave.resolutionPlan,
-          resolutionOutcomeNotified: rowToSave.resolutionOutcomeNotified || rowToSave.isResolutionOutcomeNotified,
-          meansOfNotification: rowToSave.meansOfNotification,
-          complainantAcknowledgedResolution: rowToSave.complainantAcknowledgedResolution || rowToSave.wasComplainantAcknowledgeResolution,
-          adviceGivenToComplainant: rowToSave.adviceGivenToComplainant || rowToSave.adviceGiven,
-          customerReactionToHandlingProcess: rowToSave.customerReactionToHandlingProcess || rowToSave.customerReaction,
-          customerLifetimeValue: rowToSave.customerLifetimeValue,
-          remarkAndSpecialNote: rowToSave.remarkAndSpecialNote,
-          requiresFollowUp: rowToSave.requiresFollowUp,
-          latestStatusAndRemark: rowToSave.latestStatusAndRemark
-        });
+        escalatedTo: rowToSave.escalatedTo,
+        reasonForEscalation: rowToSave.reasonForEscalation,
+        resolutionPlan: rowToSave.resolutionPlan,
+        resolutionOutcomeNotified: rowToSave.resolutionOutcomeNotified || rowToSave.isResolutionOutcomeNotified,
+        meansOfNotification: rowToSave.meansOfNotification,
+        complainantAcknowledgedResolution: rowToSave.complainantAcknowledgedResolution || rowToSave.wasComplainantAcknowledgeResolution,
+        adviceGivenToComplainant: rowToSave.adviceGivenToComplainant || rowToSave.adviceGiven,
+        customerReactionToHandlingProcess: rowToSave.customerReactionToHandlingProcess || rowToSave.customerReaction,
+        customerLifetimeValue: rowToSave.customerLifetimeValue,
+        remarkAndSpecialNote: rowToSave.remarkAndSpecialNote,
+        requiresFollowUp: rowToSave.requiresFollowUp,
+        latestStatusAndRemark: rowToSave.latestStatusAndRemark
+      });
 
       // Render what the database actually stored, not the local edit buffer.
       setMasterData(prev => prev.map(row => (
         row.key === key ? { ...mapCriItemToMasterRow(saved, row.sNo - 1), sNo: row.sNo, key: row.key } : row
       )));
-    setEditingKey('');
-    setEditingRowData({});
+      setEditingKey('');
+      setEditingRowData({});
       message.success('Complainant Related Information saved successfully.');
     } catch (err) {
       console.error('CRI update failed:', err);
@@ -611,13 +629,13 @@ function AdminDashboard() {
       return;
     }
 
-      try {
-        await ApiService.deleteComplainantRelatedInformation(targetId);
-      } catch (err) {
+    try {
+      await ApiService.deleteComplainantRelatedInformation(targetId);
+    } catch (err) {
       console.error('CRI delete failed:', err);
       message.error(`Delete failed: ${err.message}. The record was not removed.`);
       return;
-      }
+    }
 
     setMasterData(prev => prev.filter(row => row.key !== key));
     if (editingKey === key) {
@@ -932,16 +950,16 @@ function AdminDashboard() {
               title={<span style={{ fontWeight: 600, color: BRAND_COLORS.primary }}><LineChartOutlined /> Complaint Volume Trend Analysis</span>}
               style={{ borderRadius: '8px', height: '100%' }}
             >
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
-            <Select value={trendInterval} onChange={setTrendInterval} style={{ width: 120 }}>
-              <Option value="daily">Daily</Option>
-              <Option value="weekly">Weekly</Option>
-              <Option value="monthly">Monthly</Option>
-              <Option value="yearly">Yearly</Option>
-            </Select>
-          </div>
-          {renderTrendChart()}
-        </Card>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+                <Select value={trendInterval} onChange={setTrendInterval} style={{ width: 120 }}>
+                  <Option value="daily">Daily</Option>
+                  <Option value="weekly">Weekly</Option>
+                  <Option value="monthly">Monthly</Option>
+                  <Option value="yearly">Yearly</Option>
+                </Select>
+              </div>
+              {renderTrendChart()}
+            </Card>
           </Col>
           <Col xs={24} xl={10}>
             <Card

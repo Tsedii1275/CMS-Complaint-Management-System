@@ -204,7 +204,7 @@ public class AuditController {
     }
 
     @GetMapping("/analytics/stats")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getStats(
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String branch,
@@ -230,7 +230,8 @@ public class AuditController {
         double totalDurationMinutes = 0;
         int durationCount = 0;
         for (var m : filtered) {
-            if (STATUS_CLOSED.equalsIgnoreCase(m.getStatus()) && m.getResolvedAt() != null && m.getCreatedAt() != null) {
+            if (STATUS_CLOSED.equalsIgnoreCase(m.getStatus()) && m.getResolvedAt() != null
+                    && m.getCreatedAt() != null) {
                 long diff = Math.abs(java.time.Duration.between(m.getCreatedAt(), m.getResolvedAt()).toMinutes());
                 if (diff == 0)
                     diff = 120; // Default 2 hours if timestamps are identical
@@ -255,7 +256,7 @@ public class AuditController {
     }
 
     @GetMapping("/analytics/trend")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getTrend(
             @RequestParam(required = false) String interval,
             @RequestParam(required = false) String category,
@@ -302,7 +303,7 @@ public class AuditController {
     }
 
     @GetMapping("/analytics/reports")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getReports(
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String branch,
@@ -418,7 +419,8 @@ public class AuditController {
             putIfHasText(map, EVIDENCE_URL, evUrl);
             putIfHasText(map, VOICE_ATTACHMENT_URL, voiceUrl);
         } catch (Exception e) {
-            log.debug("Skipping historic variable enrichment for process {}: {}", m.getProcessInstanceId(), e.getMessage());
+            log.debug("Skipping historic variable enrichment for process {}: {}", m.getProcessInstanceId(),
+                    e.getMessage());
         }
     }
 
@@ -442,7 +444,7 @@ public class AuditController {
     }
 
     @GetMapping("/analytics/export")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> exportReports(
             @RequestParam(required = false) String format,
             @RequestParam(required = false) String category,

@@ -114,9 +114,10 @@ public class SlaAlertAuthorizationService {
                 && !SlaAlertScope.isCentralSlaRole(role)) {
             return false;
         }
-        String effectiveStage = activeTaskKey != null
-                ? SlaAlertScope.stageCodeFromTaskKey(activeTaskKey)
-                : SlaAlertScope.canonicalizeStage(metrics.getCurrentStage());
+        if (activeTaskKey == null || activeTaskKey.isBlank()) {
+            return true;
+        }
+        String effectiveStage = SlaAlertScope.stageCodeFromTaskKey(activeTaskKey);
         if (effectiveStage == null) {
             effectiveStage = SlaAlertScope.canonicalizeStage(metrics.getCurrentStage());
         }

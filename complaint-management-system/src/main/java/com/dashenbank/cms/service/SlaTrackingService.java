@@ -51,19 +51,22 @@ public class SlaTrackingService {
     private final BusinessHoursService businessHoursService;
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
     private final RuntimeService runtimeService;
+    private final org.flowable.engine.HistoryService historyService;
 
     public SlaTrackingService(ComplaintSlaMetricsRepository slaMetricsRepository,
             TaskTimeTrackingRepository taskTimeTrackingRepository,
             SlaConfigService slaConfigService,
             BusinessHoursService businessHoursService,
             org.springframework.jdbc.core.JdbcTemplate jdbcTemplate,
-            ObjectProvider<RuntimeService> runtimeServiceProvider) {
+            ObjectProvider<RuntimeService> runtimeServiceProvider,
+            ObjectProvider<org.flowable.engine.HistoryService> historyServiceProvider) {
         this.slaMetricsRepository = slaMetricsRepository;
         this.taskTimeTrackingRepository = taskTimeTrackingRepository;
         this.slaConfigService = slaConfigService;
         this.businessHoursService = businessHoursService;
         this.jdbcTemplate = jdbcTemplate;
         this.runtimeService = runtimeServiceProvider.getIfAvailable();
+        this.historyService = historyServiceProvider.getIfAvailable();
     }
 
     // Task definition key -> Lane mapping
@@ -1159,6 +1162,7 @@ public class SlaTrackingService {
                 log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
             }
         }
+        syncMissingSlaMetricsFromFlowableHistory();
         List<ComplaintSlaMetrics> all = slaMetricsRepository.findAll();
         for (ComplaintSlaMetrics m : all) {
             reconcileIntakeRowFromWorkflow(m);
@@ -1655,6 +1659,15 @@ public class SlaTrackingService {
         return null;
     }
 
+    private static String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank() && !"null".equalsIgnoreCase(value)) {
+                return value;
+            }
+        }
+        return "";
+    }
+
     private static String resolveDbcGroupingKey(ComplaintSlaMetrics metrics) {
         if (metrics.getDbcTicketId() != null && metrics.getDbcTicketId().startsWith("DBC-")) {
             return metrics.getDbcTicketId();
@@ -1663,5 +1676,164 @@ public class SlaTrackingService {
             return metrics.getComplaintId();
         }
         return null;
+    }
+
+    private volatile long lastHistorySyncTimeMs = 0;
+
+    private void syncMissingSlaMetricsFromFlowableHistory() {
+        if (historyService == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastHistorySyncTimeMs < 15000) { // 15 second throttle
+            return;
+        }
+        lastHistorySyncTimeMs = now;
+
+        try {
+            var historicInstances = historyService.createHistoricProcessInstanceQuery()
+                    .includeProcessVariables()
+                    .list();
+            if (historicInstances == null || historicInstances.isEmpty()) {
+                return;
+            }
+            Set<String> existingProcessIds = new HashSet<>();
+            Set<String> existingTicketIds = new HashSet<>();
+            for (ComplaintSlaMetrics m : slaMetricsRepository.findAll()) {
+                if (m.getProcessInstanceId() != null) {
+                    existingProcessIds.add(m.getProcessInstanceId());
+                }
+                if (m.getComplaintId() != null) {
+                    existingTicketIds.add(m.getComplaintId());
+                }
+                if (m.getGeneralTicketId() != null) {
+                    existingTicketIds.add(m.getGeneralTicketId());
+                }
+                if (m.getDbcTicketId() != null) {
+                    existingTicketIds.add(m.getDbcTicketId());
+                }
+            }
+            for (var pi : historicInstances) {
+                if (!existingProcessIds.contains(pi.getId())) {
+                    backfillSlaMetricFromHistoricInstance(pi, existingTicketIds);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not auto-backfill SLA metrics from Flowable history: {}", e.getMessage());
+        }
+    }
+
+    @Transactional
+    public void backfillSlaMetricFromHistoricInstance(org.flowable.engine.history.HistoricProcessInstance pi,
+            Set<String> existingTicketIds) {
+        if (pi == null)
+            return;
+        Map<String, Object> vars = pi.getProcessVariables() != null ? pi.getProcessVariables() : Map.of();
+
+        Map<String, Object> complaintMap = castToMap(vars.get("complaint"));
+        Map<String, Object> customerMap = castToMap(vars.get("customer"));
+
+        String ticketNumber = firstNonBlank(
+                str(vars, "dbcTicketId"),
+                str(vars, KEY_COMPLAINT_ID),
+                str(vars, "generalTicketId"),
+                str(complaintMap, "id"),
+                str(complaintMap, "ticketNumber"));
+        if (ticketNumber == null || ticketNumber.isBlank() || "null".equalsIgnoreCase(ticketNumber)) {
+            return;
+        }
+
+        if (existingTicketIds != null && existingTicketIds.contains(ticketNumber)) {
+            return;
+        }
+
+        String classification = firstNonBlank(
+                str(vars, KEY_CLASSIFICATION),
+                str(complaintMap, "classification"),
+                CLASSIFICATION_COMPLAINT);
+        String status = firstNonBlank(
+                str(vars, KEY_STATUS),
+                str(vars, "overallStatus"),
+                str(complaintMap, "status"),
+                STATUS_ON_TRACK);
+
+        if (CLASSIFICATION_OTHER.equalsIgnoreCase(classification) || CLASSIFICATION_OTHER.equalsIgnoreCase(status)) {
+            return;
+        }
+
+        String customerName = firstNonBlank(
+                str(customerMap, "fullName"),
+                str(customerMap, "name"),
+                str(vars, "complainantName"),
+                str(customerMap, "complainantName"),
+                "Unknown Customer");
+        String category = firstNonBlank(
+                str(complaintMap, "category"),
+                str(vars, "complaintCategory"),
+                "General");
+        String branch = firstNonBlank(
+                str(complaintMap, "branch"),
+                str(vars, "branch"),
+                "Bole Branch");
+        String district = getDistrictForBranch(branch);
+        String channel = firstNonBlank(
+                str(complaintMap, "channel"),
+                str(vars, "channel"),
+                "Branch");
+
+        LocalDateTime createdAt = pi.getStartTime() != null
+                ? pi.getStartTime().toInstant().atZone(SYSTEM_ZONE).toLocalDateTime()
+                : LocalDateTime.now(SYSTEM_ZONE);
+        LocalDateTime resolvedAt = pi.getEndTime() != null
+                ? pi.getEndTime().toInstant().atZone(SYSTEM_ZONE).toLocalDateTime()
+                : null;
+
+        Integer totalAllowed = calculateOverallSlaMinutes(PRIORITY_GENERAL, false);
+        if (totalAllowed == null)
+            totalAllowed = 1440;
+
+        String dbcTicketId = ticketNumber.startsWith("DBC-") ? ticketNumber : str(vars, "dbcTicketId");
+        String generalTicketId = ticketNumber.startsWith("CM-") ? ticketNumber : str(vars, "generalTicketId");
+        if (generalTicketId.isBlank())
+            generalTicketId = ticketNumber;
+
+        ComplaintSlaMetrics metrics = ComplaintSlaMetrics.builder()
+                .processInstanceId(pi.getId())
+                .complaintId(ticketNumber)
+                .dbcTicketId(!dbcTicketId.isBlank() ? dbcTicketId : null)
+                .generalTicketId(generalTicketId)
+                .complaintCategory(category)
+                .priority(PRIORITY_GENERAL)
+                .classification(classification)
+                .status(status)
+                .overallStatus(status)
+                .branch(branch)
+                .district(district)
+                .channel(channel)
+                .customerName(customerName)
+                .currentStage(resolvedAt != null ? "COMPLETED" : STAGE_CMD_SCREENING)
+                .slaStatus(resolvedAt != null ? "RESOLVED_WITHIN_SLA" : SLA_ON_TIME)
+                .breached(false)
+                .totalAllowedMinutes(totalAllowed)
+                .totalElapsedMinutes(0)
+                .remainingMinutes(totalAllowed)
+                .createdAt(createdAt)
+                .resolvedAt(resolvedAt)
+                .build();
+
+        slaMetricsRepository.save(metrics);
+        if (existingTicketIds != null) {
+            existingTicketIds.add(ticketNumber);
+        }
+        log.info("Auto-backfilled SLA metrics for ticket {} from Flowable history instance {}", ticketNumber,
+                pi.getId());
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> castToMap(Object obj) {
+        if (obj instanceof Map<?, ?> map) {
+            return (Map<String, Object>) map;
+        }
+        return Map.of();
     }
 }

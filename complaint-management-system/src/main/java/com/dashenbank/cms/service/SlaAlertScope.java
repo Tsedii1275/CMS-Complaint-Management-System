@@ -251,8 +251,9 @@ public final class SlaAlertScope {
             return true;
         }
         String canonical = canonicalizeStage(stageCode);
-        if (canonical == null) {
-            return false;
+        if (canonical == null || "RESOLVED".equalsIgnoreCase(canonical) || "CLOSED".equalsIgnoreCase(canonical)
+                || "DECLINED".equalsIgnoreCase(canonical) || "COMPLETED".equalsIgnoreCase(canonical)) {
+            return true;
         }
         return authorizedStageCodes(role).contains(canonical);
     }
