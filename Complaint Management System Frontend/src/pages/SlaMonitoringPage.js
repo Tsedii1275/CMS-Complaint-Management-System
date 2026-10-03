@@ -405,8 +405,12 @@ function SlaMonitoringPage() {
     ]
   });
 
-  const handleOpenTimeline = (complaintId) => {
-    setSelectedComplaintId(complaintId);
+  const handleOpenTimeline = (recordOrId) => {
+    const targetId = typeof recordOrId === 'string'
+      ? recordOrId
+      : (recordOrId?.dbcTicketId || recordOrId?.complaintId || recordOrId?.generalTicketId || recordOrId?.processInstanceId || formatUniqueId(recordOrId));
+    if (!targetId) return;
+    setSelectedComplaintId(targetId);
     setIsTimelineModalOpen(true);
   };
 
