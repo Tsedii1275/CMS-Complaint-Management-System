@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Typography, Table, Tag, DatePicker, Select, Input, Space, Button, Alert, Tooltip, Tabs, Modal, message, Popconfirm, Row, Col } from 'antd';
+import { Card, Typography, Table, Tag, DatePicker, Select, Input, Space, Button, Alert, Tooltip, Tabs, Modal, message, Popconfirm, Row, Col, Statistic } from 'antd';
 import { WarningOutlined, CheckCircleOutlined, ExclamationCircleOutlined, LineChartOutlined, PieChartOutlined, SettingOutlined, SyncOutlined, EditOutlined, DeleteOutlined, PaperClipOutlined } from '@ant-design/icons';
 import DashboardLayout from '../components/DashboardLayout';
 import ExportDropdown from '../components/ExportDropdown';
@@ -301,8 +301,8 @@ const SLA_STATUS_CONFIG = {
 
 function isClassifiedComplaint(item) {
   if (!item) return false;
-  const cls = (item.classification || '').toUpperCase();
-  const status = (item.status || '').toUpperCase();
+  const cls = (item.classification || item.complaintClassification || '').toUpperCase();
+  const status = (item.status || item.caseStatus || '').toUpperCase();
   if (cls === 'OTHER' || cls === 'INTAKE') {
     return false;
   }
@@ -310,7 +310,7 @@ function isClassifiedComplaint(item) {
     return false;
   }
   const dbcTicket = item.dbcTicketId || item.variables?.dbcTicketId || '';
-  const compId = item.complaintId || '';
+  const compId = item.complaintId || item.uniqueIdNo || '';
   const hasDbcTicket = String(dbcTicket).startsWith('DBC-') || String(compId).startsWith('DBC-');
   return status === 'DECLINED' || cls === 'DECLINED' || hasDbcTicket;
 }
@@ -410,6 +410,15 @@ function AdminDashboard() {
   const [editingRowData, setEditingRowData] = useState({});
   const [savingRow, setSavingRow] = useState(false);
 
+  // Stats data
+  const [statsData, setStatsData] = useState({
+    totalCount: 0,
+    closedCount: 0,
+    fcrCount: 0,
+    slaComplianceRate: 100,
+    overdueCount: 0
+  });
+
   // Pagination states
   const [masterPage, setMasterPage] = useState(1);
   const [masterPageSize, setMasterPageSize] = useState(10);
@@ -465,7 +474,10 @@ function AdminDashboard() {
       const apiFilters = buildAnalyticsFilters(filters);
 
       try {
-        await ApiService.getAnalyticsStats(apiFilters);
+        const statsRes = await ApiService.getAnalyticsStats(apiFilters);
+        if (statsRes) {
+          setStatsData(statsRes);
+        }
       } catch (err) {
         if (err.message && err.message.includes('403')) {
           setError('Access Denied: You are not authorized to view analytics for this organizational scope.');
@@ -919,10 +931,11 @@ function AdminDashboard() {
 
   const categorySlices = Object.entries(
     masterData.reduce((acc, row) => {
-      if (!hasDisplayCategory(row.complaintsCategory)) {
+      const cat = row.complaintsCategory && row.complaintsCategory !== '-' ? row.complaintsCategory : (row.complaintCategory || row.category || '');
+      if (!hasDisplayCategory(cat)) {
         return acc;
       }
-      acc[row.complaintsCategory] = (acc[row.complaintsCategory] || 0) + 1;
+      acc[cat] = (acc[cat] || 0) + 1;
       return acc;
     }, {})
   )
@@ -946,6 +959,46 @@ function AdminDashboard() {
         </div>
 
         {error && <Alert message={error} type="error" showIcon style={{ marginBottom: 16 }} />}
+
+        {/* Complaints Overview KPI Summary */}
+        <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
+          <Col xs={24} sm={12} md={6}>
+            <Card style={{ borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <Statistic
+                title={<span style={{ fontWeight: 600, color: '#64748b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Complaints</span>}
+                value={statsData?.totalCount ?? masterData.length}
+                valueStyle={{ color: BRAND_COLORS.primary, fontWeight: 800, fontSize: '24px' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Card style={{ borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <Statistic
+                title={<span style={{ fontWeight: 600, color: '#64748b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Closed Complaints</span>}
+                value={statsData?.closedCount ?? 0}
+                valueStyle={{ color: '#059669', fontWeight: 800, fontSize: '24px' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Card style={{ borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <Statistic
+                title={<span style={{ fontWeight: 600, color: '#64748b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>SLA Compliance Rate</span>}
+                value={statsData?.slaComplianceRate !== undefined ? `${statsData.slaComplianceRate.toFixed(1)}%` : '100%'}
+                valueStyle={{ color: '#2563eb', fontWeight: 800, fontSize: '24px' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Card style={{ borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <Statistic
+                title={<span style={{ fontWeight: 600, color: '#64748b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Overdue Complaints</span>}
+                value={statsData?.overdueCount ?? 0}
+                valueStyle={{ color: '#dc2626', fontWeight: 800, fontSize: '24px' }}
+              />
+            </Card>
+          </Col>
+        </Row>
 
         <Row gutter={[16, 16]} style={{ marginBottom: '24px' }} align="stretch">
           <Col xs={24} xl={14}>

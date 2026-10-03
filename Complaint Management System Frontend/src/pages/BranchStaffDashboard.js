@@ -7,7 +7,7 @@ import ApiService from '../services/api';
 import { BRAND_COLORS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { renderComplaintStatusTag } from '../utils/statusUtils';
-import { isResolvedAtFcr } from '../utils/slaMetrics';
+import { isResolvedAtFcr, classifyComplaintFilter } from '../utils/slaMetrics';
 
 const { Title, Text } = Typography;
 
@@ -197,21 +197,7 @@ function BranchStaffDashboard() {
       setOtherComplaints(Array.isArray(otherData) ? otherData : []);
 
       // Fetch ALL registered complaints EXCLUDING OTHER and INTAKE-only records.
-      const filtered = (slaData || []).filter(item => {
-        if (!item) return false;
-        const cls = (item.classification || '').toUpperCase();
-        const st = (item.status || '').toUpperCase();
-        if (cls === 'OTHER' || st === 'OTHER') {
-          return false;
-        }
-        if (cls === 'DECLINED' || st === 'DECLINED') {
-          return true;
-        }
-        const dbcTicket = String(item.dbcTicketId || '');
-        const compId = String(item.complaintId || '');
-        return (dbcTicket !== '' && dbcTicket !== 'null' && dbcTicket.startsWith('DBC-'))
-          || compId.startsWith('DBC-');
-      });
+      const filtered = (slaData || []).filter(classifyComplaintFilter);
 
       setScopedComplaints(filtered);
     } catch (err) {

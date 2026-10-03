@@ -316,7 +316,16 @@ public class SlaAlertAuthorizationService {
             return;
         }
         User user = requireCurrentUser();
-        Optional<ComplaintSlaMetrics> metrics = slaMetricsRepository.findByComplaintId(complaintId);
+        Optional<ComplaintSlaMetrics> metrics = slaMetricsRepository.findByDbcTicketId(complaintId);
+        if (metrics.isEmpty()) {
+            metrics = slaMetricsRepository.findByComplaintId(complaintId);
+        }
+        if (metrics.isEmpty()) {
+            metrics = slaMetricsRepository.findByGeneralTicketId(complaintId);
+        }
+        if (metrics.isEmpty()) {
+            metrics = slaMetricsRepository.findByProcessInstanceId(complaintId);
+        }
         if (metrics.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "SLA record not found");
         }

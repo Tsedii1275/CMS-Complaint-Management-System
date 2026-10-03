@@ -207,6 +207,7 @@ function TaskTable({ tasks = [], onSelectTask, onAssignTask, showPriority = fals
       dataIndex: 'complaintId',
       key: 'complaintId',
       width: 250,
+      sorter: (a, b) => compareTicketNumbersAsc(formatUniqueId(a), formatUniqueId(b)),
       render: (id, r) => {
         const vars = recordVariables(r);
         const isCommitteeRejected = vars.committeeDecision === 'rejected' ||

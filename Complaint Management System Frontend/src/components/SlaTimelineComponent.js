@@ -91,6 +91,12 @@ function toTimelineList(data) {
   if (data && Array.isArray(data.data)) {
     return data.data;
   }
+  if (data && Array.isArray(data.timeline)) {
+    return data.timeline;
+  }
+  if (data && Array.isArray(data.content)) {
+    return data.content;
+  }
   return [];
 }
 
@@ -188,7 +194,10 @@ function SlaTimelineComponent({ complaintId }) {
     try {
       setLoading(true);
       const [data, summaryData] = await Promise.all([
-        ApiService.getComplaintSlaTimeline(complaintId),
+        ApiService.getComplaintSlaTimeline(complaintId).catch((err) => {
+          console.error('Failed to load complaint SLA timeline endpoint:', err);
+          return [];
+        }),
         ApiService.getSlaByComplaintId(complaintId).catch(() => null)
       ]);
       const list = toTimelineList(data);

@@ -329,7 +329,9 @@ class ApiService {
 
   // Get SLA report by complaint/ticket ID
   async getSlaByComplaintId(complaintId) {
-    return this.get(`/api/audit/sla/complaint/${complaintId}`);
+    if (!complaintId) return { available: false };
+    const encoded = encodeURIComponent(complaintId);
+    return this.get(`/api/audit/sla/complaint?complaintId=${encoded}`);
   }
 
   // Get task time tracking for a process instance

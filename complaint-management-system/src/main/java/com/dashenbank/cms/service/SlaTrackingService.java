@@ -545,6 +545,18 @@ public class SlaTrackingService {
         String resolvedPiId = m != null ? m.getProcessInstanceId() : (target.contains("-") ? null : target);
         String resolvedTicketId = m != null ? firstNonNull(m.getDbcTicketId(), m.getComplaintId(), target) : target;
 
+        if ((list == null || list.isEmpty()) && m != null) {
+            if (m.getComplaintId() != null) {
+                list = taskTimeTrackingRepository.findByComplaintId(m.getComplaintId());
+            }
+            if ((list == null || list.isEmpty()) && m.getGeneralTicketId() != null) {
+                list = taskTimeTrackingRepository.findByComplaintId(m.getGeneralTicketId());
+            }
+            if ((list == null || list.isEmpty()) && m.getDbcTicketId() != null) {
+                list = taskTimeTrackingRepository.findByComplaintId(m.getDbcTicketId());
+            }
+        }
+
         if (resolvedPiId != null && (list == null || list.isEmpty())) {
             list = taskTimeTrackingRepository.findByProcessInstanceId(resolvedPiId);
         }
@@ -841,9 +853,36 @@ public class SlaTrackingService {
     }
 
     public Optional<ComplaintSlaMetrics> getMetricsByComplaintId(String complaintId) {
-        Optional<ComplaintSlaMetrics> opt = slaMetricsRepository.findByComplaintId(complaintId);
-        if (opt.isEmpty() && complaintId != null && !complaintId.isBlank()) {
-            opt = slaMetricsRepository.findByGeneralTicketId(complaintId);
+        if (complaintId == null || complaintId.isBlank()) {
+            return Optional.empty();
+        }
+        String cleanId = complaintId.trim();
+        Optional<ComplaintSlaMetrics> opt = slaMetricsRepository.findByDbcTicketId(cleanId);
+        if (opt.isEmpty()) {
+            opt = slaMetricsRepository.findByComplaintId(cleanId);
+        }
+        if (opt.isEmpty()) {
+            opt = slaMetricsRepository.findByGeneralTicketId(cleanId);
+        }
+        if (opt.isEmpty()) {
+            opt = slaMetricsRepository.findByProcessInstanceId(cleanId);
+        }
+        if (opt.isEmpty()) {
+            final String numPart = cleanId.replaceAll("^(DBC|CM)-?", "").trim();
+            opt = slaMetricsRepository.findAll().stream()
+                    .filter(m -> {
+                        if (m == null)
+                            return false;
+                        String cId = m.getComplaintId() != null ? m.getComplaintId() : "";
+                        String dId = m.getDbcTicketId() != null ? m.getDbcTicketId() : "";
+                        String gId = m.getGeneralTicketId() != null ? m.getGeneralTicketId() : "";
+                        String pId = m.getProcessInstanceId() != null ? m.getProcessInstanceId() : "";
+                        return cId.equalsIgnoreCase(cleanId) || dId.equalsIgnoreCase(cleanId)
+                                || gId.equalsIgnoreCase(cleanId) || pId.equalsIgnoreCase(cleanId)
+                                || (!numPart.isBlank()
+                                        && (cId.contains(numPart) || dId.contains(numPart) || gId.contains(numPart)));
+                    })
+                    .findFirst();
         }
         opt.ifPresent(m -> {
             recalculateSlaStatus(m);

@@ -4,7 +4,7 @@ import { ArrowLeftOutlined, DashboardOutlined, SearchOutlined, UserOutlined, War
 import DashboardLayout from '../components/DashboardLayout';
 import ApiService from '../services/api';
 import { BRAND_COLORS } from '../constants/theme';
-import TaskTable, { formatUniqueId, formatIntakeId, matchesTicketSearch } from '../components/TaskTable';
+import TaskTable, { formatUniqueId, formatIntakeId, matchesTicketSearch, compareTicketNumbersAsc } from '../components/TaskTable';
 import { useAuth } from '../contexts/AuthContext';
 import { renderComplaintStatusTag } from '../utils/statusUtils';
 import { resolveCurrentContactPhone, resolveCoreBankingPhone } from '../utils/customerContact';
@@ -886,17 +886,31 @@ function UnresolvedFollowupsPanel({
 function getCmdTabFilteredTasks({ tasks, unresolvedFollowups, user, activeTab, searchQuery }) {
   const unresolvedTicketIds = buildUnresolvedTicketIds(unresolvedFollowups);
   const activeTasks = tasks.filter(t => isActiveCmdQueueTask(t, unresolvedTicketIds));
+  const fcrTasks = tasks.filter(isFcrPendingCco);
+
+  const allTasksCombined = [...activeTasks];
+  fcrTasks.forEach(fcrTask => {
+    const exists = allTasksCombined.some(t =>
+      t.id === fcrTask.id ||
+      (t.complaintId && fcrTask.complaintId && t.complaintId === fcrTask.complaintId) ||
+      (t.dbcTicketId && fcrTask.dbcTicketId && t.dbcTicketId === fcrTask.dbcTicketId)
+    );
+    if (!exists) {
+      allTasksCombined.push(fcrTask);
+    }
+  });
+
   const tabLists = {
-    all_tasks: activeTasks,
+    all_tasks: allTasksCombined,
     unassigned_tasks: activeTasks.filter(t => isUnassignedAssignee(t.assignee)),
     assigned_tasks: activeTasks.filter(t => !isUnassignedAssignee(t.assignee)),
     my_tasks: activeTasks.filter(t => isMyCmdTask(t, user)),
-    fcr_tasks: activeTasks.filter(isFcrPendingCco),
+    fcr_tasks: fcrTasks,
     declined_tasks: tasks.filter(isDeclinedCmdTask)
   };
-  const tabFilteredTasks = tabLists[activeTab] || activeTasks;
+  const tabFilteredTasks = tabLists[activeTab] || allTasksCombined;
   const query = searchQuery.toLowerCase().trim();
-  return tabFilteredTasks.filter(task => {
+  const result = tabFilteredTasks.filter(task => {
     const customerName = task.customerName || '';
     const desc = task.variables?.complaint?.description || '';
     const cat = task.variables?.complaint?.category || '';
@@ -908,6 +922,12 @@ function getCmdTabFilteredTasks({ tasks, unresolvedFollowups, user, activeTab, s
       cat.toLowerCase().includes(query) ||
       officer.toLowerCase().includes(query);
   });
+
+  if (activeTab === 'all_tasks') {
+    result.sort((a, b) => compareTicketNumbersAsc(formatUniqueId(a), formatUniqueId(b)));
+  }
+
+  return result;
 }
 
 function CmdTaskQueue({

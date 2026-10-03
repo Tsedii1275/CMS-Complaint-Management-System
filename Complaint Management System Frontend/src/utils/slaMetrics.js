@@ -47,13 +47,14 @@ export function slaComplianceRate(metrics) {
 
 export function classifyComplaintFilter(item) {
   if (!item) return false;
-  const cls = String(item.classification || '').toUpperCase();
-  const status = String(item.status || '').toUpperCase();
-  if (cls === 'OTHER' || status === 'OTHER') return false;
+  const cls = String(item.classification || item.complaintClassification || '').toUpperCase();
+  const status = String(item.status || item.caseStatus || item.overallStatus || '').toUpperCase();
+  if (cls === 'OTHER' || status === 'OTHER' || cls === 'INTAKE') return false;
   if (status === 'DECLINED' || cls === 'DECLINED') return true;
-  if (item.fcrStatus === true || item.fcrStatus === 'VERIFIED') return true;
-  const dbcTicket = String(item.dbcTicketId || '');
-  const compId = String(item.complaintId || '');
+  const fcr = item.fcrStatus;
+  if (fcr === true || fcr === 1 || fcr === '1' || String(fcr).toUpperCase() === 'TRUE' || String(fcr).toUpperCase() === 'VERIFIED') return true;
+  const dbcTicket = String(item.dbcTicketId || item.variables?.dbcTicketId || '');
+  const compId = String(item.complaintId || item.uniqueIdNo || '');
   return (dbcTicket !== '' && dbcTicket !== 'null' && dbcTicket.startsWith('DBC-'))
     || compId.startsWith('DBC-');
 }

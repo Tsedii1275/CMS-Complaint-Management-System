@@ -124,10 +124,16 @@ public class AuditController {
         return ResponseEntity.ok(slaTrackingService.buildSlaReport(processInstanceId));
     }
 
-    @GetMapping("/sla/complaint/{complaintId}")
-    public ResponseEntity<Map<String, Object>> getSlaByComplaintId(@PathVariable String complaintId) {
-        slaAlertAuthorizationService.assertCanViewComplaintSla(complaintId);
-        var metrics = slaTrackingService.getMetricsByComplaintId(complaintId);
+    @GetMapping({ "/sla/complaint/{complaintId}", "/sla/complaint" })
+    public ResponseEntity<Map<String, Object>> getSlaByComplaintId(
+            @PathVariable(required = false) String complaintId,
+            @RequestParam(name = "complaintId", required = false) String queryComplaintId) {
+        String targetId = complaintId != null && !complaintId.isBlank() ? complaintId : queryComplaintId;
+        if (targetId == null || targetId.isBlank()) {
+            return ResponseEntity.ok(Map.of("available", false));
+        }
+        slaAlertAuthorizationService.assertCanViewComplaintSla(targetId);
+        var metrics = slaTrackingService.getMetricsByComplaintId(targetId);
         if (metrics.isEmpty()) {
             return ResponseEntity.ok(Map.of("available", false));
         }

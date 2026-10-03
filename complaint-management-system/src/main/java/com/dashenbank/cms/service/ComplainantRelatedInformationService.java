@@ -179,11 +179,17 @@ public class ComplainantRelatedInformationService {
         return workingDays;
     }
 
-    private String resolveUniqueTicketId(String formalId, String generalId) {
+    private String resolveUniqueTicketId(String dbcTicketId, String formalId, String generalId) {
+        if (dbcTicketId != null && dbcTicketId.startsWith("DBC-")) {
+            return dbcTicketId;
+        }
         if (formalId != null && formalId.startsWith("DBC-")) {
             return formalId;
         }
-        if (formalId != null) {
+        if (dbcTicketId != null && !dbcTicketId.isBlank()) {
+            return dbcTicketId;
+        }
+        if (formalId != null && !formalId.isBlank()) {
             return formalId;
         }
         return generalId;
@@ -226,9 +232,10 @@ public class ComplainantRelatedInformationService {
             return null;
         }
 
+        String dbcId = metrics.getDbcTicketId();
         String formalId = metrics.getComplaintId();
         String generalId = metrics.getGeneralTicketId();
-        String ticketId = resolveUniqueTicketId(formalId, generalId);
+        String ticketId = resolveUniqueTicketId(dbcId, formalId, generalId);
         if (ticketId == null || ticketId.trim().isEmpty()) {
             return null;
         }
@@ -718,18 +725,27 @@ public class ComplainantRelatedInformationService {
                 || "DECLINED".equalsIgnoreCase(info.getComplaintClassification())) {
             return true;
         }
-        if (ticket.startsWith("CM-")) {
-            return false;
-        }
         if (ticket.startsWith("DBC-")) {
             return true;
         }
+        // If ticket is stored under CM-xxx, look up whether it was classified into a
+        // DBC formal complaint
         Optional<ComplaintSlaMetrics> sla = slaMetricsRepository.findByDbcTicketId(ticket);
         if (sla.isEmpty()) {
             sla = slaMetricsRepository.findByComplaintId(ticket);
         }
-        if (sla.isPresent()) {
-            return SlaTrackingService.isClassifiedComplaint(sla.get());
+        if (sla.isEmpty()) {
+            sla = slaMetricsRepository.findByGeneralTicketId(ticket);
+        }
+        if (sla.isPresent() && SlaTrackingService.isClassifiedComplaint(sla.get())) {
+            ComplaintSlaMetrics m = sla.get();
+            String officialDbc = m.getDbcTicketId() != null && !m.getDbcTicketId().isBlank() ? m.getDbcTicketId()
+                    : (m.getComplaintId() != null && m.getComplaintId().startsWith("DBC-") ? m.getComplaintId() : null);
+            if (officialDbc != null && !officialDbc.isBlank()) {
+                info.setUniqueIdNo(officialDbc);
+                repository.save(info);
+                return true;
+            }
         }
         return false;
     }
