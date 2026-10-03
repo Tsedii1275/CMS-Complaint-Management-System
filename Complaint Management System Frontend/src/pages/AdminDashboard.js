@@ -508,9 +508,11 @@ function AdminDashboard() {
         console.error(criErr);
       }
 
-      const criRows = [...(criRes?.content || [])].sort((a, b) =>
-        compareTicketNumbersAsc(a.uniqueIdNo, b.uniqueIdNo)
-      );
+      const criRows = [...(criRes?.content || [])]
+        .filter(isClassifiedComplaint)
+        .sort((a, b) =>
+          compareTicketNumbersAsc(a.uniqueIdNo, b.uniqueIdNo)
+        );
       setMasterData(criRows.map((item, idx) => mapCriItemToMasterRow(item, idx)));
 
       if (criError) {

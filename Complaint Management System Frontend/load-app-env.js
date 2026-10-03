@@ -39,12 +39,11 @@ if (args.length === 0) {
   process.exit(1);
 }
 
-let command = args[0];
-if (process.platform === 'win32' && !command.toLowerCase().endsWith('.cmd') && !command.toLowerCase().endsWith('.exe')) {
-  command = `${command}.cmd`;
-}
-
-const child = spawn(command, args.slice(1), { stdio: 'inherit', shell: false, env, cwd: root });
+const isWin = process.platform === 'win32';
+const command = args[0];
+const child = isWin
+  ? spawn(process.env.ComSpec || 'cmd.exe', ['/c', command, ...args.slice(1)], { stdio: 'inherit', env, cwd: root })
+  : spawn(command, args.slice(1), { stdio: 'inherit', env, cwd: root });
 child.on('exit', (code, signal) => {
   if (signal) {
     process.kill(process.pid, signal);

@@ -718,6 +718,9 @@ public class ComplainantRelatedInformationService {
                 || "DECLINED".equalsIgnoreCase(info.getComplaintClassification())) {
             return true;
         }
+        if (ticket.startsWith("CM-")) {
+            return false;
+        }
         if (ticket.startsWith("DBC-")) {
             return true;
         }

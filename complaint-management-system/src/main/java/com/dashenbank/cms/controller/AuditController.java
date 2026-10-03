@@ -143,7 +143,9 @@ public class AuditController {
     // ─── Advanced Analytics & Reporting Module Endpoints ───
 
     private List<ComplaintSlaMetrics> loadFilteredMetrics(AnalyticsFilter filter) {
-        List<ComplaintSlaMetrics> classified = slaTrackingService.getAllMetrics();
+        List<ComplaintSlaMetrics> classified = slaTrackingService.getAllMetrics().stream()
+                .filter(SlaTrackingService::isClassifiedComplaint)
+                .toList();
         return filterByRoleOwnership(classified.stream()
                 .filter(m -> matchesAnalyticsFilter(m, filter))
                 .toList());
