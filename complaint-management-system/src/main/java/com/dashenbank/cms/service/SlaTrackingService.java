@@ -507,6 +507,9 @@ public class SlaTrackingService {
 
         final String target = complaintId.trim();
         final String numPart = target.replaceAll("^(DBC|CM)-?", "").trim();
+        final String seqPart = target.contains("/")
+                ? target.split("/")[0].replaceAll("^(DBC|CM)-?", "").trim()
+                : numPart;
 
         List<TaskTimeTracking> list = taskTimeTrackingRepository.findByComplaintId(target);
         if (list == null || list.isEmpty()) {
@@ -536,7 +539,9 @@ public class SlaTrackingService {
                         return cId.equalsIgnoreCase(target) || dId.equalsIgnoreCase(target)
                                 || gId.equalsIgnoreCase(target) || pId.equalsIgnoreCase(target)
                                 || (!numPart.isBlank()
-                                        && (cId.contains(numPart) || dId.contains(numPart) || gId.contains(numPart)));
+                                        && (cId.contains(numPart) || dId.contains(numPart) || gId.contains(numPart)))
+                                || (!seqPart.isBlank()
+                                        && (cId.contains(seqPart) || dId.contains(seqPart) || gId.contains(seqPart)));
                     })
                     .findFirst();
         }
@@ -869,6 +874,9 @@ public class SlaTrackingService {
         }
         if (opt.isEmpty()) {
             final String numPart = cleanId.replaceAll("^(DBC|CM)-?", "").trim();
+            final String seqPart = cleanId.contains("/")
+                    ? cleanId.split("/")[0].replaceAll("^(DBC|CM)-?", "").trim()
+                    : numPart;
             opt = slaMetricsRepository.findAll().stream()
                     .filter(m -> {
                         if (m == null)
@@ -880,7 +888,9 @@ public class SlaTrackingService {
                         return cId.equalsIgnoreCase(cleanId) || dId.equalsIgnoreCase(cleanId)
                                 || gId.equalsIgnoreCase(cleanId) || pId.equalsIgnoreCase(cleanId)
                                 || (!numPart.isBlank()
-                                        && (cId.contains(numPart) || dId.contains(numPart) || gId.contains(numPart)));
+                                        && (cId.contains(numPart) || dId.contains(numPart) || gId.contains(numPart)))
+                                || (!seqPart.isBlank()
+                                        && (cId.contains(seqPart) || dId.contains(seqPart) || gId.contains(seqPart)));
                     })
                     .findFirst();
         }

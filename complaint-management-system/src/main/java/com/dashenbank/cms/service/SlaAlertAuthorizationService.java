@@ -327,6 +327,28 @@ public class SlaAlertAuthorizationService {
             metrics = slaMetricsRepository.findByProcessInstanceId(complaintId);
         }
         if (metrics.isEmpty()) {
+            final String numPart = complaintId.replaceAll("^(DBC|CM)-?", "").trim();
+            final String seqPart = complaintId.contains("/")
+                    ? complaintId.split("/")[0].replaceAll("^(DBC|CM)-?", "").trim()
+                    : numPart;
+            metrics = slaMetricsRepository.findAll().stream()
+                    .filter(m -> {
+                        if (m == null)
+                            return false;
+                        String cId = m.getComplaintId() != null ? m.getComplaintId() : "";
+                        String dId = m.getDbcTicketId() != null ? m.getDbcTicketId() : "";
+                        String gId = m.getGeneralTicketId() != null ? m.getGeneralTicketId() : "";
+                        String pId = m.getProcessInstanceId() != null ? m.getProcessInstanceId() : "";
+                        return cId.equalsIgnoreCase(complaintId) || dId.equalsIgnoreCase(complaintId)
+                                || gId.equalsIgnoreCase(complaintId) || pId.equalsIgnoreCase(complaintId)
+                                || (!numPart.isBlank()
+                                        && (cId.contains(numPart) || dId.contains(numPart) || gId.contains(numPart)))
+                                || (!seqPart.isBlank()
+                                        && (cId.contains(seqPart) || dId.contains(seqPart) || gId.contains(seqPart)));
+                    })
+                    .findFirst();
+        }
+        if (metrics.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "SLA record not found");
         }
         String taskKey = resolveActiveTaskKey(metrics.get().getProcessInstanceId());

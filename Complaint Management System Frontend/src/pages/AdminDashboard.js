@@ -966,35 +966,8 @@ function AdminDashboard() {
             <Card style={{ borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
               <Statistic
                 title={<span style={{ fontWeight: 600, color: '#64748b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Complaints</span>}
-                value={statsData?.totalCount ?? masterData.length}
+                value={reportsData.length}
                 valueStyle={{ color: BRAND_COLORS.primary, fontWeight: 800, fontSize: '24px' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card style={{ borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-              <Statistic
-                title={<span style={{ fontWeight: 600, color: '#64748b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Closed Complaints</span>}
-                value={statsData?.closedCount ?? 0}
-                valueStyle={{ color: '#059669', fontWeight: 800, fontSize: '24px' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card style={{ borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-              <Statistic
-                title={<span style={{ fontWeight: 600, color: '#64748b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>SLA Compliance Rate</span>}
-                value={statsData?.slaComplianceRate !== undefined ? `${statsData.slaComplianceRate.toFixed(1)}%` : '100%'}
-                valueStyle={{ color: '#2563eb', fontWeight: 800, fontSize: '24px' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card style={{ borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-              <Statistic
-                title={<span style={{ fontWeight: 600, color: '#64748b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Overdue Complaints</span>}
-                value={statsData?.overdueCount ?? 0}
-                valueStyle={{ color: '#dc2626', fontWeight: 800, fontSize: '24px' }}
               />
             </Card>
           </Col>
