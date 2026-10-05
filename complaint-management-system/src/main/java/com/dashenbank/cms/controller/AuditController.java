@@ -109,7 +109,7 @@ public class AuditController {
     @GetMapping("/sla/all")
     public ResponseEntity<List<ComplaintSlaMetrics>> getAllSlaMetrics() {
         List<ComplaintSlaMetrics> metrics = slaTrackingService.getAllMetrics();
-        return ResponseEntity.ok(filterByRoleOwnership(metrics));
+        return ResponseEntity.ok(metrics);
     }
 
     @GetMapping("/sla/other")

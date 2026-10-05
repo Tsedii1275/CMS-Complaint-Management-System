@@ -306,8 +306,10 @@ function SlaTimelineComponent({ complaintId }) {
   };
 
   const getLiveResolutionTimeMins = (r) => {
-    if (r.resolutionTimeMinutes && r.resolutionTimeMinutes > 0) return r.resolutionTimeMinutes;
-    if (r.durationMinutes && r.durationMinutes > 0) return r.durationMinutes;
+    if (r.completedAt) {
+      if (r.resolutionTimeMinutes && r.resolutionTimeMinutes > 0) return r.resolutionTimeMinutes;
+      if (r.durationMinutes && r.durationMinutes > 0) return r.durationMinutes;
+    }
     return liveElapsedMins(r.startedAt, r.completedAt);
   };
 
@@ -344,8 +346,16 @@ function SlaTimelineComponent({ complaintId }) {
       };
     }
 
-    return { isBreached: false, actualMins, targetMins };
+    return { isBreached: false };
   };
+
+  if (loading) {
+    return (
+      <div style={slaStyles.loading}>
+        <Spin size="medium" tip="Loading Stage SLA Timeline..." />
+      </div>
+    );
+  }
 
   const breachStage = timeline.find(t => getStageBreachInfo(t)?.isBreached);
   const breachInfo = breachStage ? getStageBreachInfo(breachStage) : null;
@@ -356,7 +366,6 @@ function SlaTimelineComponent({ complaintId }) {
   const breachedCount = timeline.filter(t => getStageBreachInfo(t)?.isBreached).length;
   const activeTask = timeline.find(t => !t.completedAt) || timeline[timeline.length - 1];
   const currentStageName = activeTask ? formatStageName(activeTask.taskName, activeTask.taskDefinitionKey) : 'Closed';
-  const totalDurationMins = timeline.reduce((acc, t) => acc + getLiveResolutionTimeMins(t), 0);
 
   return (
     <div style={slaStyles.root}>
@@ -399,7 +408,7 @@ function SlaTimelineComponent({ complaintId }) {
         </div>
       )}
 
-      {/* Requirement 7: Summary KPI Cards Section */}
+      {/* Summary KPI Cards Section */}
       <div style={slaStyles.summaryKpiBox}>
         <div style={slaStyles.kpiCard}>
           <div style={slaStyles.kpiLabel}>Total Stages</div>
@@ -417,10 +426,6 @@ function SlaTimelineComponent({ complaintId }) {
             {currentStageName}
           </div>
         </div>
-        <div style={slaStyles.kpiCard}>
-          <div style={slaStyles.kpiLabel}>Total Duration</div>
-          <div style={slaStyles.kpiValue}>{formatDuration(totalDurationMins)}</div>
-        </div>
       </div>
 
       <div style={slaStyles.headerRow}>
@@ -430,131 +435,125 @@ function SlaTimelineComponent({ complaintId }) {
         </Title>
       </div>
 
-      {loading ? (
-        <div style={slaStyles.loading}>
-          <Spin size="medium" tip="Loading SLA Timeline..." />
-        </div>
-      ) : (
-        <div>
-          {/* Requirement 3: Highlight Breach Location */}
-          {breachStage && breachInfo && (
-            <Alert
-              message={
-                <div style={slaStyles.breachText}>
-                  <WarningFilled style={slaStyles.breachIcon} />
-                  <strong>SLA Breach Location Identified:</strong> {formatStageName(breachStage.taskName, breachStage.taskDefinitionKey)} Stage (Assigned To: {displayAssignedOwner(breachStage.assignedUser, parseStoredUser())}) — Time Taken: {formatDuration(breachInfo.actualMins)} vs Target: {formatDuration(breachInfo.targetMins)} — Exceeded by <Text type="danger" strong>+{formatDuration(breachInfo.overBy)}</Text>
-                </div>
-              }
-              type="error"
-              showIcon={false}
-              style={slaStyles.breachAlert}
-            />
-          )}
+      <div>
+        {/* Highlight Breach Location */}
+        {breachStage && breachInfo && (
+          <Alert
+            message={
+              <div style={slaStyles.breachText}>
+                <WarningFilled style={slaStyles.breachIcon} />
+                <strong>SLA Breach Location Identified:</strong> {formatStageName(breachStage.taskName, breachStage.taskDefinitionKey)} Stage (Assigned To: {displayAssignedOwner(breachStage.assignedUser, parseStoredUser())}) — Time Taken: {formatDuration(breachInfo.actualMins)} vs Target: {formatDuration(breachInfo.targetMins)} — Exceeded by <Text type="danger" strong>+{formatDuration(breachInfo.overBy)}</Text>
+              </div>
+            }
+            type="error"
+            showIcon={false}
+            style={slaStyles.breachAlert}
+          />
+        )}
 
-          <div style={slaStyles.tableWrap}>
-            <Table
-              dataSource={timeline}
-              rowKey={timelineRowKey}
-              pagination={false}
-              size="middle"
-              bordered={false}
-              locale={{
-                emptyText: (
-                  <div style={slaStyles.emptyWrap}>
-                    <ClockCircleOutlined style={slaStyles.emptyIcon} />
-                    <div style={slaStyles.emptyTitle}>
-                      No SLA stage history is currently available for this complaint.
-                    </div>
-                    <div style={slaStyles.emptyHint}>
-                      SLA stage history is populated as the complaint transitions through workflow stages.
-                    </div>
+        <div style={slaStyles.tableWrap}>
+          <Table
+            dataSource={timeline}
+            rowKey={timelineRowKey}
+            pagination={false}
+            size="middle"
+            bordered={false}
+            locale={{
+              emptyText: (
+                <div style={slaStyles.emptyWrap}>
+                  <ClockCircleOutlined style={slaStyles.emptyIcon} />
+                  <div style={slaStyles.emptyTitle}>
+                    No SLA stage history is currently available for this complaint.
                   </div>
+                  <div style={slaStyles.emptyHint}>
+                    SLA stage history is populated as the complaint transitions through workflow stages.
+                  </div>
+                </div>
+              )
+            }}
+            columns={[
+              {
+                title: <span style={slaStyles.colTitle}>Stage</span>,
+                key: 'stage',
+                render: (_, r) => (
+                  <span style={slaStyles.stageCell}>
+                    {formatStageName(r.taskName, r.taskDefinitionKey)}
+                  </span>
                 )
-              }}
-              columns={[
-                {
-                  title: <span style={slaStyles.colTitle}>Stage</span>,
-                  key: 'stage',
-                  render: (_, r) => (
-                    <span style={slaStyles.stageCell}>
-                      {formatStageName(r.taskName, r.taskDefinitionKey)}
+              },
+              {
+                title: <span style={slaStyles.colTitle}>Assigned To</span>,
+                key: 'assignedTo',
+                render: (_, r) => {
+                  const rawOwner = r.assignedUser || r.claimedBy || 'Unassigned';
+                  const owner = displayAssignedOwner(rawOwner, parseStoredUser());
+                  return (
+                    <span style={slaStyles.ownerCell}>
+                      <UserOutlined style={slaStyles.ownerIcon} />
+                      {owner}
                     </span>
-                  )
-                },
-                {
-                  title: <span style={slaStyles.colTitle}>Assigned To</span>,
-                  key: 'assignedTo',
-                  render: (_, r) => {
-                    const rawOwner = r.assignedUser || r.claimedBy || 'Unassigned';
-                    const owner = displayAssignedOwner(rawOwner, parseStoredUser());
+                  );
+                }
+              },
+              {
+                title: <span style={slaStyles.colTitle}>Started</span>,
+                key: 'started',
+                render: (_, r) => (
+                  <span style={slaStyles.timeCell}>
+                    {formatStartedTimestamp(r)}
+                  </span>
+                )
+              },
+              {
+                title: <span style={slaStyles.colTitle}>Completed</span>,
+                key: 'completed',
+                render: (_, r) => (
+                  <span style={slaStyles.timeCell}>
+                    {r.completedAt ? formatClock(r.completedAt) : '—'}
+                  </span>
+                )
+              },
+              {
+                title: <span style={slaStyles.colTitle}>Duration</span>,
+                key: 'duration',
+                render: (_, r) => (
+                  <span style={slaStyles.durationCell}>
+                    {formatDuration(getLiveResolutionTimeMins(r))}
+                  </span>
+                )
+              },
+              {
+                title: <span style={slaStyles.colTitle}>SLA Status</span>,
+                key: 'slaStatus',
+                render: (_, r) => {
+                  const stageInfo = getStageBreachInfo(r);
+                  if (stageInfo?.isBreached) {
                     return (
-                      <span style={slaStyles.ownerCell}>
-                        <UserOutlined style={slaStyles.ownerIcon} />
-                        {owner}
-                      </span>
-                    );
-                  }
-                },
-                {
-                  title: <span style={slaStyles.colTitle}>Started</span>,
-                  key: 'started',
-                  render: (_, r) => (
-                    <span style={slaStyles.timeCell}>
-                      {formatStartedTimestamp(r)}
-                    </span>
-                  )
-                },
-                {
-                  title: <span style={slaStyles.colTitle}>Completed</span>,
-                  key: 'completed',
-                  render: (_, r) => (
-                    <span style={slaStyles.timeCell}>
-                      {r.completedAt ? formatClock(r.completedAt) : '—'}
-                    </span>
-                  )
-                },
-                {
-                  title: <span style={slaStyles.colTitle}>Duration</span>,
-                  key: 'duration',
-                  render: (_, r) => (
-                    <span style={slaStyles.durationCell}>
-                      {formatDuration(getLiveResolutionTimeMins(r))}
-                    </span>
-                  )
-                },
-                {
-                  title: <span style={slaStyles.colTitle}>SLA Status</span>,
-                  key: 'slaStatus',
-                  render: (_, r) => {
-                    const stageInfo = getStageBreachInfo(r);
-                    if (stageInfo?.isBreached) {
-                      return (
-                        <Tag color="red" style={slaStyles.statusTagBold}>
-                          ❌ Breached (+{formatDuration(stageInfo.overBy)})
-                        </Tag>
-                      );
-                    }
-                    if (!r.completedAt) {
-                      return (
-                        <Tag color="processing" style={slaStyles.statusTag}>
-                          🔄 In Progress
-                        </Tag>
-                      );
-                    }
-                    return (
-                      <Tag color="green" style={slaStyles.statusTag}>
-                        ✅ Met
+                      <Tag color="red" style={slaStyles.statusTagBold}>
+                        ❌ Breached (+{formatDuration(stageInfo.overBy)})
                       </Tag>
                     );
                   }
+                  if (!r.completedAt) {
+                    return (
+                      <Tag color="processing" style={slaStyles.statusTag}>
+                        🔄 In Progress
+                      </Tag>
+                    );
+                  }
+                  return (
+                    <Tag color="green" style={slaStyles.statusTag}>
+                      ✅ Met
+                    </Tag>
+                  );
                 }
-              ]}
-            />
-          </div>
+              }
+            ]}
+          />
         </div>
-      )}
+      </div>
     </div>
   );
-}
+};
 
 export default SlaTimelineComponent;

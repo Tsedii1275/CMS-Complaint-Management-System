@@ -189,25 +189,16 @@ function BranchStaffDashboard() {
 
   const loadComplaintsData = async () => {
     try {
-      const [slaData, otherData, complaintsData] = await Promise.all([
+      setLoading(true);
+      const [slaData, otherData] = await Promise.all([
         ApiService.getAllSlaMetrics().catch(() => []),
-        ApiService.getOtherSlaMetrics().catch(() => []),
-        ApiService.getComplaints().catch(() => [])
+        ApiService.getOtherSlaMetrics().catch(() => [])
       ]);
 
       setOtherComplaints(Array.isArray(otherData) ? otherData : []);
 
-      const combinedMap = new Map();
-      (slaData || []).concat(complaintsData || []).forEach(item => {
-        if (!item) return;
-        const key = item.dbcTicketId || item.complaintId || item.processInstanceId || item.uniqueIdNo || item.id;
-        if (key && !combinedMap.has(key)) {
-          combinedMap.set(key, item);
-        }
-      });
-
-      const combinedList = Array.from(combinedMap.values());
-      const filtered = combinedList.filter(classifyComplaintFilter);
+      const list = Array.isArray(slaData) ? slaData : [];
+      const filtered = list.filter(classifyComplaintFilter);
       setScopedComplaints(filtered);
     } catch (err) {
       console.error('Failed to load complaints data:', err);
