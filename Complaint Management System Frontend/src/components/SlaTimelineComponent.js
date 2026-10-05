@@ -290,7 +290,8 @@ function SlaTimelineComponent({ complaintId }) {
     if (hours > 0) {
       return `${hours}h`;
     }
-    return `${minsRound} mins`;
+    const finalMinsRound = Math.round(num);
+    return `${finalMinsRound} mins`;
   };
 
   const liveElapsedMins = (startedAt, completedAt) => {
