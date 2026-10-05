@@ -132,7 +132,17 @@ function SlaMonitoringPage() {
       setError('');
       const data = await ApiService.getAllSlaMetrics();
 
-      setMetrics((data || []).filter(classifyComplaintFilter));
+      const isFormalDbcComplaint = (item) => {
+        if (!item) return false;
+        const compId = String(item.dbcTicketId || item.complaintId || item.uniqueIdNo || '');
+        const dbcTicket = String(item.dbcTicketId || '');
+        if (compId.startsWith('CM-') && !dbcTicket.startsWith('DBC-')) {
+          return false;
+        }
+        return true;
+      };
+
+      setMetrics((data || []).filter(classifyComplaintFilter).filter(isFormalDbcComplaint));
     } catch (err) {
       console.error('Failed to load SLA metrics:', err);
       setError('Failed to load SLA metrics from server.');

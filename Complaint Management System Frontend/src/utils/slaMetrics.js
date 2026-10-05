@@ -53,17 +53,5 @@ export function classifyComplaintFilter(item) {
   // Exclude "OTHER" inquiries (these belong to the Other tab)
   if (cls === 'OTHER' || status === 'OTHER') return false;
 
-  // Always include DECLINED complaints
-  if (status === 'DECLINED' || cls === 'DECLINED') return true;
-
-  // Exclude raw unclassified intake drafts that are neither registered complaints nor declined
-  const dbcTicket = String(item.dbcTicketId || item.variables?.dbcTicketId || '');
-  const hasDbcTicket = dbcTicket !== '' && dbcTicket !== 'null';
-  const isFcr = item.fcrStatus === true || item.fcrStatus === 1 || String(item.fcrStatus).toUpperCase() === 'TRUE';
-
-  if (cls === 'INTAKE' && !hasDbcTicket && !isFcr && status !== 'REGISTERED' && status !== 'FCR_RESOLVED') {
-    return false;
-  }
-
   return true;
 }
