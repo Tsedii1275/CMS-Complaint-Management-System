@@ -53,5 +53,22 @@ export function classifyComplaintFilter(item) {
   // Exclude "OTHER" inquiries (these belong to the Other tab)
   if (cls === 'OTHER' || status === 'OTHER') return false;
 
+  // Always include DECLINED complaints
+  if (status === 'DECLINED' || cls === 'DECLINED') return true;
+
+  // Exclude raw unclassified INTAKE drafts starting with CM- without a DBC- ticket ID
+  const dbcTicket = String(item.dbcTicketId || item.variables?.dbcTicketId || '');
+  const compId = String(item.complaintId || item.uniqueIdNo || '');
+  const hasDbcTicket = dbcTicket.startsWith('DBC-') || compId.startsWith('DBC-');
+  const isFcr = item.fcrStatus === true || item.fcrStatus === 1 || String(item.fcrStatus).toUpperCase() === 'TRUE' || status === 'FCR_RESOLVED' || status === 'RESOLVED';
+
+  if (cls === 'INTAKE' && !hasDbcTicket && !isFcr) {
+    return false;
+  }
+
+  if (compId.startsWith('CM-') && !hasDbcTicket && !isFcr) {
+    return false;
+  }
+
   return true;
 }
