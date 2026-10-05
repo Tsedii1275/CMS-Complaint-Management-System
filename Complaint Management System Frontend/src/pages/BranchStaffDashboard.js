@@ -189,16 +189,25 @@ function BranchStaffDashboard() {
 
   const loadComplaintsData = async () => {
     try {
-      const [slaData, otherData] = await Promise.all([
+      const [slaData, otherData, complaintsData] = await Promise.all([
         ApiService.getAllSlaMetrics().catch(() => []),
-        ApiService.getOtherSlaMetrics().catch(() => [])
+        ApiService.getOtherSlaMetrics().catch(() => []),
+        ApiService.getComplaints().catch(() => [])
       ]);
 
       setOtherComplaints(Array.isArray(otherData) ? otherData : []);
 
-      // Fetch ALL registered complaints EXCLUDING OTHER and INTAKE-only records.
-      const filtered = (slaData || []).filter(classifyComplaintFilter);
+      const combinedMap = new Map();
+      (slaData || []).concat(complaintsData || []).forEach(item => {
+        if (!item) return;
+        const key = item.dbcTicketId || item.complaintId || item.processInstanceId || item.uniqueIdNo || item.id;
+        if (key && !combinedMap.has(key)) {
+          combinedMap.set(key, item);
+        }
+      });
 
+      const combinedList = Array.from(combinedMap.values());
+      const filtered = combinedList.filter(classifyComplaintFilter);
       setScopedComplaints(filtered);
     } catch (err) {
       console.error('Failed to load complaints data:', err);
@@ -493,7 +502,7 @@ function BranchStaffDashboard() {
               const tabItems = [
                 {
                   key: 'tracking',
-                  label: 'Total Complaint',
+                  label: 'Total Complaints',
                   children: (
                     <Table
                       dataSource={scopedComplaints}

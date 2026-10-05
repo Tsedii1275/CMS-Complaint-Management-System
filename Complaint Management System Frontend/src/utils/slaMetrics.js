@@ -49,12 +49,21 @@ export function classifyComplaintFilter(item) {
   if (!item) return false;
   const cls = String(item.classification || item.complaintClassification || '').toUpperCase();
   const status = String(item.status || item.caseStatus || item.overallStatus || '').toUpperCase();
-  if (cls === 'OTHER' || status === 'OTHER' || cls === 'INTAKE') return false;
+
+  // Exclude "OTHER" inquiries (these belong to the Other tab)
+  if (cls === 'OTHER' || status === 'OTHER') return false;
+
+  // Always include DECLINED complaints
   if (status === 'DECLINED' || cls === 'DECLINED') return true;
-  const fcr = item.fcrStatus;
-  if (fcr === true || fcr === 1 || fcr === '1' || String(fcr).toUpperCase() === 'TRUE' || String(fcr).toUpperCase() === 'VERIFIED') return true;
+
+  // Exclude raw unclassified intake drafts that are neither registered complaints nor declined
   const dbcTicket = String(item.dbcTicketId || item.variables?.dbcTicketId || '');
-  const compId = String(item.complaintId || item.uniqueIdNo || '');
-  return (dbcTicket !== '' && dbcTicket !== 'null' && dbcTicket.startsWith('DBC-'))
-    || compId.startsWith('DBC-');
+  const hasDbcTicket = dbcTicket !== '' && dbcTicket !== 'null';
+  const isFcr = item.fcrStatus === true || item.fcrStatus === 1 || String(item.fcrStatus).toUpperCase() === 'TRUE';
+
+  if (cls === 'INTAKE' && !hasDbcTicket && !isFcr && status !== 'REGISTERED' && status !== 'FCR_RESOLVED') {
+    return false;
+  }
+
+  return true;
 }

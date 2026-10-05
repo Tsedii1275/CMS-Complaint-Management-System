@@ -278,7 +278,7 @@ function SlaMonitoringPage() {
   const workflowStagePerformance = useMemo(() => {
     const map = {};
     filteredMetrics.forEach(m => {
-      const stage = m.currentStage || 'CMD Screening & Triage';
+      const stage = m.currentStage || 'Customer Care Officer';
       if (!map[stage]) {
         map[stage] = { name: stage, total: 0, breached: 0, totalCompletionMins: 0, totalBreachMins: 0 };
       }

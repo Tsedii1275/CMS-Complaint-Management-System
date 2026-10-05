@@ -15,7 +15,7 @@ const slaStyles = {
     padding: '16px 20px',
     borderRadius: '8px',
     border: '1px solid #e2e8f0',
-    marginBottom: '20px'
+    marginBottom: '16px'
   },
   summaryRow: {
     display: 'flex',
@@ -23,6 +23,32 @@ const slaStyles = {
     gap: '16px',
     justifyContent: 'space-between',
     alignItems: 'center'
+  },
+  summaryKpiBox: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+    gap: '12px',
+    marginBottom: '20px'
+  },
+  kpiCard: {
+    background: '#ffffff',
+    border: '1px solid #cbd5e1',
+    borderRadius: '8px',
+    padding: '12px 16px',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+  },
+  kpiLabel: {
+    fontSize: '11px',
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    color: '#64748b',
+    letterSpacing: '0.5px',
+    marginBottom: '4px'
+  },
+  kpiValue: {
+    fontSize: '16px',
+    fontWeight: 700,
+    color: '#0f172a'
   },
   label: { fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' },
   ticketId: { fontWeight: 700, fontSize: '16px', color: BRAND_COLORS.primary },
@@ -64,22 +90,28 @@ const slaStyles = {
 
 const formatStageName = (rawName, defKey) => {
   const key = ((rawName || '') + ' ' + (defKey || '')).toUpperCase().trim();
-  if (key.includes('CMD_SCREENING') || key.includes('SCREENING') || key.includes('TASK_12')) {
+  if (key.includes('SENIOR_MANAGER') || key.includes('TASK_12') || key.includes('MANAGER_ASSIGNMENT')) {
     return 'Customer Care Senior Manager Assignment';
   }
-  if (key.includes('CMD_OFFICER') || key.includes('TASK_24') || key.includes('TRIAGE')) {
+  if (key.includes('SCREENING') || key.includes('CMD_SCREENING')) {
+    return 'Customer Care Officer';
+  }
+  if (key.includes('CMD_OFFICER') || key.includes('TASK_24') || key.includes('OFFICER')) {
     return 'Customer Care Officer';
   }
   if (key.includes('AUDIT') || key.includes('INVESTIGATION') || key.includes('TASK_57')) {
     return 'Investigation Team';
   }
   if (key.includes('WORKUNIT') || key.includes('WORK_UNIT') || key.includes('DEPARTMENT')) {
-    return 'Work Unit Resolution';
+    return 'Department Resolution';
   }
-  if (key.includes('COMMITTEE') || key.includes('CHIEF_COMMITTEE')) {
+  if (key.includes('QUALITY') || key.includes('SERVICE_QUALITY') || key.includes('VERIFICATION')) {
+    return 'Service Quality Review';
+  }
+  if (key.includes('COMMITTEE')) {
     return 'Committee Review';
   }
-  if (key.includes('INTAKE') || key.includes('RECORD')) {
+  if (key.includes('INTAKE')) {
     return 'Customer Care Intake';
   }
   return rawName || defKey || 'Workflow Stage';
@@ -101,7 +133,7 @@ function toTimelineList(data) {
   return [];
 }
 
-function timelineRowKey(record) {
+function timelineRowKey(record, idx) {
   if (record.id) {
     return `tt-${record.id}`;
   }
@@ -110,10 +142,11 @@ function timelineRowKey(record) {
   }
   const stageId = record.complaintId || 'cmp';
   const stageName = record.taskDefinitionKey || record.taskName || 'stage';
-  return `stage-${stageId}-${stageName}`;
+  return `stage-${stageId}-${stageName}-${idx}`;
 }
 
 function displayAssignedOwner(rawOwner, loggedInUser) {
+  if (!rawOwner) return 'Unassigned';
   const lowerOwner = rawOwner.toString().trim().toLowerCase();
   if (loggedInUser && (lowerOwner === loggedInUser.username?.toLowerCase() || lowerOwner === 'admin')) {
     return loggedInUser.fullName || loggedInUser.username || rawOwner;
@@ -151,9 +184,9 @@ function parseStoredUser() {
 }
 
 function classificationTagProps(complaintSummary) {
-  const val = complaintSummary.complaintClassification
-    || complaintSummary.variables?.complaintClassification
-    || complaintSummary.priority;
+  const val = complaintSummary?.complaintClassification
+    || complaintSummary?.variables?.complaintClassification
+    || complaintSummary?.priority;
   const isMissing = !val || String(val).trim() === '' || String(val).trim() === 'null';
   if (isMissing) {
     return { color: 'default', text: 'Not Classified' };
@@ -211,7 +244,7 @@ function SlaTimelineComponent({ complaintId }) {
       ]);
       let list = toTimelineList(data);
       if (list.length === 0) {
-        const rawStage = summaryData?.currentStage || (targetId.includes('002') ? 'Branch / Work Unit Resolution' : 'CMD Screening & Triage');
+        const rawStage = summaryData?.currentStage || (targetId.includes('002') ? 'Branch / Work Unit Resolution' : 'Customer Care Officer');
         const rawUser = summaryData?.staffHandling || summaryData?.manager || (targetId.includes('002') ? 'Work Unit Officer' : 'Customer Care Officer');
         list = [{
           id: `fallback-${targetId}`,
@@ -249,12 +282,15 @@ function SlaTimelineComponent({ complaintId }) {
       const minsRound = Math.round(num);
       return `${minsRound} min${minsRound === 1 ? '' : 's'}`;
     }
-    if (num < 480) {
-      const hours = (num / 60).toFixed(1);
-      return `${hours} hrs`;
+    const hours = Math.floor(num / 60);
+    const remMins = Math.round(num % 60);
+    if (hours > 0 && remMins > 0) {
+      return `${hours}h ${remMins}m`;
     }
-    const days = (num / 480).toFixed(1);
-    return `${days} day${Number(days) === 1 ? '' : 's'}`;
+    if (hours > 0) {
+      return `${hours}h`;
+    }
+    return `${minsRound} mins`;
   };
 
   const liveElapsedMins = (startedAt, completedAt) => {
@@ -314,6 +350,13 @@ function SlaTimelineComponent({ complaintId }) {
   const breachInfo = breachStage ? getStageBreachInfo(breachStage) : null;
   const classification = complaintSummary ? classificationTagProps(complaintSummary) : null;
 
+  // Summary Metrics Calculation
+  const totalStages = timeline.length;
+  const breachedCount = timeline.filter(t => getStageBreachInfo(t)?.isBreached).length;
+  const activeTask = timeline.find(t => !t.completedAt) || timeline[timeline.length - 1];
+  const currentStageName = activeTask ? formatStageName(activeTask.taskName, activeTask.taskDefinitionKey) : 'Closed';
+  const totalDurationMins = timeline.reduce((acc, t) => acc + getLiveResolutionTimeMins(t), 0);
+
   return (
     <div style={slaStyles.root}>
       {complaintSummary && (
@@ -355,6 +398,30 @@ function SlaTimelineComponent({ complaintId }) {
         </div>
       )}
 
+      {/* Requirement 7: Summary KPI Cards Section */}
+      <div style={slaStyles.summaryKpiBox}>
+        <div style={slaStyles.kpiCard}>
+          <div style={slaStyles.kpiLabel}>Total Stages</div>
+          <div style={slaStyles.kpiValue}>{totalStages}</div>
+        </div>
+        <div style={slaStyles.kpiCard}>
+          <div style={slaStyles.kpiLabel}>Breached Stages</div>
+          <div style={{ ...slaStyles.kpiValue, color: breachedCount > 0 ? '#dc2626' : '#16a34a' }}>
+            {breachedCount}
+          </div>
+        </div>
+        <div style={slaStyles.kpiCard}>
+          <div style={slaStyles.kpiLabel}>Current Stage</div>
+          <div style={{ ...slaStyles.kpiValue, fontSize: '13px', color: BRAND_COLORS.primary }}>
+            {currentStageName}
+          </div>
+        </div>
+        <div style={slaStyles.kpiCard}>
+          <div style={slaStyles.kpiLabel}>Total Duration</div>
+          <div style={slaStyles.kpiValue}>{formatDuration(totalDurationMins)}</div>
+        </div>
+      </div>
+
       <div style={slaStyles.headerRow}>
         <ClockCircleOutlined style={slaStyles.headerIcon} />
         <Title level={4} style={slaStyles.headerTitle}>
@@ -368,12 +435,13 @@ function SlaTimelineComponent({ complaintId }) {
         </div>
       ) : (
         <div>
+          {/* Requirement 3: Highlight Breach Location */}
           {breachStage && breachInfo && (
             <Alert
               message={
                 <div style={slaStyles.breachText}>
                   <WarningFilled style={slaStyles.breachIcon} />
-                  <strong>SLA Breach Location Identified:</strong> {formatStageName(breachStage.taskName, breachStage.taskDefinitionKey)} Stage (Time Taken: {formatDuration(breachInfo.actualMins)} vs Target: {formatDuration(breachInfo.targetMins)} — Exceeded by <Text type="danger" strong>+{formatDuration(breachInfo.overBy)}</Text>)
+                  <strong>SLA Breach Location Identified:</strong> {formatStageName(breachStage.taskName, breachStage.taskDefinitionKey)} Stage (Assigned To: {displayAssignedOwner(breachStage.assignedUser, parseStoredUser())}) — Time Taken: {formatDuration(breachInfo.actualMins)} vs Target: {formatDuration(breachInfo.targetMins)} — Exceeded by <Text type="danger" strong>+{formatDuration(breachInfo.overBy)}</Text>
                 </div>
               }
               type="error"
@@ -440,7 +508,7 @@ function SlaTimelineComponent({ complaintId }) {
                   key: 'completed',
                   render: (_, r) => (
                     <span style={slaStyles.timeCell}>
-                      {formatClock(r.completedAt)}
+                      {r.completedAt ? formatClock(r.completedAt) : '—'}
                     </span>
                   )
                 },
@@ -474,7 +542,7 @@ function SlaTimelineComponent({ complaintId }) {
                     }
                     return (
                       <Tag color="green" style={slaStyles.statusTag}>
-                        ✅ Within SLA
+                        ✅ Met
                       </Tag>
                     );
                   }
