@@ -193,7 +193,7 @@ const EMPTY_PUBLIC_FORM = {
   complaintDescription: '',
   branch: '',
   date: '',
-  preferredContactMethod: 'Email'
+  preferredContactMethod: 'SMS'
 };
 
 async function submitPublicComplaint(e, ctx) {
@@ -223,6 +223,7 @@ async function submitPublicComplaint(e, ctx) {
       ...(emailErr ? { email: emailErr } : {}),
       ...(phoneErr ? { phone: phoneErr } : {})
     }));
+    antMessage.error(language === 'english' ? 'Please fix the errors in the form before submitting.' : 'እባክዎን ከማስገባትዎ በፊት በቅጹ ላይ ያሉትን ስህተቶች ያርሙ።');
     setIsSubmitting(false);
     return;
   }
@@ -419,7 +420,7 @@ function CustomerForm() {
     complaintDescription: '',
     branch: '',
     date: '',
-    preferredContactMethod: ''
+    preferredContactMethod: 'SMS'
   });
   const [consentChecked, setConsentChecked] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
