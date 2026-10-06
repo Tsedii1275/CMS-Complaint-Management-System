@@ -594,10 +594,10 @@ function BranchStaffDashboard() {
                   label={<StaffFormLabel>Current Contact Phone</StaffFormLabel>}
                   rules={[
                     { required: true, message: 'Please enter current contact phone' },
-                    { pattern: /^(\+?2510?[79]\d{8}|0?[79]\d{8})$/, message: 'Valid phone number required' }
+                    { pattern: /^(\+?251[79]\d{8}|0?[79]\d{8}|[79]\d{8})$/, message: 'Valid Ethiopian phone number required' }
                   ]}
                 >
-                  <Input style={controlStyle} />
+                  <Input maxLength={13} style={controlStyle} />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>

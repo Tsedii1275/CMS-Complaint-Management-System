@@ -69,6 +69,25 @@ function getEmailError(email, language) {
   return '';
 }
 
+function getPhoneError(phone, countryCode, language) {
+  if (!phone || !phone.trim()) {
+    return language === 'english' ? 'Phone number is required' : 'የስልክ ቁጥር ግዴታ ነው';
+  }
+  const digits = phone.trim().replace(/\D/g, '');
+  if (countryCode === '+251') {
+    if (!/^(0?[79]\d{8})$/.test(digits)) {
+      return language === 'english'
+        ? 'Invalid Ethiopian phone number'
+        : 'ትክክለኛ የኢትዮጵያ ስልክ ቁጥር ያስገቡ';
+    }
+  } else {
+    if (digits.length < 7 || digits.length > 15) {
+      return language === 'english' ? 'Please enter a valid phone number' : 'እባክዎን ትክክለኛ የስልክ ቁጥር ያስገቡ';
+    }
+  }
+  return '';
+}
+
 function formatSubmissionDate(dateStr) {
   if (!dateStr) return '—';
   try {
@@ -103,8 +122,33 @@ function getPublicStatusTag(action, language) {
   return renderComplaintStatusTag(norm, { fontSize: '13px', padding: '4px 12px' });
 }
 
-function applyPublicFormInputChange(e, { setFormData, setErrors, language, errors }) {
+function applyPublicFormInputChange(e, { setFormData, setErrors, language, errors, countryCode }) {
   const { name, value } = e.target;
+
+  if (name === 'phone') {
+    let cleanDigits = value.replace(/\D/g, '');
+    const maxLen = countryCode === '+251' ? 10 : 15;
+    if (cleanDigits.length > maxLen) {
+      cleanDigits = cleanDigits.substring(0, maxLen);
+    }
+    setFormData(prev => ({
+      ...prev,
+      phone: cleanDigits
+    }));
+
+    const phoneErr = getPhoneError(cleanDigits, countryCode, language);
+    setErrors(prev => {
+      const next = { ...prev };
+      if (phoneErr) {
+        next.phone = phoneErr;
+      } else {
+        delete next.phone;
+      }
+      return next;
+    });
+    return;
+  }
+
   setFormData(prev => ({
     ...prev,
     [name]: value
@@ -168,14 +212,16 @@ async function submitPublicComplaint(e, ctx) {
   const descError = getDescriptionError(formData.complaintDescription, language);
   const accountError = getAccountNumberError(formData.accountNumber, language);
   const emailErr = getEmailError(formData.email, language);
+  const phoneErr = getPhoneError(formData.phone, countryCode, language);
 
-  if (nameError || descError || accountError || emailErr) {
+  if (nameError || descError || accountError || emailErr || phoneErr) {
     setErrors(prev => ({
       ...prev,
       ...(nameError ? { customerName: nameError } : {}),
       ...(descError ? { complaintDescription: descError } : {}),
       ...(accountError ? { accountNumber: accountError } : {}),
-      ...(emailErr ? { email: emailErr } : {})
+      ...(emailErr ? { email: emailErr } : {}),
+      ...(phoneErr ? { phone: phoneErr } : {})
     }));
     setIsSubmitting(false);
     return;
@@ -546,7 +592,7 @@ function CustomerForm() {
   }, [ethMonth, ethDay, ethYear, language]);
 
   const handleInputChange = (e) => {
-    applyPublicFormInputChange(e, { setFormData, setErrors, language, errors });
+    applyPublicFormInputChange(e, { setFormData, setErrors, language, errors, countryCode });
   };
 
   const handleSubmit = async (e) => {
@@ -757,11 +803,12 @@ function CustomerForm() {
                     name="phone"
                     value={formData.phone}
                     onChange={handleInputChange}
+                    maxLength={countryCode === '+251' ? 10 : 15}
                     required
                     style={{
                       flex: 1,
                       padding: '12px 16px',
-                      border: '1px solid #dcdcdc',
+                      border: `1px solid ${errors.phone ? '#ff4d4f' : '#dcdcdc'}`,
                       borderRadius: '0 4px 4px 0',
                       fontSize: '15px',
                       outline: 'none',
@@ -769,6 +816,11 @@ function CustomerForm() {
                     }}
                   />
                 </div>
+                {errors.phone && (
+                  <div style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>
+                    {errors.phone}
+                  </div>
+                )}
               </div>
 
               <div style={{ flex: 1 }}>
