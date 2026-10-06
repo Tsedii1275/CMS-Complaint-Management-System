@@ -7,7 +7,7 @@ import {
   SearchOutlined, SyncOutlined,
   EyeOutlined
 } from '@ant-design/icons';
-import { formatUniqueId, formatIntakeId, matchesTicketSearch } from '../components/TaskTable';
+import { formatUniqueId, formatIntakeId, matchesTicketSearch, compareTicketNumbersAsc } from '../components/TaskTable';
 import DashboardLayout from '../components/DashboardLayout';
 import ExportDropdown from '../components/ExportDropdown';
 import Pagination from '../components/Pagination';
@@ -154,7 +154,9 @@ function SlaMonitoringPage() {
   // ─── DYNAMIC FILTERING ───
   const filteredMetrics = useMemo(() => {
     const filters = { searchQuery, districtFilter, branchFilter, userFilter, priorityFilter, stageFilter, dateRange };
-    return metrics.filter(m => filterMetric(m, filters));
+    return metrics
+      .filter(m => filterMetric(m, filters))
+      .sort((a, b) => compareTicketNumbersAsc(formatUniqueId(a), formatUniqueId(b)));
   }, [
     metrics, searchQuery, districtFilter, branchFilter, userFilter,
     priorityFilter, stageFilter, dateRange

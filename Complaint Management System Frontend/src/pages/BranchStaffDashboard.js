@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Typography, Button, Form, Input, Select, Alert, Row, Col, Space, Checkbox, Table, Tag, Modal, Tooltip, Tabs, DatePicker, message as antMessage } from 'antd';
 import { PlusCircleOutlined, PaperClipOutlined, EyeOutlined, AudioOutlined, SearchOutlined } from '@ant-design/icons';
 import DashboardLayout from '../components/DashboardLayout';
-import { formatUniqueId, formatIntakeId, UniqueIdDisplay } from '../components/TaskTable';
+import { formatUniqueId, formatIntakeId, UniqueIdDisplay, compareTicketNumbersAsc } from '../components/TaskTable';
 import ApiService from '../services/api';
 import { BRAND_COLORS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
@@ -196,11 +196,14 @@ function BranchStaffDashboard() {
         ApiService.getOtherSlaMetrics().catch(() => [])
       ]);
 
-      setOtherComplaints(Array.isArray(otherData) ? otherData : []);
+      const byUniqueIdAsc = (rows) => [...rows].sort((a, b) =>
+        compareTicketNumbersAsc(formatUniqueId(a), formatUniqueId(b)));
+
+      setOtherComplaints(byUniqueIdAsc(Array.isArray(otherData) ? otherData : []));
 
       const list = Array.isArray(slaData) ? slaData : [];
       const filtered = list.filter(classifyComplaintFilter);
-      setScopedComplaints(filtered);
+      setScopedComplaints(byUniqueIdAsc(filtered));
     } catch (err) {
       console.error('Failed to load complaints data:', err);
     } finally {
@@ -369,6 +372,8 @@ function BranchStaffDashboard() {
       title: 'Unique ID No',
       dataIndex: 'complaintId',
       key: 'complaintId',
+      defaultSortOrder: 'ascend',
+      sorter: (a, b) => compareTicketNumbersAsc(formatUniqueId(a), formatUniqueId(b)),
       render: (id, r) => (
         <UniqueIdDisplay record={r} />
       )
@@ -421,6 +426,8 @@ function BranchStaffDashboard() {
       title: 'Unique ID No',
       dataIndex: 'complaintId',
       key: 'complaintId',
+      defaultSortOrder: 'ascend',
+      sorter: (a, b) => compareTicketNumbersAsc(formatUniqueId(a), formatUniqueId(b)),
       render: (id, r) => (
         <UniqueIdDisplay record={r} />
       )
