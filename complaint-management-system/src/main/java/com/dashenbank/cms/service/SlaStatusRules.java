@@ -4,7 +4,8 @@ import com.dashenbank.cms.model.ComplaintSlaMetrics;
 
 /**
  * Single definition of SLA status used by analytics and reporting.
- * Status values are produced only by {@link SlaTrackingService#recalculateSlaStatus}.
+ * Status values are produced only by
+ * {@link SlaTrackingService#recalculateSlaStatus}.
  */
 public final class SlaStatusRules {
 
@@ -16,8 +17,12 @@ public final class SlaStatusRules {
             return false;
         }
         String status = m.getSlaStatus();
+        String stageStatus = m.getCurrentStageStatus();
         return Boolean.TRUE.equals(m.getBreached())
                 || "BREACHED".equalsIgnoreCase(status)
+                || "BREACHED".equalsIgnoreCase(stageStatus)
+                || "OVERDUE".equalsIgnoreCase(status)
+                || "OVERDUE".equalsIgnoreCase(stageStatus)
                 || "RESOLVED_AFTER_SLA".equalsIgnoreCase(status);
     }
 

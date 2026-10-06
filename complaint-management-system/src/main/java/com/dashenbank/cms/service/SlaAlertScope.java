@@ -147,7 +147,8 @@ public final class SlaAlertScope {
         if (isCustomerNotificationStage(upper)) {
             return STAGE_CUSTOMER_NOTIFICATION;
         }
-        if (upper.contains("CMD") || upper.contains("SCREENING")) {
+        if (upper.contains("CMD") || upper.contains("SCREENING") || upper.contains("CUSTOMER_CARE")
+                || upper.contains("CCO") || upper.contains("TRIAGE")) {
             return STAGE_CMD_SCREENING;
         }
         return upper;

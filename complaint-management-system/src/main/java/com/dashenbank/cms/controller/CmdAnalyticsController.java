@@ -23,6 +23,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import com.dashenbank.cms.service.SlaTrackingService;
+import com.dashenbank.cms.service.SlaStatusRules;
 
 @RestController
 @RequestMapping("/api/cmd/analytics")
@@ -73,7 +74,7 @@ public class CmdAnalyticsController {
         for (ComplaintSlaMetrics metric : slaMetrics) {
             String rawOfficer = metric.getAssignedUserId() != null ? String.valueOf(metric.getAssignedUserId()) : null;
             String officerName = resolveOfficerName(rawOfficer);
-            if (Boolean.TRUE.equals(metric.getBreached())) {
+            if (SlaStatusRules.isBreached(metric)) {
                 breachedByOfficer.put(officerName, breachedByOfficer.getOrDefault(officerName, 0L) + 1);
             }
         }
@@ -149,7 +150,7 @@ public class CmdAnalyticsController {
                 String assignedUser = m.getAssignedUserId() != null ? String.valueOf(m.getAssignedUserId()) : "";
                 boolean matchesUser = uname.equalsIgnoreCase(assignedUser)
                         || (EYODA_USER.equalsIgnoreCase(uname) && CMD_OFFICER_ROLE.equalsIgnoreCase(assignedUser));
-                return matchesUser && Boolean.TRUE.equals(m.getBreached());
+                return matchesUser && SlaStatusRules.isBreached(m);
             }).count();
 
             long totalAssigned = activeCount + completedCount;
@@ -236,7 +237,7 @@ public class CmdAnalyticsController {
         List<ComplaintSlaMetrics> targetMetrics = deptMetrics.isEmpty() ? allMetrics : deptMetrics;
 
         long totalCount = targetMetrics.size();
-        long breachedCount = targetMetrics.stream().filter(m -> Boolean.TRUE.equals(m.getBreached())).count();
+        long breachedCount = targetMetrics.stream().filter(SlaStatusRules::isBreached).count();
         long onTimeCount = totalCount - breachedCount;
         double complianceRate = totalCount > 0 ? (double) onTimeCount / totalCount * 100.0 : 100.0;
 
@@ -284,7 +285,7 @@ public class CmdAnalyticsController {
                     m.getDistrict() != null ? m.getDistrict() : "Central District",
                     m.getPriority() != null ? m.getPriority() : "Normal",
                     m.getSlaStatus() != null ? m.getSlaStatus() : "WITHIN_SLA",
-                    Boolean.TRUE.equals(m.getBreached()) ? "YES" : "NO",
+                    SlaStatusRules.isBreached(m) ? "YES" : "NO",
                     m.getAssignedUserId() != null ? m.getAssignedUserId() : "Unassigned",
                     m.getStatus() != null ? m.getStatus() : "DECLINED",
                     m.getClassification() != null ? m.getClassification() : "DECLINED"));
