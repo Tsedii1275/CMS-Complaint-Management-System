@@ -548,14 +548,29 @@ public class SlaTrackingService {
         Map<String, TaskTimeTracking> stageMap = new LinkedHashMap<>();
 
         // 1. Fetch Flowable Historic Tasks
-        if (historyService != null && resolvedPiId != null) {
+        if (historyService != null) {
             try {
-                var historicTasks = historyService.createHistoricTaskInstanceQuery()
-                        .processInstanceId(resolvedPiId)
-                        .orderByHistoricTaskInstanceStartTime().asc()
-                        .list();
+                List<org.flowable.task.api.history.HistoricTaskInstance> historicTasks = new ArrayList<>();
+                if (resolvedPiId != null) {
+                    historicTasks.addAll(historyService.createHistoricTaskInstanceQuery()
+                            .processInstanceId(resolvedPiId)
+                            .orderByHistoricTaskInstanceStartTime().asc()
+                            .list());
+                }
+                if (historicTasks.isEmpty() && resolvedTicketId != null) {
+                    historicTasks.addAll(historyService.createHistoricTaskInstanceQuery()
+                            .processInstanceBusinessKey(resolvedTicketId)
+                            .orderByHistoricTaskInstanceStartTime().asc()
+                            .list());
+                }
+                if (historicTasks.isEmpty()) {
+                    historicTasks.addAll(historyService.createHistoricTaskInstanceQuery()
+                            .processInstanceBusinessKey(target)
+                            .orderByHistoricTaskInstanceStartTime().asc()
+                            .list());
+                }
 
-                if (historicTasks != null && !historicTasks.isEmpty()) {
+                if (!historicTasks.isEmpty()) {
                     for (var ht : historicTasks) {
                         String key = ht.getId();
                         LocalDateTime start = ht.getStartTime() != null

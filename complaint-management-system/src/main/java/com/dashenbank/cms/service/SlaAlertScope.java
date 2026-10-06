@@ -225,11 +225,15 @@ public final class SlaAlertScope {
             return true;
         }
         Set<String> keys = authorizedTaskKeys(role);
-        if (keys.isEmpty()) {
-            return false;
-        }
-        if (taskDefinitionKey != null && keys.contains(taskDefinitionKey)) {
+        if (!keys.isEmpty() && taskDefinitionKey != null && keys.contains(taskDefinitionKey)) {
             return true;
+        }
+        if (taskDefinitionKey != null) {
+            String stageFromKey = stageCodeFromTaskKey(taskDefinitionKey);
+            String canonical = stageFromKey != null ? stageFromKey : canonicalizeStage(taskDefinitionKey);
+            if (canonical != null && authorizedStageCodes(role).contains(canonical)) {
+                return true;
+            }
         }
         String n = normalizeRole(role);
         boolean workUnitActor = Role.ROLE_DEPARTMENT_WORKUNIT.name().equals(n)

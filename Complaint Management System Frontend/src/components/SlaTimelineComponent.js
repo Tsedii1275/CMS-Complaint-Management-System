@@ -316,13 +316,14 @@ function SlaTimelineComponent({ complaintId }) {
   const getStageBreachInfo = (t) => {
     if (!t) return { isBreached: false };
     const targetMins = t.resolutionSlaTargetMinutes || 240;
-    const actualMins = getLiveResolutionTimeMins(t);
+    const actualMins = (t.durationMinutes !== undefined && t.durationMinutes !== null)
+      ? t.durationMinutes
+      : getLiveResolutionTimeMins(t);
 
-    const respTargetMins = t.responseSlaTargetMinutes || 30;
-    const respActualMins = getLiveResponseTimeMins(t);
-
-    const isResolutionBreached = t.resolutionSlaStatus === 'BREACHED' || (actualMins > targetMins && actualMins > 0);
-    const isResponseBreached = t.responseSlaStatus === 'BREACHED' || (respActualMins > respTargetMins && respActualMins > 0);
+    const isResolutionBreached = t.resolutionSlaStatus === 'BREACHED'
+      || t.resolutionSlaStatus === 'OVERDUE'
+      || (actualMins > targetMins && actualMins > 0 && t.resolutionSlaStatus !== 'ON_TIME' && t.resolutionSlaStatus !== 'RESOLVED_WITHIN_SLA');
+    const isResponseBreached = t.responseSlaStatus === 'BREACHED' || t.responseSlaStatus === 'OVERDUE';
 
     if (isResolutionBreached) {
       const overBy = Math.max(0, actualMins - targetMins);
@@ -336,6 +337,8 @@ function SlaTimelineComponent({ complaintId }) {
     }
 
     if (isResponseBreached) {
+      const respTargetMins = t.responseSlaTargetMinutes || 30;
+      const respActualMins = getLiveResponseTimeMins(t);
       const overBy = Math.max(0, respActualMins - respTargetMins);
       return {
         type: 'Time To Respond Exceeded',
