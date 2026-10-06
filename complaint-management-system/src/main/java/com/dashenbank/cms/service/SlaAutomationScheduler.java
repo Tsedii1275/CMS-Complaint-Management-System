@@ -25,17 +25,20 @@ public class SlaAutomationScheduler {
         private final SlaTrackingService slaTrackingService;
         private final AuditService auditService;
         private final SlaBreachRecordRepository breachRecordRepository;
+        private final StageSlaLedgerService stageSlaLedgerService;
 
         @Autowired
         public SlaAutomationScheduler(
                         ComplaintSlaMetricsRepository slaMetricsRepository,
                         SlaTrackingService slaTrackingService,
                         AuditService auditService,
-                        SlaBreachRecordRepository breachRecordRepository) {
+                        SlaBreachRecordRepository breachRecordRepository,
+                        StageSlaLedgerService stageSlaLedgerService) {
                 this.slaMetricsRepository = slaMetricsRepository;
                 this.slaTrackingService = slaTrackingService;
                 this.auditService = auditService;
                 this.breachRecordRepository = breachRecordRepository;
+                this.stageSlaLedgerService = stageSlaLedgerService;
         }
 
         /**
@@ -45,6 +48,8 @@ public class SlaAutomationScheduler {
         @Scheduled(fixedDelay = 60000)
         @Transactional
         public void runSlaMonitoring() {
+                stageSlaLedgerService.evaluateOpenEvents();
+
                 List<ComplaintSlaMetrics> activeCases = slaMetricsRepository.findAll().stream()
                                 .filter(m -> !"CLOSED".equalsIgnoreCase(m.getStatus())
                                                 && !"COMPLETED".equalsIgnoreCase(m.getCurrentStage())
@@ -115,68 +120,51 @@ public class SlaAutomationScheduler {
 
         private void checkBreachAlert(ComplaintSlaMetrics m, double consumptionRatio, int elapsed, int allowed,
                         String complaintId, LocalDateTime now) {
-                boolean isStageBreached = "BREACHED".equalsIgnoreCase(m.getCurrentStageStatus())
-                                || "OVERDUE".equalsIgnoreCase(m.getCurrentStageStatus());
                 boolean isOverallBreached = consumptionRatio >= 1.0;
-                boolean shouldTriggerBreach = isStageBreached || isOverallBreached
-                                || Boolean.TRUE.equals(m.getBreached());
+                if (!isOverallBreached) {
+                        return;
+                }
+                m.setBreached(true);
+                if (m.getBreachedAt() == null) {
+                        m.setBreachedAt(now);
+                }
+                m.setSlaStatus("BREACHED");
 
-                if (shouldTriggerBreach) {
-                        m.setBreached(true);
-                        if (m.getBreachedAt() == null) {
-                                m.setBreachedAt(now);
-                        }
-                        m.setSlaStatus("BREACHED");
+                if (m.getReminder2Sent() == null || !m.getReminder2Sent()) {
+                        m.setReminder2Sent(true);
+                        String responsibleUnit = m.getDepartment() != null && !m.getDepartment().isBlank()
+                                        ? m.getDepartment()
+                                        : (m.getBranch() != null && !m.getBranch().isBlank() ? m.getBranch()
+                                                        : "Customer Care / Work Unit");
+                        String stage = m.getCurrentStage() != null ? m.getCurrentStage()
+                                        : "Workflow Processing";
+                        String deadline = m.getExpectedResolutionDate() != null
+                                        ? m.getExpectedResolutionDate().toString()
+                                        : "Standard SLA";
+                        long breachDuration = Math.max(1L, (long) (elapsed - allowed));
+                        String msg = String.format(
+                                        "OVERALL SLA BREACHED [Ticket: %s | Status: Breached | Stage: %s | Unit: %s | Deadline: %s | Time: %s]",
+                                        complaintId, stage, responsibleUnit, deadline, now);
 
-                        if (m.getReminder2Sent() == null || !m.getReminder2Sent()) {
-                                m.setReminder2Sent(true);
-                                String responsibleUnit = m.getDepartment() != null && !m.getDepartment().isBlank()
-                                                ? m.getDepartment()
-                                                : (m.getBranch() != null && !m.getBranch().isBlank() ? m.getBranch()
-                                                                : "Customer Care / Work Unit");
-                                String stage = m.getCurrentStage() != null ? m.getCurrentStage()
-                                                : "Workflow Processing";
-                                String deadline = m.getExpectedResolutionDate() != null
-                                                ? m.getExpectedResolutionDate().toString()
-                                                : "Standard SLA";
-                                long breachDuration = isStageBreached
-                                                ? Math.max(1L, (long) ((m.getCurrentStageElapsedMinutes() != null
-                                                                ? m.getCurrentStageElapsedMinutes()
-                                                                : 0)
-                                                                - (m.getCurrentStageAllowedMinutes() != null
-                                                                                ? m.getCurrentStageAllowedMinutes()
-                                                                                : 0)))
-                                                : Math.max(1L, (long) (elapsed - allowed));
-                                String msg = String.format(
-                                                "SLA BREACHED [Ticket: %s | Status: Breached | Stage: %s | Unit: %s | Deadline: %s | Time: %s]",
-                                                complaintId, stage, responsibleUnit, deadline, now);
+                        auditService.log(complaintId, m.getProcessInstanceId(), null, "SLA_BREACHED",
+                                        SYSTEM_ACTOR,
+                                        responsibleUnit, msg, m.getCustomerName(), m.getComplaintCategory(),
+                                        null);
 
-                                auditService.log(complaintId, m.getProcessInstanceId(), null, "SLA_BREACHED",
-                                                SYSTEM_ACTOR,
-                                                responsibleUnit, msg, m.getCustomerName(), m.getComplaintCategory(),
-                                                null);
-
-                                SlaBreachRecord breach = SlaBreachRecord.builder()
-                                                .complaintId(complaintId)
-                                                .processInstanceId(m.getProcessInstanceId())
-                                                .stageName(stage)
-                                                .breachReason(isStageBreached
-                                                                ? "Stage SLA allowed minutes exceeded ("
-                                                                                + m.getCurrentStageElapsedMinutes()
-                                                                                + "/"
-                                                                                + m.getCurrentStageAllowedMinutes()
-                                                                                + " mins)"
-                                                                : "Overall SLA allowed minutes exceeded (" + elapsed
-                                                                                + "/" + allowed + " mins)")
-                                                .breachDurationMinutes(breachDuration)
-                                                .responsibleWorkUnit(responsibleUnit)
-                                                .escalationActionsTaken("Automated SLA breach alert dispatched to "
-                                                                + responsibleUnit)
-                                                .build();
-                                breachRecordRepository.save(breach);
-                                log.warn(">>> Recorded SLA Breach for Ticket {} (Stage: {}, Unit: {})", complaintId,
-                                                stage, responsibleUnit);
-                        }
+                        SlaBreachRecord breach = SlaBreachRecord.builder()
+                                        .complaintId(complaintId)
+                                        .processInstanceId(m.getProcessInstanceId())
+                                        .stageName("OVERALL")
+                                        .breachReason("Overall SLA allowed minutes exceeded (" + elapsed
+                                                        + "/" + allowed + " mins)")
+                                        .breachDurationMinutes(breachDuration)
+                                        .responsibleWorkUnit(responsibleUnit)
+                                        .escalationActionsTaken("Automated overall SLA breach alert dispatched to "
+                                                        + responsibleUnit)
+                                        .build();
+                        breachRecordRepository.save(breach);
+                        log.warn(">>> Recorded overall SLA Breach for Ticket {} (Unit: {})", complaintId,
+                                        responsibleUnit);
                 }
         }
 }

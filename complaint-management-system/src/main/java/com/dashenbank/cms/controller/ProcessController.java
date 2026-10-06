@@ -23,6 +23,7 @@ import com.dashenbank.cms.service.NbeComplianceReportService;
 import com.dashenbank.cms.service.SlaAlertAuthorizationService;
 import com.dashenbank.cms.service.SlaAlertScope;
 import com.dashenbank.cms.service.SlaTrackingService;
+import com.dashenbank.cms.service.StageSlaLedgerService;
 import com.dashenbank.cms.security.ClientIp;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.flowable.engine.HistoryService;
@@ -190,6 +191,8 @@ public class ProcessController {
     private com.dashenbank.cms.config.AppHttpProperties appHttpProperties;
     @Autowired
     private SlaAlertAuthorizationService slaAlertAuthorizationService;
+    @Autowired
+    private StageSlaLedgerService stageSlaLedgerService;
     @Autowired
     private com.dashenbank.cms.security.FileSecurityService fileSecurityService;
     @Autowired
@@ -907,11 +910,20 @@ public class ProcessController {
         String slaDeadline = null;
         Optional<ComplaintSlaMetrics> metricsForDisplay = slaMetricsRepository
                 .findByProcessInstanceId(task.getProcessInstanceId());
-        if (metricsForDisplay.isPresent()
-                && SlaAlertScope.sameStage(metricsForDisplay.get().getCurrentStage(), activeStage)
-                && metricsForDisplay.get().getCurrentStageDueTime() != null) {
-            slaDeadline = DateTimeFormatter.ISO_LOCAL_DATE_TIME
-                    .format(metricsForDisplay.get().getCurrentStageDueTime());
+        if (metricsForDisplay.isPresent()) {
+            ComplaintSlaMetrics row = metricsForDisplay.get();
+            if (stageSlaLedgerService != null && task.getId() != null) {
+                var event = stageSlaLedgerService.findByTaskId(task.getId());
+                if (event.isPresent() && stageSlaLedgerService.dueAt(event.get()) != null) {
+                    slaDeadline = DateTimeFormatter.ISO_LOCAL_DATE_TIME
+                            .format(stageSlaLedgerService.dueAt(event.get()));
+                }
+            }
+            if (slaDeadline == null
+                    && SlaAlertScope.sameStage(row.getCurrentStage(), activeStage)
+                    && row.getCurrentStageDueTime() != null) {
+                slaDeadline = DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(row.getCurrentStageDueTime());
+            }
         }
 
         enrichedTask.put(KEY_PRIORITY, priority);
@@ -952,7 +964,7 @@ public class ProcessController {
                     .findByProcessInstanceId(task.getProcessInstanceId());
             if (metricsOpt.isPresent() && slaAlertAuthorizationService != null) {
                 return slaAlertAuthorizationService.stageSlaStatusForTask(metricsOpt.get(),
-                        task.getTaskDefinitionKey());
+                        task.getTaskDefinitionKey(), task.getId());
             }
         }
         return calculateStandardTaskSlaStatus(sla);

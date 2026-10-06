@@ -19,6 +19,13 @@ test('customer care sees screening only', () => {
   expect(isSlaAlertForUser({ currentStage: 'WORK_UNIT_RESOLUTION' }, user)).toBe(false);
 });
 
+test('cxo sees executive review including CXO_REVIEW alias', () => {
+  const user = { username: 'cxo', role: 'ROLE_CHIEF_EXPERIENCE_OFFICER' };
+  expect(isSlaAlertForUser({ currentStage: 'CHIEF_EXPERIENCE_REVIEW' }, user)).toBe(true);
+  expect(isSlaAlertForUser({ currentStage: 'CXO_REVIEW' }, user)).toBe(true);
+  expect(isSlaAlertForUser({ currentStage: 'CMD_SCREENING' }, user)).toBe(false);
+});
+
 test('work unit sees only assigned or same-department work-unit alerts', () => {
   const user = { username: 'loans.lead', role: 'ROLE_DEPARTMENT_WORKUNIT', department: 'Loans' };
   expect(isSlaAlertForUser({

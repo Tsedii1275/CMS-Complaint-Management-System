@@ -58,7 +58,7 @@ export function isSlaAlertForUser(alert, user) {
     return stage.includes('COMMITTEE');
   }
   if (role.includes('CHIEF_EXPERIENCE')) {
-    return stage.includes('CHIEF_EXPERIENCE');
+    return stage.includes('CHIEF_EXPERIENCE') || stage.includes('CXO_REVIEW') || stage.includes('CXO');
   }
   if (role === 'ROLE_SERVICE_QUALITY_DIRECTOR' || role.includes('SERVICE_QUALITY_DIRECTOR')) {
     return stage.includes('SERVICE_QUALITY');
@@ -67,7 +67,7 @@ export function isSlaAlertForUser(alert, user) {
       || role === 'ROLE_CUSTOMER_CARE_TEAM_LEADER'
       || role === 'ROLE_CUSTOMER_CARE_SENIOR_MANAGER'
       || role.includes('CUSTOMER_CARE_OFFICER')) {
-    return stage.includes('CMD_SCREENING') || stage.includes('SCREENING')
+    return stage.includes('CMD_SCREENING') || stage === 'SCREENING'
       || stage.includes('CUSTOMER_NOTIFICATION');
   }
   if (role.includes('DEPARTMENT_WORKUNIT')) {

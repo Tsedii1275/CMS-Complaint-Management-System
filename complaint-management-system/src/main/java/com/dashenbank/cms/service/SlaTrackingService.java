@@ -52,6 +52,7 @@ public class SlaTrackingService {
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
     private final RuntimeService runtimeService;
     private final org.flowable.engine.HistoryService historyService;
+    private final ObjectProvider<StageSlaLedgerService> stageSlaLedgerProvider;
 
     public SlaTrackingService(ComplaintSlaMetricsRepository slaMetricsRepository,
             TaskTimeTrackingRepository taskTimeTrackingRepository,
@@ -59,7 +60,8 @@ public class SlaTrackingService {
             BusinessHoursService businessHoursService,
             org.springframework.jdbc.core.JdbcTemplate jdbcTemplate,
             ObjectProvider<RuntimeService> runtimeServiceProvider,
-            ObjectProvider<org.flowable.engine.HistoryService> historyServiceProvider) {
+            ObjectProvider<org.flowable.engine.HistoryService> historyServiceProvider,
+            ObjectProvider<StageSlaLedgerService> stageSlaLedgerProvider) {
         this.slaMetricsRepository = slaMetricsRepository;
         this.taskTimeTrackingRepository = taskTimeTrackingRepository;
         this.slaConfigService = slaConfigService;
@@ -67,6 +69,7 @@ public class SlaTrackingService {
         this.jdbcTemplate = jdbcTemplate;
         this.runtimeService = runtimeServiceProvider.getIfAvailable();
         this.historyService = historyServiceProvider.getIfAvailable();
+        this.stageSlaLedgerProvider = stageSlaLedgerProvider;
     }
 
     // Task definition key -> Lane mapping
@@ -85,7 +88,7 @@ public class SlaTrackingService {
     }
 
     public String getLaneName(String taskDefinitionKey) {
-        return TASK_TO_LANE.getOrDefault(taskDefinitionKey, "UNKNOWN");
+        return SlaAlertScope.laneFromTaskKey(taskDefinitionKey);
     }
 
     /**
@@ -130,34 +133,37 @@ public class SlaTrackingService {
      * Calculates stage SLA business minutes from the approved matrix.
      */
     public Integer calculateStageSlaMinutes(String stageName, String priority, String investigationType) {
-        if (stageName == null || stageName.isBlank()) {
+        String stage = SlaAlertScope.canonicalStageOf(stageName);
+        if (stage == null || stage.isBlank()) {
             log.error("SLA Matrix stage lookup skipped: stage name is blank");
             return null;
         }
-        String stage = stageName.toUpperCase();
         return switch (stage) {
-            case STAGE_CMD_SCREENING, "CMD_SCREENING & ACKNOWLEDGMENT" ->
+            case SlaAlertScope.STAGE_CMD_SCREENING ->
                 slaConfigService.resolveAllowedMinutes(STAGE_CMD_SCREENING).orElse(null);
-            case "FORWARDING", "FORWARD CASE TO WORK UNIT", "CMD_FORWARDING" ->
+            case "CMD_FORWARDING", "FORWARDING" ->
                 slaConfigService.resolveAllowedMinutes("CMD_FORWARDING").orElse(null);
-            case "SERVICE_QUALITY_REVIEW" ->
+            case SlaAlertScope.STAGE_SERVICE_QUALITY_REVIEW ->
                 slaConfigService.resolveAllowedMinutes("SERVICE_QUALITY_REVIEW").orElse(null);
-            case "CXO_REVIEW", "CHIEF_EXPERIENCE_REVIEW" ->
-                slaConfigService.resolveAllowedMinutes("CXO_REVIEW").orElse(null);
-            case "CEO_DIRECTION" ->
-                slaConfigService.resolveAllowedMinutes("CEO_DIRECTION").orElse(null);
-            case "AUDIT_INVESTIGATION", "INVESTIGATION", "CHIEF_OPERATION_AUDIT" ->
+            case SlaAlertScope.STAGE_CHIEF_EXPERIENCE_REVIEW, "CXO_REVIEW", "CEO_DIRECTION" ->
+                slaConfigService.resolveAllowedMinutes(
+                        "CEO_DIRECTION".equals(stage) ? "CEO_DIRECTION" : "CXO_REVIEW").orElse(null);
+            case SlaAlertScope.STAGE_INVESTIGATION ->
                 calculateInvestigationStageMinutes(investigationType);
-            case "COMMITTEE_REVIEW", "CHIEF_COMMITTEE" -> {
+            case SlaAlertScope.STAGE_COMMITTEE_REVIEW -> {
                 boolean isHsOrS = PRIORITY_HIGHLY_SENSITIVE.equalsIgnoreCase(priority)
                         || PRIORITY_SENSITIVE.equalsIgnoreCase(priority);
                 yield slaConfigService.resolveAllowedMinutes(
                         isHsOrS ? "COMMITTEE_REVIEW_HS_S" : "COMMITTEE_REVIEW_GENERAL").orElse(null);
             }
-            case "RESOLUTION", "WORK_UNIT_RESOLUTION" ->
+            case SlaAlertScope.STAGE_WORK_UNIT_RESOLUTION ->
                 calculateResolutionStageMinutes(priority);
-            case "NOTIFICATION", "NOTIFY_CUSTOMER" ->
+            case SlaAlertScope.STAGE_CUSTOMER_NOTIFICATION ->
                 slaConfigService.resolveAllowedMinutes("CUSTOMER_NOTIFICATION").orElse(null);
+            case SlaAlertScope.STAGE_BRANCH_INTAKE ->
+                slaConfigService.resolveAllowedMinutes("BRANCH_COMPLAINT_INTAKE").orElse(null);
+            case SlaAlertScope.STAGE_CONTACT_CENTER_INTAKE ->
+                slaConfigService.resolveAllowedMinutes("CONTACT_CENTER_INTAKE").orElse(null);
             default -> {
                 log.error("SLA Matrix has no stage mapping for '{}'", stageName);
                 yield null;
@@ -363,9 +369,21 @@ public class SlaTrackingService {
     public TaskTimeTracking recordTaskStart(String processInstanceId, String complaintId,
             String taskId, String taskDefinitionKey,
             String taskName, String assignedUser) {
+        notifyLedgerCreated(processInstanceId, complaintId, taskId, taskDefinitionKey, assignedUser);
+        if (taskId != null) {
+            Optional<TaskTimeTracking> existing = taskTimeTrackingRepository.findByTaskId(taskId);
+            if (existing.isPresent()) {
+                return existing.get();
+            }
+        }
+        Optional<ComplaintSlaMetrics> metricsOpt = processInstanceId != null
+                ? slaMetricsRepository.findByProcessInstanceId(processInstanceId)
+                : Optional.empty();
+        String priority = metricsOpt.map(ComplaintSlaMetrics::getPriority).orElse(PRIORITY_GENERAL);
+        String investigationType = metricsOpt.map(ComplaintSlaMetrics::getInvestigationType).orElse(null);
         String laneName = getLaneName(taskDefinitionKey);
-        Integer responseTarget = slaConfigService.resolveAllowedMinutes(STAGE_CMD_SCREENING).orElse(null);
-        Integer resolutionTarget = calculateStageSlaMinutes(STAGE_CMD_SCREENING, PRIORITY_GENERAL, null);
+        Integer responseTarget = calculateStageSlaMinutes(taskDefinitionKey, priority, investigationType);
+        Integer resolutionTarget = calculateStageSlaMinutes(taskDefinitionKey, priority, investigationType);
 
         LocalDateTime now = LocalDateTime.now(SYSTEM_ZONE);
         boolean isUserAssigned = assignedUser != null && !assignedUser.isBlank() && !INITIATOR.equals(assignedUser);
@@ -421,8 +439,8 @@ public class SlaTrackingService {
                     .taskName(taskName)
                     .laneName(laneName)
                     .startedAt(now)
-                    .responseSlaTargetMinutes(slaConfigService.resolveAllowedMinutes(STAGE_CMD_SCREENING).orElse(null))
-                    .resolutionSlaTargetMinutes(calculateStageSlaMinutes(STAGE_CMD_SCREENING, PRIORITY_GENERAL, null))
+                    .responseSlaTargetMinutes(calculateStageSlaMinutes(taskDefinitionKey, PRIORITY_GENERAL, null))
+                    .resolutionSlaTargetMinutes(calculateStageSlaMinutes(taskDefinitionKey, PRIORITY_GENERAL, null))
                     .build();
         }
 
@@ -452,6 +470,10 @@ public class SlaTrackingService {
     // Record task completion (Resolution SLA Evaluation)
     @Transactional
     public void recordTaskCompletion(String taskId, String completedBy) {
+        StageSlaLedgerService ledger = stageSlaLedgerProvider.getIfAvailable();
+        if (ledger != null) {
+            ledger.onTaskCompleted(taskId, completedBy);
+        }
         Optional<TaskTimeTracking> trackingOpt = taskTimeTrackingRepository.findByTaskId(taskId);
         if (trackingOpt.isEmpty())
             return;
@@ -479,7 +501,7 @@ public class SlaTrackingService {
 
             Integer resolutionTarget = tracking.getResolutionSlaTargetMinutes();
             if (resolutionTarget == null) {
-                resolutionTarget = calculateStageSlaMinutes(STAGE_CMD_SCREENING, PRIORITY_GENERAL, null);
+                resolutionTarget = calculateStageSlaMinutes(tracking.getTaskDefinitionKey(), PRIORITY_GENERAL, null);
             }
             tracking.setResolutionSlaTargetMinutes(resolutionTarget);
 
@@ -499,270 +521,48 @@ public class SlaTrackingService {
                 tracking.getDurationMinutes() != null ? tracking.getDurationMinutes().intValue() : 0);
     }
 
-    @SuppressWarnings("java:S3776")
     public List<TaskTimeTracking> getStageTimeline(String complaintId) {
         if (complaintId == null || complaintId.isBlank()) {
             return List.of();
         }
-
-        final String target = complaintId.trim();
-        final String numPart = target.replaceAll("^(DBC|CM)-?", "").trim();
-        final String seqPart = target.contains("/")
-                ? target.split("/")[0].replaceAll("^(DBC|CM)-?", "").trim()
-                : numPart;
-
-        Optional<ComplaintSlaMetrics> metricsOpt = slaMetricsRepository.findByDbcTicketId(target);
-        if (metricsOpt.isEmpty()) {
-            metricsOpt = slaMetricsRepository.findByComplaintId(target);
-        }
-        if (metricsOpt.isEmpty()) {
-            metricsOpt = slaMetricsRepository.findByGeneralTicketId(target);
-        }
-        if (metricsOpt.isEmpty()) {
-            metricsOpt = slaMetricsRepository.findByProcessInstanceId(target);
-        }
-        if (metricsOpt.isEmpty()) {
-            metricsOpt = slaMetricsRepository.findAll().stream()
-                    .filter(m -> {
-                        if (m == null)
-                            return false;
-                        String cId = m.getComplaintId() != null ? m.getComplaintId() : "";
-                        String dId = m.getDbcTicketId() != null ? m.getDbcTicketId() : "";
-                        String gId = m.getGeneralTicketId() != null ? m.getGeneralTicketId() : "";
-                        String pId = m.getProcessInstanceId() != null ? m.getProcessInstanceId() : "";
-                        return cId.equalsIgnoreCase(target) || dId.equalsIgnoreCase(target)
-                                || gId.equalsIgnoreCase(target) || pId.equalsIgnoreCase(target)
-                                || (!numPart.isBlank()
-                                        && (cId.contains(numPart) || dId.contains(numPart) || gId.contains(numPart)))
-                                || (!seqPart.isBlank()
-                                        && (cId.contains(seqPart) || dId.contains(seqPart) || gId.contains(seqPart)));
-                    })
-                    .findFirst();
-        }
-
-        ComplaintSlaMetrics m = metricsOpt.orElse(null);
-        String resolvedPiId = m != null ? m.getProcessInstanceId() : (target.contains("-") ? null : target);
-        String resolvedTicketId = m != null ? firstNonNull(m.getDbcTicketId(), m.getComplaintId(), target) : target;
-        LocalDateTime now = LocalDateTime.now(SYSTEM_ZONE);
-
-        Map<String, TaskTimeTracking> stageMap = new LinkedHashMap<>();
-
-        // 1. Fetch Flowable Historic Tasks
-        if (historyService != null) {
-            try {
-                List<org.flowable.task.api.history.HistoricTaskInstance> historicTasks = new ArrayList<>();
-                if (resolvedPiId != null) {
-                    historicTasks.addAll(historyService.createHistoricTaskInstanceQuery()
-                            .processInstanceId(resolvedPiId)
-                            .orderByHistoricTaskInstanceStartTime().asc()
-                            .list());
-                }
-                if (historicTasks.isEmpty() && resolvedTicketId != null) {
-                    historicTasks.addAll(historyService.createHistoricTaskInstanceQuery()
-                            .processInstanceBusinessKey(resolvedTicketId)
-                            .orderByHistoricTaskInstanceStartTime().asc()
-                            .list());
-                }
-                if (historicTasks.isEmpty()) {
-                    historicTasks.addAll(historyService.createHistoricTaskInstanceQuery()
-                            .processInstanceBusinessKey(target)
-                            .orderByHistoricTaskInstanceStartTime().asc()
-                            .list());
-                }
-
-                if (!historicTasks.isEmpty()) {
-                    for (var ht : historicTasks) {
-                        String key = ht.getId();
-                        LocalDateTime start = ht.getStartTime() != null
-                                ? ht.getStartTime().toInstant().atZone(SYSTEM_ZONE).toLocalDateTime()
-                                : (m != null && m.getCreatedAt() != null ? m.getCreatedAt() : now);
-                        LocalDateTime end = ht.getEndTime() != null
-                                ? ht.getEndTime().toInstant().atZone(SYSTEM_ZONE).toLocalDateTime()
-                                : null;
-
-                        String rawName = ht.getName() != null && !ht.getName().isBlank() ? ht.getName()
-                                : ht.getTaskDefinitionKey();
-                        String stageCode = SlaAlertScope.stageCodeFromTaskKey(ht.getTaskDefinitionKey());
-                        String taskName = SlaAlertScope
-                                .stageLabel(stageCode != null ? stageCode : SlaAlertScope.canonicalizeStage(rawName));
-
-                        String assignee = ht.getAssignee();
-                        if (assignee == null || assignee.isBlank() || INITIATOR.equalsIgnoreCase(assignee)) {
-                            assignee = m != null
-                                    ? firstNonNull(m.getStaffHandling(), m.getManager(), ACTOR_CUSTOMER_CARE_OFFICER)
-                                    : ACTOR_CUSTOMER_CARE_OFFICER;
-                        }
-
-                        Integer allowedMins = calculateStageSlaMinutes(taskName,
-                                m != null ? m.getPriority() : PRIORITY_GENERAL,
-                                m != null ? m.getInvestigationType() : null);
-                        if (allowedMins == null) {
-                            allowedMins = 240;
-                        }
-
-                        long elapsedMins = businessHoursService.calculateElapsedBusinessMinutes(start,
-                                end != null ? end : now);
-                        String slaStatus;
-                        long breachMins = 0L;
-                        if (elapsedMins > allowedMins) {
-                            slaStatus = SLA_BREACHED;
-                            breachMins = elapsedMins - allowedMins;
-                        } else if (elapsedMins >= (long) (allowedMins * 0.80)) {
-                            slaStatus = "APPROACHING";
-                        } else {
-                            slaStatus = SLA_ON_TIME;
-                        }
-
-                        TaskTimeTracking tt = TaskTimeTracking.builder()
-                                .processInstanceId(resolvedPiId)
-                                .complaintId(resolvedTicketId)
-                                .taskId(ht.getId())
-                                .taskDefinitionKey(ht.getTaskDefinitionKey())
-                                .taskName(taskName)
-                                .laneName(resolveLaneName(taskName))
-                                .assignedUser(assignee)
-                                .startedAt(start)
-                                .completedAt(end)
-                                .durationMinutes(elapsedMins)
-                                .durationHours(Math.round((elapsedMins / 60.0) * 100.0) / 100.0)
-                                .resolutionSlaTargetMinutes(allowedMins)
-                                .resolutionSlaStatus(slaStatus)
-                                .resolutionBreachDurationMinutes(breachMins)
-                                .build();
-                        stageMap.put(key, tt);
-                    }
-                }
-            } catch (Exception e) {
-                log.debug("Flowable historic task timeline extract skipped: {}", e.getMessage());
+        StageSlaLedgerService ledger = stageSlaLedgerProvider.getIfAvailable();
+        if (ledger != null) {
+            List<TaskTimeTracking> events = ledger.timelineForComplaint(complaintId.trim());
+            if (!events.isEmpty()) {
+                return events;
             }
         }
+        return List.of();
+    }
 
-        // 2. Fetch task_time_tracking DB records
-        List<TaskTimeTracking> dbList = new ArrayList<>();
-        if (resolvedPiId != null) {
-            dbList.addAll(taskTimeTrackingRepository.findByProcessInstanceId(resolvedPiId));
+    private void notifyLedgerCreated(String processInstanceId, String complaintId, String taskId,
+            String taskDefinitionKey, String assignedUser) {
+        StageSlaLedgerService ledger = stageSlaLedgerProvider.getIfAvailable();
+        if (ledger != null) {
+            ledger.onTaskCreated(processInstanceId, complaintId, taskId, taskDefinitionKey, assignedUser);
         }
-        dbList.addAll(taskTimeTrackingRepository.findByComplaintId(target));
-        if (m != null) {
-            if (m.getComplaintId() != null)
-                dbList.addAll(taskTimeTrackingRepository.findByComplaintId(m.getComplaintId()));
-            if (m.getDbcTicketId() != null)
-                dbList.addAll(taskTimeTrackingRepository.findByComplaintId(m.getDbcTicketId()));
-            if (m.getGeneralTicketId() != null)
-                dbList.addAll(taskTimeTrackingRepository.findByComplaintId(m.getGeneralTicketId()));
+    }
+
+    private void attachStageKpis(ComplaintSlaMetrics metrics) {
+        if (metrics == null) {
+            return;
         }
-
-        for (TaskTimeTracking t : dbList) {
-            if (t != null) {
-                String key = t.getTaskId() != null ? t.getTaskId()
-                        : (t.getTaskDefinitionKey() != null ? t.getTaskDefinitionKey() : t.getTaskName());
-                if (!stageMap.containsKey(key)) {
-                    LocalDateTime start = t.getStartedAt() != null ? t.getStartedAt()
-                            : (m != null ? m.getCreatedAt() : now);
-                    LocalDateTime end = t.getCompletedAt();
-                    Integer allowedMins = t.getResolutionSlaTargetMinutes() != null ? t.getResolutionSlaTargetMinutes()
-                            : calculateStageSlaMinutes(t.getTaskName(), m != null ? m.getPriority() : PRIORITY_GENERAL,
-                                    null);
-                    if (allowedMins == null)
-                        allowedMins = 240;
-                    long elapsedMins = businessHoursService.calculateElapsedBusinessMinutes(start,
-                            end != null ? end : now);
-                    String slaStatus;
-                    long breachMins = 0L;
-                    if (elapsedMins > allowedMins) {
-                        slaStatus = SLA_BREACHED;
-                        breachMins = elapsedMins - allowedMins;
-                    } else if (elapsedMins >= (long) (allowedMins * 0.80)) {
-                        slaStatus = "APPROACHING";
-                    } else {
-                        slaStatus = SLA_ON_TIME;
-                    }
-                    t.setDurationMinutes(elapsedMins);
-                    t.setDurationHours(Math.round((elapsedMins / 60.0) * 100.0) / 100.0);
-                    t.setResolutionSlaTargetMinutes(allowedMins);
-                    t.setResolutionSlaStatus(slaStatus);
-                    t.setResolutionBreachDurationMinutes(breachMins);
-                    stageMap.put(key, t);
-                }
-            }
+        StageSlaLedgerService ledger = stageSlaLedgerProvider.getIfAvailable();
+        if (ledger == null) {
+            return;
         }
-
-        List<TaskTimeTracking> list = new ArrayList<>(stageMap.values());
-
-        // 3. Fallback / Stage Reconstruction from ComplaintSlaMetrics if timeline is
-        // incomplete
-        if (m != null && list.isEmpty()) {
-            LocalDateTime baseStart = m.getCreatedAt() != null ? m.getCreatedAt() : now.minusHours(3);
-            LocalDateTime currentEnd = m.getResolvedAt();
-            List<TaskTimeTracking> reconstructed = new ArrayList<>();
-
-            // Stage 1: Customer Care Officer Screening
-            LocalDateTime stage1End = (m.getCurrentStageStartedAt() != null
-                    && !SlaAlertScope.sameStage(m.getCurrentStage(), STAGE_CMD_SCREENING))
-                            ? m.getCurrentStageStartedAt()
-                            : (currentEnd != null ? currentEnd : baseStart.plusMinutes(15));
-            if (SlaAlertScope.sameStage(m.getCurrentStage(), STAGE_CMD_SCREENING) && currentEnd == null) {
-                stage1End = null;
-            }
-            long stage1Elapsed = businessHoursService.calculateElapsedBusinessMinutes(baseStart,
-                    stage1End != null ? stage1End : now);
-            Integer stage1Target = calculateStageSlaMinutes(STAGE_CMD_SCREENING, m.getPriority(), null);
-            if (stage1Target == null)
-                stage1Target = 240;
-            String stage1Status = stage1Elapsed > stage1Target ? SLA_BREACHED
-                    : (stage1Elapsed >= stage1Target * 0.8 ? "APPROACHING" : SLA_ON_TIME);
-
-            reconstructed.add(TaskTimeTracking.builder()
-                    .processInstanceId(firstNonNull(m.getProcessInstanceId(), target))
-                    .complaintId(resolvedTicketId)
-                    .taskName("Customer Care Officer")
-                    .laneName("Customer Care Unit (CMD)")
-                    .assignedUser(firstNonNull(m.getStaffHandling(), ACTOR_CUSTOMER_CARE_OFFICER))
-                    .startedAt(baseStart)
-                    .completedAt(stage1End)
-                    .durationMinutes(stage1Elapsed)
-                    .durationHours(Math.round((stage1Elapsed / 60.0) * 100.0) / 100.0)
-                    .resolutionSlaTargetMinutes(stage1Target)
-                    .resolutionSlaStatus(stage1Status)
-                    .build());
-
-            // Stage 2: Active or Subsequent Stage
-            if (!SlaAlertScope.sameStage(m.getCurrentStage(), STAGE_CMD_SCREENING) || currentEnd != null) {
-                String stage2Name = SlaAlertScope.stageLabel(m.getCurrentStage());
-                LocalDateTime stage2Start = stage1End != null ? stage1End : baseStart.plusMinutes(15);
-                LocalDateTime stage2End = currentEnd;
-                long stage2Elapsed = businessHoursService.calculateElapsedBusinessMinutes(stage2Start,
-                        stage2End != null ? stage2End : now);
-                Integer stage2Target = m.getCurrentStageAllowedMinutes() != null ? m.getCurrentStageAllowedMinutes()
-                        : calculateStageSlaMinutes(m.getCurrentStage(), m.getPriority(), m.getInvestigationType());
-                if (stage2Target == null)
-                    stage2Target = 2880;
-                String stage2Status = stage2Elapsed > stage2Target ? SLA_BREACHED
-                        : (stage2Elapsed >= stage2Target * 0.8 ? "APPROACHING" : SLA_ON_TIME);
-
-                reconstructed.add(TaskTimeTracking.builder()
-                        .processInstanceId(firstNonNull(m.getProcessInstanceId(), target))
-                        .complaintId(resolvedTicketId)
-                        .taskName(stage2Name)
-                        .laneName(firstNonNull(m.getDepartment(), m.getBranch(), "Department / Work Unit"))
-                        .assignedUser(firstNonNull(m.getStaffHandling(), m.getManager(), "Work Unit Officer"))
-                        .startedAt(stage2Start)
-                        .completedAt(stage2End)
-                        .durationMinutes(stage2Elapsed)
-                        .durationHours(Math.round((stage2Elapsed / 60.0) * 100.0) / 100.0)
-                        .resolutionSlaTargetMinutes(stage2Target)
-                        .resolutionSlaStatus(stage2Status)
-                        .build());
-            }
-
-            list = reconstructed;
+        String id = metrics.getComplaintId() != null ? metrics.getComplaintId() : metrics.getProcessInstanceId();
+        Map<String, Object> kpis = ledger.stageKpis(id);
+        Object total = kpis.get("totalStages");
+        Object breached = kpis.get("breachedStages");
+        metrics.setStageEventCount(total instanceof Number n ? n.intValue() : 0);
+        metrics.setBreachedStageCount(breached instanceof Number n ? n.intValue() : 0);
+        if (kpis.get("currentStageSlaStatus") != null) {
+            metrics.setLedgerStageStatus(kpis.get("currentStageSlaStatus").toString());
         }
-
-        // Sort stages chronologically by startedAt
-        list.sort(
-                Comparator.comparing(TaskTimeTracking::getStartedAt, Comparator.nullsLast(Comparator.naturalOrder())));
-
-        return list;
+        if (kpis.get("currentCanonicalStage") != null) {
+            metrics.setLedgerCanonicalStage(kpis.get("currentCanonicalStage").toString());
+        }
     }
 
     private String resolveLaneName(String taskName) {
@@ -1386,6 +1186,7 @@ public class SlaTrackingService {
                     recalculateSlaStatus(m);
                 }
                 applyOverallStatus(m);
+                attachStageKpis(m);
                 classified.add(m);
             }
         }
@@ -1671,6 +1472,13 @@ public class SlaTrackingService {
         report.put("remainingMinutes", m.getRemainingMinutes());
         report.put("slaStatus", m.getSlaStatus());
         report.put("breached", m.getBreached());
+        attachStageKpis(m);
+        report.put("stageEventCount", m.getStageEventCount());
+        report.put("breachedStageCount", m.getBreachedStageCount());
+        report.put("ledgerStageStatus", m.getLedgerStageStatus());
+        report.put("ledgerCanonicalStage", m.getLedgerCanonicalStage());
+        report.put("currentStageSlaStatus", m.getLedgerStageStatus() != null
+                ? m.getLedgerStageStatus() : m.getCurrentStageStatus());
 
         String deadlineStr = null;
         if (m.getOverallSlaDueTime() != null) {

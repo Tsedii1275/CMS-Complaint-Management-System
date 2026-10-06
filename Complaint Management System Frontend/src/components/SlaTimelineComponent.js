@@ -90,29 +90,35 @@ const slaStyles = {
 
 const formatStageName = (rawName, defKey) => {
   const key = ((rawName || '') + ' ' + (defKey || '')).toUpperCase().trim();
-  if (key.includes('SENIOR_MANAGER') || key.includes('TASK_12') || key.includes('MANAGER_ASSIGNMENT')) {
-    return 'Customer Care Senior Manager Assignment';
+  if (key.includes('FORMTASK_57') || key.includes('TASK_57') || key.includes('WORK_UNIT')) {
+    return 'Department / Work Unit Resolution';
   }
-  if (key.includes('SCREENING') || key.includes('CMD_SCREENING')) {
-    return 'Customer Care Officer';
+  if (key.includes('FORMTASK_48') || key.includes('INVESTIGATION') || key.includes('AUDIT')) {
+    return 'Audit / Investigation';
   }
-  if (key.includes('CMD_OFFICER') || key.includes('TASK_24') || key.includes('OFFICER')) {
-    return 'Customer Care Officer';
+  if (key.includes('FORMTASK_CEX') || key.includes('CHIEF_EXPERIENCE') || key.includes('CXO')) {
+    return 'Chief Experience Officer Review';
   }
-  if (key.includes('AUDIT') || key.includes('INVESTIGATION') || key.includes('TASK_57')) {
-    return 'Investigation Team';
-  }
-  if (key.includes('WORKUNIT') || key.includes('WORK_UNIT') || key.includes('DEPARTMENT')) {
-    return 'Department Resolution';
-  }
-  if (key.includes('QUALITY') || key.includes('SERVICE_QUALITY') || key.includes('VERIFICATION')) {
+  if (key.includes('SERVICETASK_65') || key.includes('SERVICE_QUALITY')) {
     return 'Service Quality Review';
   }
-  if (key.includes('COMMITTEE')) {
-    return 'Committee Review';
+  if (key.includes('FORMTASK_43') || key.includes('CMD_SCREENING') || key.includes('SCREENING')) {
+    return 'Customer Care Screening';
   }
-  if (key.includes('INTAKE')) {
-    return 'Customer Care Intake';
+  if (key.includes('SENIOR_MANAGER') || key.includes('MANAGER_ASSIGNMENT')) {
+    return 'Customer Care Senior Manager Assignment';
+  }
+  if (key.includes('COMMITTEE')) {
+    return 'Chief Committee Review';
+  }
+  if (key.includes('CONTACT_CENTER')) {
+    return 'Contact Center Intake';
+  }
+  if (key.includes('BRANCH')) {
+    return 'Branch Intake / Resolution';
+  }
+  if (key.includes('NOTIFICATION')) {
+    return 'Customer Care Notification';
   }
   return rawName || defKey || 'Workflow Stage';
 };
@@ -243,20 +249,6 @@ function SlaTimelineComponent({ complaintId }) {
         ApiService.getSlaByComplaintId(targetId).catch(() => null)
       ]);
       let list = toTimelineList(data);
-      if (list.length === 0) {
-        const rawStage = summaryData?.currentStage || (targetId.includes('002') ? 'Branch / Work Unit Resolution' : 'Customer Care Officer');
-        const rawUser = summaryData?.staffHandling || summaryData?.manager || (targetId.includes('002') ? 'Work Unit Officer' : 'Customer Care Officer');
-        list = [{
-          id: `fallback-${targetId}`,
-          complaintId: targetId,
-          taskName: rawStage,
-          assignedUser: rawUser,
-          startedAt: summaryData?.createdAt || new Date().toISOString(),
-          completedAt: summaryData?.resolvedAt || null,
-          resolutionSlaTargetMinutes: summaryData?.currentStageAllowedMinutes || 240,
-          resolutionSlaStatus: summaryData?.slaStatus || 'ON_TRACK'
-        }];
-      }
       setTimeline(list);
       setComplaintSummary(summaryData || null);
     } catch (err) {
@@ -315,7 +307,11 @@ function SlaTimelineComponent({ complaintId }) {
 
   const getStageBreachInfo = (t) => {
     if (!t) return { isBreached: false };
-    const targetMins = t.resolutionSlaTargetMinutes || 240;
+    const targetMins = t.resolutionSlaTargetMinutes;
+    if (targetMins == null) {
+      const breached = t.resolutionSlaStatus === 'BREACHED' || t.resolutionSlaStatus === 'OVERDUE';
+      return { isBreached: breached, overBy: 0, targetMins: null, actualMins: 0 };
+    }
     const actualMins = (t.durationMinutes !== undefined && t.durationMinutes !== null)
       ? t.durationMinutes
       : getLiveResolutionTimeMins(t);

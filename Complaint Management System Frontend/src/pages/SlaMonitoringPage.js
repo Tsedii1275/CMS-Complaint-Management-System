@@ -15,7 +15,7 @@ import ApiService from '../services/api';
 import { BRAND_COLORS } from '../constants/theme';
 import SlaTimelineComponent from '../components/SlaTimelineComponent';
 import { renderComplaintStatusTag } from '../utils/statusUtils';
-import { classifyComplaintFilter, isSlaBreached, isTerminalOverallStatus } from '../utils/slaMetrics';
+import { classifyComplaintFilter, isSlaBreached, isCurrentStageSlaBreached, isTerminalOverallStatus } from '../utils/slaMetrics';
 import moment from 'moment';
 
 const { Title, Text } = Typography;
@@ -164,7 +164,8 @@ function SlaMonitoringPage() {
   const totalCount = filteredMetrics.length;
   const activeCount = filteredMetrics.filter(m => !isTerminalOverallStatus(m.status)).length;
   const breachedCount = filteredMetrics.filter(isSlaBreached).length;
-  const withinSlaCount = Math.max(0, totalCount - breachedCount);
+  const currentStageBreachedCount = filteredMetrics.filter(isCurrentStageSlaBreached).length;
+  const breachedStageEvents = filteredMetrics.reduce((acc, m) => acc + Number(m.breachedStageCount || 0), 0);
 
   const breachedMetricsList = filteredMetrics.filter(isSlaBreached);
   const totalBreachMins = breachedMetricsList.reduce((acc, m) => {
@@ -442,7 +443,7 @@ function SlaMonitoringPage() {
 
         {/* ─── 1. STREAMLINED KPI SUMMARY CARDS ─── */}
         <Row gutter={[16, 16]} style={{ marginBottom: '20px' }}>
-          <Col xs={24} sm={8} lg={8}>
+          <Col xs={24} sm={12} lg={6}>
             <Card bodyStyle={{ padding: '16px 20px' }} style={{ borderRadius: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', background: '#fff' }}>
               <Statistic
                 title={<span style={{ fontWeight: 600, color: '#64748b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Complaints</span>}
@@ -452,24 +453,34 @@ function SlaMonitoringPage() {
               <Text type="secondary" style={{ fontSize: '11px' }}>{activeCount} Active | {totalCount - activeCount} Closed</Text>
             </Card>
           </Col>
-          <Col xs={24} sm={8} lg={8}>
+          <Col xs={24} sm={12} lg={6}>
             <Card bodyStyle={{ padding: '16px 20px' }} style={{ borderRadius: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', background: '#fff' }}>
               <Statistic
-                title={<span style={{ fontWeight: 600, color: '#64748b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Within SLA</span>}
-                value={withinSlaCount}
-                valueStyle={{ color: '#059669', fontWeight: 800, fontSize: '24px' }}
-              />
-              <Text type="secondary" style={{ fontSize: '11px' }}>{((withinSlaCount / (totalCount || 1)) * 100).toFixed(1)}% On Track</Text>
-            </Card>
-          </Col>
-          <Col xs={24} sm={8} lg={8}>
-            <Card bodyStyle={{ padding: '16px 20px' }} style={{ borderRadius: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', background: '#fff' }}>
-              <Statistic
-                title={<span style={{ fontWeight: 600, color: '#64748b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>SLA Breached</span>}
+                title={<span style={{ fontWeight: 600, color: '#64748b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Overall Clock Breached</span>}
                 value={breachedCount}
                 valueStyle={{ color: '#dc2626', fontWeight: 800, fontSize: '24px' }}
               />
-              <Text type="secondary" style={{ fontSize: '11px' }}>Avg Breach: {formatMins(avgBreachDurationMins)}</Text>
+              <Text type="secondary" style={{ fontSize: '11px' }}>Avg overage: {formatMins(avgBreachDurationMins)}</Text>
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <Card bodyStyle={{ padding: '16px 20px' }} style={{ borderRadius: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', background: '#fff' }}>
+              <Statistic
+                title={<span style={{ fontWeight: 600, color: '#64748b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Current Stage SLA</span>}
+                value={currentStageBreachedCount}
+                valueStyle={{ color: currentStageBreachedCount > 0 ? '#dc2626' : '#059669', fontWeight: 800, fontSize: '24px' }}
+              />
+              <Text type="secondary" style={{ fontSize: '11px' }}>Open tasks currently breached</Text>
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <Card bodyStyle={{ padding: '16px 20px' }} style={{ borderRadius: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', background: '#fff' }}>
+              <Statistic
+                title={<span style={{ fontWeight: 600, color: '#64748b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Stage Events Breached</span>}
+                value={breachedStageEvents}
+                valueStyle={{ color: '#b45309', fontWeight: 800, fontSize: '24px' }}
+              />
+              <Text type="secondary" style={{ fontSize: '11px' }}>ESCALATED is a case status, not an SLA clock</Text>
             </Card>
           </Col>
         </Row>
@@ -600,6 +611,24 @@ function SlaMonitoringPage() {
                       return <Tag color="green" style={{ fontWeight: 600, fontSize: '11px', whiteSpace: 'nowrap' }}>RESOLVED WITHIN SLA</Tag>;
                     }
                     return <Tag color="green" style={{ fontWeight: 600, fontSize: '11px', whiteSpace: 'nowrap' }}>ON TRACK</Tag>;
+                  }
+                },
+                {
+                  title: 'Current Stage SLA',
+                  key: 'ledgerStage',
+                  width: 160,
+                  render: (_, r) => {
+                    const st = String(r.ledgerStageStatus || '').toUpperCase();
+                    if (st === 'BREACHED' || st === 'OVERDUE') {
+                      return <Tag color="red">{st}</Tag>;
+                    }
+                    if (st === 'APPROACHING') {
+                      return <Tag color="orange">APPROACHING</Tag>;
+                    }
+                    if (st === 'MET') {
+                      return <Tag color="green">MET</Tag>;
+                    }
+                    return <Tag>{st || r.currentStageStatus || '—'}</Tag>;
                   }
                 },
                 {

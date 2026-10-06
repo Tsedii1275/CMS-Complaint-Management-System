@@ -109,6 +109,8 @@
       flowable:formFieldValidation="false">
       <extensionElements>
         <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <flowable:taskListener event="create" delegateExpression="${taskTimeTrackingListener}" />
+        <flowable:taskListener event="complete" delegateExpression="${taskTimeTrackingListener}" />
         <flowable:taskListener event="complete" delegateExpression="${notificationDelegate}" />
         <design:stencilid><![CDATA[FormTask]]></design:stencilid>
         <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
@@ -129,6 +131,8 @@
       flowable:formFieldValidation="false">
       <extensionElements>
         <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <flowable:taskListener event="create" delegateExpression="${taskTimeTrackingListener}" />
+        <flowable:taskListener event="complete" delegateExpression="${taskTimeTrackingListener}" />
         <design:stencilid><![CDATA[FormTask]]></design:stencilid>
         <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
         <design:bgcolor><![CDATA[#E3F2FD]]></design:bgcolor>
@@ -148,6 +152,8 @@
       flowable:assignee="${initiator}" flowable:formFieldValidation="false">
       <extensionElements>
         <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <flowable:taskListener event="create" delegateExpression="${taskTimeTrackingListener}" />
+        <flowable:taskListener event="complete" delegateExpression="${taskTimeTrackingListener}" />
         <design:stencilid><![CDATA[FormTask]]></design:stencilid>
         <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
         <design:bgcolor><![CDATA[#E3F2FD]]></design:bgcolor>
@@ -159,6 +165,8 @@
       flowable:assignee="${initiator}" flowable:formFieldValidation="false">
       <extensionElements>
         <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <flowable:taskListener event="create" delegateExpression="${taskTimeTrackingListener}" />
+        <flowable:taskListener event="complete" delegateExpression="${taskTimeTrackingListener}" />
         <design:stencilid><![CDATA[FormTask]]></design:stencilid>
         <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
         <design:bgcolor><![CDATA[#E3F2FD]]></design:bgcolor>
@@ -169,6 +177,8 @@
       flowable:assignee="${initiator}" flowable:formFieldValidation="false">
       <extensionElements>
         <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <flowable:taskListener event="create" delegateExpression="${taskTimeTrackingListener}" />
+        <flowable:taskListener event="complete" delegateExpression="${taskTimeTrackingListener}" />
         <design:stencilid><![CDATA[FormTask]]></design:stencilid>
         <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
         <design:bgcolor><![CDATA[#E3F2FD]]></design:bgcolor>
@@ -221,6 +231,8 @@
       flowable:assignee="${initiator}" flowable:formFieldValidation="false">
       <extensionElements>
         <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <flowable:taskListener event="create" delegateExpression="${taskTimeTrackingListener}" />
+        <flowable:taskListener event="complete" delegateExpression="${taskTimeTrackingListener}" />
         <design:stencilid><![CDATA[FormTask]]></design:stencilid>
         <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
         <design:bgcolor><![CDATA[#E3F2FD]]></design:bgcolor>
@@ -278,6 +290,8 @@
       flowable:formFieldValidation="false">
       <extensionElements>
         <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <flowable:taskListener event="create" delegateExpression="${taskTimeTrackingListener}" />
+        <flowable:taskListener event="complete" delegateExpression="${taskTimeTrackingListener}" />
         <design:stencilid><![CDATA[FormTask]]></design:stencilid>
         <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
         <design:bgcolor><![CDATA[#E3F2FD]]></design:bgcolor>
@@ -297,6 +311,8 @@
       flowable:formFieldValidation="true" flowable:formKey="complaintRegistrationForm">
       <extensionElements>
         <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <flowable:taskListener event="create" delegateExpression="${taskTimeTrackingListener}" />
+        <flowable:taskListener event="complete" delegateExpression="${taskTimeTrackingListener}" />
         <flowable:formProperty id="customer.name" name="Customer Name" type="string" required="true" />
         <flowable:formProperty id="customer.email" name="Customer Email" type="string"
           required="true" />
@@ -350,6 +366,8 @@
       flowable:formFieldValidation="false">
       <extensionElements>
         <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <flowable:taskListener event="create" delegateExpression="${taskTimeTrackingListener}" />
+        <flowable:taskListener event="complete" delegateExpression="${taskTimeTrackingListener}" />
         <design:stencilid><![CDATA[FormTask]]></design:stencilid>
         <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
         <design:bgcolor><![CDATA[#E3F2FD]]></design:bgcolor>
@@ -369,6 +387,8 @@
       flowable:formFieldValidation="true" flowable:formKey="complaintRegistrationForm">
       <extensionElements>
         <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <flowable:taskListener event="create" delegateExpression="${taskTimeTrackingListener}" />
+        <flowable:taskListener event="complete" delegateExpression="${taskTimeTrackingListener}" />
         <flowable:formProperty id="customer.name" name="Customer Name" type="string" required="true" />
         <flowable:formProperty id="customer.email" name="Customer Email" type="string"
           required="true" />
@@ -422,6 +442,8 @@
       flowable:formFieldValidation="false">
       <extensionElements>
         <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <flowable:taskListener event="create" delegateExpression="${taskTimeTrackingListener}" />
+        <flowable:taskListener event="complete" delegateExpression="${taskTimeTrackingListener}" />
         <design:stencilid><![CDATA[FormTask]]></design:stencilid>
         <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
         <design:bgcolor><![CDATA[#E3F2FD]]></design:bgcolor>
@@ -443,6 +465,8 @@
       flowable:formFieldValidation="true" flowable:formKey="complaintRegistrationForm">
       <extensionElements>
         <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <flowable:taskListener event="create" delegateExpression="${taskTimeTrackingListener}" />
+        <flowable:taskListener event="complete" delegateExpression="${taskTimeTrackingListener}" />
         <flowable:formProperty id="customer.name" name="Customer Name" type="string" required="true" />
         <flowable:formProperty id="customer.email" name="Customer Email" type="string"
           required="true" />
@@ -499,6 +523,8 @@
       flowable:assignee="${initiator}" flowable:formFieldValidation="false">
       <extensionElements>
         <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <flowable:taskListener event="create" delegateExpression="${taskTimeTrackingListener}" />
+        <flowable:taskListener event="complete" delegateExpression="${taskTimeTrackingListener}" />
         <design:stencilid><![CDATA[FormTask]]></design:stencilid>
         <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
         <design:bgcolor><![CDATA[#E3F2FD]]></design:bgcolor>
@@ -527,6 +553,8 @@
       flowable:formFieldValidation="true" flowable:formKey="complaintRegistrationForm">
       <extensionElements>
         <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <flowable:taskListener event="create" delegateExpression="${taskTimeTrackingListener}" />
+        <flowable:taskListener event="complete" delegateExpression="${taskTimeTrackingListener}" />
         <flowable:formProperty id="customer.name" name="Customer Name" type="string" required="true" />
         <flowable:formProperty id="customer.email" name="Customer Email" type="string"
           required="true" />

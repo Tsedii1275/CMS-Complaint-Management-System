@@ -31,6 +31,9 @@ public final class SlaAlertScope {
     public static final String TASK_BRANCH_REVIEW = "FormTask_16";
     public static final String TASK_CONTACT_CENTER = "FormTask_20";
     public static final String TASK_BRANCH_FOLLOWUP = "FormTask_24";
+    public static final String TASK_BRANCH_REGISTER_8 = "FormTask_8";
+    public static final String TASK_BRANCH_REGISTER_10 = "FormTask_10";
+    public static final String TASK_BRANCH_REGISTER_72 = "FormTask_72";
     public static final String TASK_CUSTOMER_NOTIFY = "FormTask_67";
     public static final String TASK_CMD_SCREENING = "FormTask_43";
     public static final String TASK_INVESTIGATION = "FormTask_48";
@@ -47,6 +50,9 @@ public final class SlaAlertScope {
         TASK_TO_STAGE.put(TASK_BRANCH_CAPTURE, STAGE_BRANCH_INTAKE);
         TASK_TO_STAGE.put(TASK_BRANCH_REVIEW, STAGE_BRANCH_INTAKE);
         TASK_TO_STAGE.put(TASK_BRANCH_FOLLOWUP, STAGE_BRANCH_INTAKE);
+        TASK_TO_STAGE.put(TASK_BRANCH_REGISTER_8, STAGE_BRANCH_INTAKE);
+        TASK_TO_STAGE.put(TASK_BRANCH_REGISTER_10, STAGE_BRANCH_INTAKE);
+        TASK_TO_STAGE.put(TASK_BRANCH_REGISTER_72, STAGE_BRANCH_INTAKE);
         TASK_TO_STAGE.put(TASK_CONTACT_CENTER, STAGE_CONTACT_CENTER_INTAKE);
         TASK_TO_STAGE.put(TASK_CUSTOMER_NOTIFY, STAGE_CUSTOMER_NOTIFICATION);
         TASK_TO_STAGE.put(TASK_CMD_SCREENING, STAGE_CMD_SCREENING);
@@ -148,7 +154,7 @@ public final class SlaAlertScope {
             return STAGE_CUSTOMER_NOTIFICATION;
         }
         if (upper.contains("CMD") || upper.contains("SCREENING") || upper.contains("CUSTOMER_CARE")
-                || upper.contains("CCO") || upper.contains("TRIAGE")) {
+                || upper.contains("CCO") || upper.contains("TRIAGE") || "CMD_OFFICER".equals(upper)) {
             return STAGE_CMD_SCREENING;
         }
         return upper;
@@ -195,9 +201,11 @@ public final class SlaAlertScope {
             case "ROLE_CHIEF_COMMITTEE", "ROLE_COMMITTEE_SECRETARY" -> Set.of(TASK_COMMITTEE);
             case "ROLE_CHIEF_EXPERIENCE_OFFICER" -> Set.of(TASK_CXO);
             case "ROLE_BRANCH_MANAGER" ->
-                Set.of(TASK_BRANCH_CAPTURE, TASK_BRANCH_REVIEW, TASK_BRANCH_FOLLOWUP, TASK_WORK_UNIT);
+                Set.of(TASK_BRANCH_CAPTURE, TASK_BRANCH_REVIEW, TASK_BRANCH_FOLLOWUP, TASK_BRANCH_REGISTER_8,
+                        TASK_BRANCH_REGISTER_10, TASK_BRANCH_REGISTER_72, TASK_WORK_UNIT);
             case "ROLE_CUSTOMER_SERVICE_MANAGER", "ROLE_CUSTOMER_EXPERIENCE_PARTNERSHIP" ->
-                Set.of(TASK_BRANCH_CAPTURE, TASK_BRANCH_REVIEW, TASK_BRANCH_FOLLOWUP);
+                Set.of(TASK_BRANCH_CAPTURE, TASK_BRANCH_REVIEW, TASK_BRANCH_FOLLOWUP, TASK_BRANCH_REGISTER_8,
+                        TASK_BRANCH_REGISTER_10, TASK_BRANCH_REGISTER_72);
             case "ROLE_CONTACT_CENTER_AGENT", "ROLE_CONTACT_CENTER_SENIOR_MANAGER",
                     "ROLE_DIGITAL_MARKETING_OFFICER", "ROLE_DIGITAL_MARKETING_SENIOR_MANAGER" ->
                 Set.of(TASK_BRANCH_CAPTURE, TASK_BRANCH_REVIEW, TASK_CONTACT_CENTER, TASK_BRANCH_FOLLOWUP,
@@ -335,6 +343,39 @@ public final class SlaAlertScope {
             return true;
         }
         return userValue.trim().equalsIgnoreCase(ticketValue.trim());
+    }
+
+    /**
+     * Resolves a Flowable task key or a stored stage name to one canonical stage code.
+     */
+    public static String canonicalStageOf(String taskKeyOrStage) {
+        if (taskKeyOrStage == null || taskKeyOrStage.isBlank()) {
+            return null;
+        }
+        String fromKey = stageCodeFromTaskKey(taskKeyOrStage.trim());
+        if (fromKey != null) {
+            return fromKey;
+        }
+        return canonicalizeStage(taskKeyOrStage);
+    }
+
+    public static String laneFromTaskKey(String taskDefinitionKey) {
+        String stage = canonicalStageOf(taskDefinitionKey);
+        if (stage == null) {
+            return "UNKNOWN";
+        }
+        return switch (stage) {
+            case STAGE_BRANCH_INTAKE -> "BRANCH_STAFF";
+            case STAGE_CONTACT_CENTER_INTAKE -> "CONTACT_CENTER";
+            case STAGE_CUSTOMER_NOTIFICATION -> "CUSTOMER";
+            case STAGE_CMD_SCREENING -> "CMD_OFFICER";
+            case STAGE_INVESTIGATION -> "AUDIT_TEAM";
+            case STAGE_WORK_UNIT_RESOLUTION -> "DEPARTMENT_WORKUNIT";
+            case STAGE_SERVICE_QUALITY_REVIEW -> "SERVICE_QUALITY";
+            case STAGE_COMMITTEE_REVIEW -> "CHIEF_COMMITTEE";
+            case STAGE_CHIEF_EXPERIENCE_REVIEW -> "CHIEF_EXPERIENCE";
+            default -> "UNKNOWN";
+        };
     }
 
     private static String humanize(String stageCode) {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Typography, Table, Tag, Button, Row, Col, Tabs, Modal, Input, message, Form, DatePicker, Popconfirm, Select, Tooltip } from 'antd';
+import { Card, Typography, Table, Tag, Button, Row, Col, Tabs, Modal, Input, message, Form, DatePicker, Popconfirm, Select, Tooltip, Alert } from 'antd';
 import { PlusOutlined, DeleteOutlined, EditOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import DashboardLayout from '../components/DashboardLayout';
 import Pagination from '../components/Pagination';
@@ -45,6 +45,19 @@ function SlaConfigPage() {
       message.error('Failed to load SLA configurations.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePurgeOperationalData = async () => {
+    if (!window.confirm('Purge SLA operational data (stage events, breach logs, metrics, audit trail)? The policy matrix on this page is kept.')) {
+      return;
+    }
+    try {
+      await ApiService.purgeSlaOperationalData();
+      message.success('Stage SLA events and operational SLA data were purged. Policy minutes are unchanged.');
+    } catch (err) {
+      console.error(err);
+      message.error('Failed to purge SLA operational data.');
     }
   };
 
@@ -152,10 +165,18 @@ function SlaConfigPage() {
               Institutional Service Level Agreement (SLA) policy administration, resolution matrix, 80% reminder and 100% breach alerts, and banking calendar management.
             </Text>
           </div>
-          <div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button onClick={handlePurgeOperationalData}>Purge Stage SLA Events</Button>
             <Button danger onClick={handleResetDefaults}>Reset to Policy Defaults</Button>
           </div>
         </div>
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="This matrix is the source of allowed minutes for every workflow stage."
+          description="Open stage SLA clocks re-read these minutes when you save a row (and on the 60-second evaluator). Overall case SLA uses the OVERALL_* rows. Stage events live in stage_sla_event; they do not replace this policy page."
+        />
 
         <Tabs defaultActiveKey="matrix">
 

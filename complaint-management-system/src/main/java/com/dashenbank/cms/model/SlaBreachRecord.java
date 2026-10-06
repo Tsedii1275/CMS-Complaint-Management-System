@@ -27,6 +27,9 @@ public class SlaBreachRecord {
     @Column(name = "process_instance_id", length = 100)
     private String processInstanceId;
 
+    @Column(name = "task_id", length = 100)
+    private String taskId;
+
     @Column(name = "stage_name", length = 100)
     private String stageName;
 

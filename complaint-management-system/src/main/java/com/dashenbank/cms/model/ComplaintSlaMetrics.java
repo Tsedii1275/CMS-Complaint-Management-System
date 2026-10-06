@@ -70,6 +70,18 @@ public class ComplaintSlaMetrics {
     @Transient
     private String overallStatus;
 
+    @Transient
+    private Integer stageEventCount;
+
+    @Transient
+    private Integer breachedStageCount;
+
+    @Transient
+    private String ledgerStageStatus;
+
+    @Transient
+    private String ledgerCanonicalStage;
+
     // ─── Stage SLA Lifecycle Tracking ───
     @Column(name = "current_stage", length = 100)
     private String currentStage; // CMD_SCREENING, FORWARDING, SERVICE_QUALITY, CXO_REVIEW, CEO_DIRECTION,

@@ -2,6 +2,7 @@ package com.dashenbank.cms.service;
 
 import com.dashenbank.cms.customer.LocationKeys;
 import com.dashenbank.cms.model.ComplaintSlaMetrics;
+import com.dashenbank.cms.model.StageSlaEvent;
 import com.dashenbank.cms.model.User;
 import com.dashenbank.cms.repository.ComplaintSlaMetricsRepository;
 import com.dashenbank.cms.repository.UserRepository;
@@ -37,15 +38,18 @@ public class SlaAlertAuthorizationService {
     private final ComplaintSlaMetricsRepository slaMetricsRepository;
     private final UserRepository userRepository;
     private final SlaTrackingService slaTrackingService;
+    private final StageSlaLedgerService stageSlaLedgerService;
 
     public SlaAlertAuthorizationService(TaskService taskService,
             ComplaintSlaMetricsRepository slaMetricsRepository,
             UserRepository userRepository,
-            SlaTrackingService slaTrackingService) {
+            SlaTrackingService slaTrackingService,
+            StageSlaLedgerService stageSlaLedgerService) {
         this.taskService = taskService;
         this.slaMetricsRepository = slaMetricsRepository;
         this.userRepository = userRepository;
         this.slaTrackingService = slaTrackingService;
+        this.stageSlaLedgerService = stageSlaLedgerService;
     }
 
     public User requireCurrentUser() {
@@ -99,7 +103,25 @@ public class SlaAlertAuthorizationService {
         if (activeStage == null && SlaAlertScope.roleMayHandleTask(role, activeTaskDefinitionKey)) {
             activeStage = SlaAlertScope.STAGE_WORK_UNIT_RESOLUTION;
         }
-        return isApproachingOrBreachedForActiveStage(metrics, activeStage);
+        return isApproachingOrBreachedForActiveStage(metrics, activeStage, null);
+    }
+
+    public boolean isStageSlaAlertVisible(String role, User user, String activeTaskDefinitionKey,
+            ComplaintSlaMetrics metrics, Map<String, Object> processVariables, String taskId) {
+        if (user == null || activeTaskDefinitionKey == null || metrics == null) {
+            return false;
+        }
+        if (!SlaAlertScope.roleMayHandleTask(role, activeTaskDefinitionKey)) {
+            return false;
+        }
+        if (!SlaAlertScope.isAdmin(role) && !inUserUnit(role, user, metrics, processVariables)) {
+            return false;
+        }
+        String activeStage = SlaAlertScope.stageCodeFromTaskKey(activeTaskDefinitionKey);
+        if (activeStage == null && SlaAlertScope.roleMayHandleTask(role, activeTaskDefinitionKey)) {
+            activeStage = SlaAlertScope.STAGE_WORK_UNIT_RESOLUTION;
+        }
+        return isApproachingOrBreachedForActiveStage(metrics, activeStage, taskId);
     }
 
     public boolean canViewSlaRecord(String role, User user, ComplaintSlaMetrics metrics, String activeTaskKey) {
@@ -125,6 +147,17 @@ public class SlaAlertAuthorizationService {
     }
 
     public boolean isApproachingOrBreachedForActiveStage(ComplaintSlaMetrics metrics, String activeStage) {
+        return isApproachingOrBreachedForActiveStage(metrics, activeStage, null);
+    }
+
+    public boolean isApproachingOrBreachedForActiveStage(ComplaintSlaMetrics metrics, String activeStage,
+            String taskId) {
+        if (stageSlaLedgerService != null && taskId != null && !taskId.isBlank()) {
+            Optional<StageSlaEvent> event = stageSlaLedgerService.findByTaskId(taskId);
+            if (event.isPresent()) {
+                return isWarningStatus(event.get().getStatus());
+            }
+        }
         if (metrics == null || activeStage == null) {
             return false;
         }
@@ -135,6 +168,16 @@ public class SlaAlertAuthorizationService {
     }
 
     public String stageSlaStatusForTask(ComplaintSlaMetrics metrics, String taskDefinitionKey) {
+        return stageSlaStatusForTask(metrics, taskDefinitionKey, null);
+    }
+
+    public String stageSlaStatusForTask(ComplaintSlaMetrics metrics, String taskDefinitionKey, String taskId) {
+        if (stageSlaLedgerService != null && taskId != null && !taskId.isBlank()) {
+            Optional<StageSlaEvent> event = stageSlaLedgerService.findByTaskId(taskId);
+            if (event.isPresent()) {
+                return normalizeAlertStatus(event.get().getStatus());
+            }
+        }
         String activeStage = SlaAlertScope.stageCodeFromTaskKey(taskDefinitionKey);
         if (metrics == null || activeStage == null) {
             return STATUS_ON_TIME;
@@ -377,7 +420,7 @@ public class SlaAlertAuthorizationService {
         ComplaintSlaMetrics metrics = metricsOpt.get();
         slaTrackingService.recalculateSlaStatus(metrics);
         Map<String, Object> vars = loadTaskVariables(task);
-        if (!isStageSlaAlertVisible(role, user, task.getTaskDefinitionKey(), metrics, vars)) {
+        if (!isStageSlaAlertVisible(role, user, task.getTaskDefinitionKey(), metrics, vars, task.getId())) {
             return Optional.empty();
         }
         return Optional.of(toAlertPayload(task, metrics, vars));
@@ -401,10 +444,22 @@ public class SlaAlertAuthorizationService {
         alert.put("currentStage", activeStage);
         alert.put("currentStageLabel", SlaAlertScope.stageLabel(activeStage));
         alert.put("slaName", SlaAlertScope.slaNameForStage(activeStage));
-        alert.put("slaStatus", normalizeAlertStatus(metrics.getCurrentStageStatus()));
-        alert.put("currentStageStatus", metrics.getCurrentStageStatus());
-        alert.put("slaDeadline", formatDeadline(metrics.getCurrentStageDueTime()));
-        alert.put("dueDate", formatDeadline(metrics.getCurrentStageDueTime()));
+        String stageStatus = metrics.getCurrentStageStatus();
+        LocalDateTime due = metrics.getCurrentStageDueTime();
+        if (stageSlaLedgerService != null && task.getId() != null) {
+            Optional<StageSlaEvent> event = stageSlaLedgerService.findByTaskId(task.getId());
+            if (event.isPresent()) {
+                stageStatus = event.get().getStatus();
+                due = stageSlaLedgerService.dueAt(event.get());
+                alert.put("allowedMinutes", event.get().getAllowedMinutes());
+                alert.put("elapsedBusinessMinutes", event.get().getElapsedBusinessMinutes());
+                alert.put("canonicalStage", event.get().getCanonicalStage());
+            }
+        }
+        alert.put("slaStatus", normalizeAlertStatus(stageStatus));
+        alert.put("currentStageStatus", stageStatus);
+        alert.put("slaDeadline", formatDeadline(due));
+        alert.put("dueDate", formatDeadline(due));
         alert.put("dbcTicketId", metrics.getComplaintId());
         alert.put("complaintId", metrics.getComplaintId());
         alert.put("generalTicketId", metrics.getGeneralTicketId());

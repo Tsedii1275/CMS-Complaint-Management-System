@@ -7,6 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -14,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class SlaAlertAuthorizationServiceTest {
 
@@ -23,7 +25,7 @@ class SlaAlertAuthorizationServiceTest {
     void setUp() {
         SlaTrackingService tracking = mock(SlaTrackingService.class);
         doNothing().when(tracking).recalculateSlaStatus(any());
-        service = new SlaAlertAuthorizationService(null, null, null, tracking);
+        service = new SlaAlertAuthorizationService(null, null, null, tracking, null);
     }
 
     @Test
@@ -159,6 +161,25 @@ class SlaAlertAuthorizationServiceTest {
                 SlaAlertScope.TASK_CMD_SCREENING, metrics));
         assertFalse(service.isStageSlaAlertVisible("ROLE_ANONYMOUS", branch,
                 SlaAlertScope.TASK_CMD_SCREENING, metrics));
+    }
+
+    @Test
+    void ledgerEventDrivesAlertEvenIfMetricsStageIsStale() {
+        SlaTrackingService tracking = mock(SlaTrackingService.class);
+        doNothing().when(tracking).recalculateSlaStatus(any());
+        StageSlaLedgerService ledger = mock(StageSlaLedgerService.class);
+        when(ledger.findByTaskId("task-wu")).thenReturn(Optional.of(com.dashenbank.cms.model.StageSlaEvent.builder()
+                .taskId("task-wu")
+                .taskDefinitionKey(SlaAlertScope.TASK_WORK_UNIT)
+                .canonicalStage(SlaAlertScope.STAGE_WORK_UNIT_RESOLUTION)
+                .status(com.dashenbank.cms.model.StageSlaEvent.STATUS_BREACHED)
+                .build()));
+        SlaAlertAuthorizationService withLedger = new SlaAlertAuthorizationService(null, null, null, tracking, ledger);
+        ComplaintSlaMetrics stale = metrics("CMD_SCREENING", "ON_TRACK", "Loans", "Bole");
+        User workUnit = user(Role.ROLE_DEPARTMENT_WORKUNIT, "Loans", "Bole");
+        assertTrue(withLedger.isStageSlaAlertVisible("ROLE_DEPARTMENT_WORKUNIT", workUnit,
+                SlaAlertScope.TASK_WORK_UNIT, stale, Map.of(), "task-wu"));
+        assertEquals("OVERDUE", withLedger.stageSlaStatusForTask(stale, SlaAlertScope.TASK_WORK_UNIT, "task-wu"));
     }
 
     @Test

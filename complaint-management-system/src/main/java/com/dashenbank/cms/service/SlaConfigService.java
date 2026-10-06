@@ -5,7 +5,9 @@ import com.dashenbank.cms.model.SlaConfig;
 import com.dashenbank.cms.repository.AuditLogRepository;
 import com.dashenbank.cms.repository.ComplaintSlaMetricsRepository;
 import com.dashenbank.cms.repository.HolidayCalendarRepository;
+import com.dashenbank.cms.repository.SlaBreachRecordRepository;
 import com.dashenbank.cms.repository.SlaConfigRepository;
+import com.dashenbank.cms.repository.StageSlaEventRepository;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,15 +47,21 @@ public class SlaConfigService {
     private final HolidayCalendarRepository holidayCalendarRepository;
     private final ComplaintSlaMetricsRepository slaMetricsRepository;
     private final AuditLogRepository auditLogRepository;
+    private final StageSlaEventRepository stageSlaEventRepository;
+    private final SlaBreachRecordRepository slaBreachRecordRepository;
 
     public SlaConfigService(SlaConfigRepository slaConfigRepository,
                             HolidayCalendarRepository holidayCalendarRepository,
                             ComplaintSlaMetricsRepository slaMetricsRepository,
-                            AuditLogRepository auditLogRepository) {
+                            AuditLogRepository auditLogRepository,
+                            StageSlaEventRepository stageSlaEventRepository,
+                            SlaBreachRecordRepository slaBreachRecordRepository) {
         this.slaConfigRepository = slaConfigRepository;
         this.holidayCalendarRepository = holidayCalendarRepository;
         this.slaMetricsRepository = slaMetricsRepository;
         this.auditLogRepository = auditLogRepository;
+        this.stageSlaEventRepository = stageSlaEventRepository;
+        this.slaBreachRecordRepository = slaBreachRecordRepository;
     }
 
     /**
@@ -223,6 +231,12 @@ public class SlaConfigService {
 
     @Transactional
     public void purgeAllSlaData() {
+        if (stageSlaEventRepository != null) {
+            stageSlaEventRepository.deleteAll();
+        }
+        if (slaBreachRecordRepository != null) {
+            slaBreachRecordRepository.deleteAll();
+        }
         if (slaMetricsRepository != null) {
             slaMetricsRepository.deleteAll();
         }

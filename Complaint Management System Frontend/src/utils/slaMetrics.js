@@ -15,8 +15,18 @@ export function isClosedForCompliance(item) {
 
 export function isSlaBreached(item) {
   if (!item) return false;
+  const allowed = item.totalAllowedMinutes;
+  const elapsed = Number(item.totalElapsedMinutes || 0);
+  if (allowed != null && elapsed > Number(allowed)) {
+    return true;
+  }
   const st = (item.slaStatus || '').toUpperCase();
-  return Boolean(item.breached) || st === 'BREACHED' || st === 'RESOLVED_AFTER_SLA';
+  return st === 'RESOLVED_AFTER_SLA';
+}
+
+export function isCurrentStageSlaBreached(item) {
+  const st = String(item?.ledgerStageStatus || item?.currentStageSlaStatus || '').toUpperCase();
+  return st === 'BREACHED' || st === 'OVERDUE';
 }
 
 export function isSlaApproaching(item) {

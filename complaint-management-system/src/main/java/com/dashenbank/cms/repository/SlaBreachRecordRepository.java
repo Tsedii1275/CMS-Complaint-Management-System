@@ -10,4 +10,5 @@ import java.util.List;
 public interface SlaBreachRecordRepository extends JpaRepository<SlaBreachRecord, Long> {
     List<SlaBreachRecord> findByComplaintId(String complaintId);
     List<SlaBreachRecord> findByResponsibleWorkUnit(String responsibleWorkUnit);
+    boolean existsByTaskId(String taskId);
 }

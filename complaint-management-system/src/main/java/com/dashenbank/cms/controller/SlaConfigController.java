@@ -4,6 +4,7 @@ import com.dashenbank.cms.model.HolidayCalendar;
 import com.dashenbank.cms.model.SlaConfig;
 import com.dashenbank.cms.service.BusinessHoursService;
 import com.dashenbank.cms.service.SlaConfigService;
+import com.dashenbank.cms.service.StageSlaLedgerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -29,11 +30,14 @@ public class SlaConfigController {
 
     private final SlaConfigService slaConfigService;
     private final BusinessHoursService businessHoursService;
+    private final StageSlaLedgerService stageSlaLedgerService;
 
     @Autowired
-    public SlaConfigController(SlaConfigService slaConfigService, BusinessHoursService businessHoursService) {
+    public SlaConfigController(SlaConfigService slaConfigService, BusinessHoursService businessHoursService,
+            StageSlaLedgerService stageSlaLedgerService) {
         this.slaConfigService = slaConfigService;
         this.businessHoursService = businessHoursService;
+        this.stageSlaLedgerService = stageSlaLedgerService;
     }
 
     @GetMapping
@@ -57,12 +61,14 @@ public class SlaConfigController {
         String description = (String) payload.get("description");
 
         SlaConfig updated = slaConfigService.updateConfig(id, allowedMinutes, displayName, description);
+        stageSlaLedgerService.evaluateOpenEvents();
         return ResponseEntity.ok(updated);
     }
 
     @PostMapping("/reset")
     public ResponseEntity<Map<String, String>> resetToDefaults() {
         slaConfigService.resetSlaConfigs();
+        stageSlaLedgerService.evaluateOpenEvents();
         return ResponseEntity.ok(Map.of(KEY_MESSAGE, "SLA configurations successfully reset to Dashen Bank defaults."));
     }
 
@@ -70,10 +76,8 @@ public class SlaConfigController {
     public ResponseEntity<Map<String, String>> purgeAllData() {
         slaConfigService.purgeAllSlaData();
         return ResponseEntity.ok(Map.of(KEY_MESSAGE,
-                "All SLA data, breach logs, and metrics successfully purged. System reset to fresh state."));
+                "SLA operational data reset: stage events, breach logs, metrics, and audit trail. Policy matrix retained."));
     }
-
-    // ─── Holiday Calendar Endpoints ───
 
     @GetMapping("/holidays")
     public ResponseEntity<List<HolidayCalendar>> getAllHolidays() {
@@ -81,18 +85,16 @@ public class SlaConfigController {
     }
 
     @PostMapping("/holidays")
-    public ResponseEntity<HolidayCalendar> addHoliday(@RequestBody Map<String, String> payload) {
-        LocalDate date = LocalDate.parse(payload.get("holidayDate"));
-        String name = payload.get("holidayName");
-        String type = payload.get("holidayType");
-
-        HolidayCalendar created = slaConfigService.addHoliday(date, name, type);
-        return ResponseEntity.ok(created);
+    public ResponseEntity<HolidayCalendar> addHoliday(@RequestBody Map<String, Object> payload) {
+        LocalDate date = LocalDate.parse(payload.get("holidayDate").toString());
+        String name = (String) payload.get("holidayName");
+        String type = (String) payload.get("holidayType");
+        return ResponseEntity.ok(slaConfigService.addHoliday(date, name, type));
     }
 
     @DeleteMapping("/holidays/{id}")
     public ResponseEntity<Map<String, String>> deleteHoliday(@PathVariable Long id) {
         slaConfigService.deleteHoliday(id);
-        return ResponseEntity.ok(Map.of(KEY_MESSAGE, "Holiday successfully removed."));
+        return ResponseEntity.ok(Map.of(KEY_MESSAGE, "Holiday removed."));
     }
 }
