@@ -162,24 +162,44 @@ function applyPublicFormInputChange(e, { setFormData, setErrors, language, error
     });
   }
 
+  if (name === 'customerName') {
+    const nameErr = getCustomerNameError(value, language);
+    setErrors(prev => {
+      const next = { ...prev };
+      if (nameErr) next.customerName = nameErr;
+      else delete next.customerName;
+      return next;
+    });
+  }
+
   if (name === 'accountNumber') {
     const accountError = getAccountNumberError(value, language);
-    if (accountError) {
-      setErrors(prev => ({
-        ...prev,
-        accountNumber: accountError
-      }));
-    }
+    setErrors(prev => {
+      const next = { ...prev };
+      if (accountError) next.accountNumber = accountError;
+      else delete next.accountNumber;
+      return next;
+    });
+  }
+
+  if (name === 'complaintDescription') {
+    const descErr = getDescriptionError(value, language);
+    setErrors(prev => {
+      const next = { ...prev };
+      if (descErr) next.complaintDescription = descErr;
+      else delete next.complaintDescription;
+      return next;
+    });
   }
 
   if (name === 'email') {
     const emailErr = getEmailError(value, language);
-    if (emailErr) {
-      setErrors(prev => ({
-        ...prev,
-        email: emailErr
-      }));
-    }
+    setErrors(prev => {
+      const next = { ...prev };
+      if (emailErr) next.email = emailErr;
+      else delete next.email;
+      return next;
+    });
   }
 }
 
@@ -734,13 +754,18 @@ function CustomerForm() {
                   style={{
                     width: '100%',
                     padding: '12px 16px',
-                    border: '1px solid #dcdcdc',
+                    border: `1px solid ${errors.customerName ? '#ff4d4f' : '#dcdcdc'}`,
                     borderRadius: '4px',
                     fontSize: '15px',
                     outline: 'none',
                     transition: 'border-color 0.2s'
                   }}
                 />
+                {errors.customerName && (
+                  <div style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>
+                    {errors.customerName}
+                  </div>
+                )}
               </div>
               <div style={{ flex: 1 }}>
                 <label style={{ display: 'block', marginBottom: '10px', fontWeight: '600', color: '#444', fontSize: '14px' }}>
@@ -1032,7 +1057,7 @@ function CustomerForm() {
                 style={{
                   width: '100%',
                   padding: '12px 16px',
-                  border: '1px solid #dcdcdc',
+                  border: `1px solid ${errors.complaintDescription ? '#ff4d4f' : '#dcdcdc'}`,
                   borderRadius: '4px',
                   fontSize: '15px',
                   resize: 'vertical',
@@ -1040,6 +1065,11 @@ function CustomerForm() {
                   transition: 'border-color 0.2s'
                 }}
               />
+              {errors.complaintDescription && (
+                <div style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>
+                  {errors.complaintDescription}
+                </div>
+              )}
             </div>
 
             {/* Row 6: Evidence Attachment (Optional) */}
