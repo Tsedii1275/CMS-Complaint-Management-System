@@ -3,6 +3,7 @@ import { Card, Typography, Button, Form, Input, Select, Alert, Row, Col, Space, 
 import { PlusCircleOutlined, PaperClipOutlined, EyeOutlined, AudioOutlined, SearchOutlined } from '@ant-design/icons';
 import DashboardLayout from '../components/DashboardLayout';
 import { formatUniqueId, formatIntakeId, UniqueIdDisplay, compareTicketNumbersAsc } from '../components/TaskTable';
+import Pagination from '../components/Pagination';
 import ApiService from '../services/api';
 import { BRAND_COLORS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
@@ -146,6 +147,10 @@ function BranchStaffDashboard() {
   const [scopedComplaints, setScopedComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('tracking');
+  const [trackingPage, setTrackingPage] = useState(1);
+  const [trackingPageSize, setTrackingPageSize] = useState(10);
+  const [otherPage, setOtherPage] = useState(1);
+  const [otherPageSize, setOtherPageSize] = useState(10);
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -214,6 +219,14 @@ function BranchStaffDashboard() {
   // Metric Calculations
   const totalRegistered = scopedComplaints.length;
   const fcrResolvedCount = scopedComplaints.filter(isResolvedAtFcr).length;
+  const trackingSlice = scopedComplaints.slice(
+    (trackingPage - 1) * trackingPageSize,
+    trackingPage * trackingPageSize
+  );
+  const otherSlice = otherComplaints.slice(
+    (otherPage - 1) * otherPageSize,
+    otherPage * otherPageSize
+  );
 
   const handleEvidenceUpload = async (e) => {
     const file = e.target.files[0];
@@ -509,15 +522,26 @@ function BranchStaffDashboard() {
                   key: 'tracking',
                   label: 'Total Complaints',
                   children: (
-                    <Table
-                      dataSource={scopedComplaints}
-                      columns={trackingColumns}
-                      rowKey={(r, index) => r.complaintId || r.processInstanceId || index}
-                      loading={loading}
-                      pagination={{ pageSize: 10, showSizeChanger: true, pageSizeOptions: ['10', '20', '50', '100'] }}
-                      size="small"
-                      scroll={{ x: 'max-content' }}
-                    />
+                    <div className="cms-table-shell" style={{ background: '#fff', padding: '12px 8px 4px', borderRadius: '8px' }}>
+                      <Table
+                        dataSource={trackingSlice}
+                        columns={trackingColumns}
+                        rowKey={(r, index) => r.complaintId || r.processInstanceId || index}
+                        loading={loading}
+                        pagination={false}
+                        size="middle"
+                        bordered={false}
+                        scroll={{ x: 'max-content' }}
+                      />
+                      <Pagination
+                        currentPage={trackingPage}
+                        pageSize={trackingPageSize}
+                        totalRecords={scopedComplaints.length}
+                        onPageChange={setTrackingPage}
+                        onPageSizeChange={(size) => { setTrackingPageSize(size); setTrackingPage(1); }}
+                        itemUnit="complaints"
+                      />
+                    </div>
                   )
                 }
               ];
@@ -526,16 +550,27 @@ function BranchStaffDashboard() {
                   key: 'other',
                   label: 'Other',
                   children: (
-                    <Table
-                      dataSource={otherComplaints}
-                      columns={otherColumns}
-                      rowKey={(r, index) => r.complaintId || r.processInstanceId || r.generalTicketId || index}
-                      loading={loading}
-                      pagination={{ pageSize: 10, showSizeChanger: true, pageSizeOptions: ['10', '20', '50', '100'] }}
-                      size="small"
-                      locale={{ emptyText: 'No items classified as Other.' }}
-                      scroll={{ x: 'max-content' }}
-                    />
+                    <div className="cms-table-shell" style={{ background: '#fff', padding: '12px 8px 4px', borderRadius: '8px' }}>
+                      <Table
+                        dataSource={otherSlice}
+                        columns={otherColumns}
+                        rowKey={(r, index) => r.complaintId || r.processInstanceId || r.generalTicketId || index}
+                        loading={loading}
+                        pagination={false}
+                        size="middle"
+                        bordered={false}
+                        locale={{ emptyText: 'No items classified as Other.' }}
+                        scroll={{ x: 'max-content' }}
+                      />
+                      <Pagination
+                        currentPage={otherPage}
+                        pageSize={otherPageSize}
+                        totalRecords={otherComplaints.length}
+                        onPageChange={setOtherPage}
+                        onPageSizeChange={(size) => { setOtherPageSize(size); setOtherPage(1); }}
+                        itemUnit="items"
+                      />
+                    </div>
                   )
                 });
               }
