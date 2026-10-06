@@ -53,6 +53,9 @@ public class CustomerFeedbackController {
     @Autowired(required = false)
     private com.dashenbank.cms.service.SlaTrackingService slaTrackingService;
 
+    @Autowired
+    private com.dashenbank.cms.security.InputValidationService inputValidationService;
+
     public CustomerFeedbackController(TaskService taskService,
             CustomerFeedbackRepository feedbackRepository,
             ComplaintSlaMetricsRepository slaMetricsRepository,
@@ -150,6 +153,10 @@ public class CustomerFeedbackController {
                     HttpStatus.BAD_REQUEST);
         }
 
+        if (inputValidationService != null) {
+            inputValidationService.validateGenericPayload(body);
+        }
+
         String token = (String) body.get("token");
         if (token == null || token.isBlank()) {
             throw new FeedbackTokenException("FEEDBACK_TOKEN_MISSING", "Survey security token is required.",
@@ -205,7 +212,8 @@ public class CustomerFeedbackController {
             applyUnresolvedSurvey(feedback, additionalComments, ticketId, processInstanceId);
         }
 
-        completeResolutionTaskIfPresent(ticketId, processInstanceId, satisfied, additionalComments, csatScore, npsScore);
+        completeResolutionTaskIfPresent(ticketId, processInstanceId, satisfied, additionalComments, csatScore,
+                npsScore);
         feedbackRepository.save(feedback);
         persistClosedOverallStatus(processInstanceId, ticketId);
 
@@ -586,7 +594,8 @@ public class CustomerFeedbackController {
         try {
             persistDbcTicketFromSla(fb);
         } catch (Exception e) {
-            log.debug("Could not resolve DBC ticket for feedback list item {}: {}", fb.getTicketNumber(), e.getMessage());
+            log.debug("Could not resolve DBC ticket for feedback list item {}: {}", fb.getTicketNumber(),
+                    e.getMessage());
         }
     }
 

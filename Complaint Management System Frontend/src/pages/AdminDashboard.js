@@ -36,6 +36,7 @@ function renderCriEditingControl(type, val, dataIndex, options, onChange) {
       <DatePicker
         value={val && val !== '-' ? moment(val) : null}
         onChange={(d) => onChange(dataIndex, d ? d.format('YYYY-MM-DD') : '')}
+        disabledDate={(current) => current && current.isAfter(moment().endOf('day'))}
         size="small"
         format="YYYY-MM-DD"
         style={{ width: '100%', minWidth: '130px' }}
@@ -1018,7 +1019,11 @@ function AdminDashboard() {
             </div>
             <div>
               <div style={{ marginBottom: 4, fontSize: '12px', color: '#666' }}>Date Range</div>
-              <RangePicker value={filters.dateRange} onChange={val => handleFilterChange('dateRange', val)} />
+              <RangePicker
+                value={filters.dateRange}
+                disabledDate={(current) => current && current.isAfter(moment().endOf('day'))}
+                onChange={val => handleFilterChange('dateRange', val)}
+              />
             </div>
             <div style={{ marginTop: '22px' }}>
               <Button type="link" icon={<SyncOutlined />} onClick={clearFilters}>Reset Filters</Button>

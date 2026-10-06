@@ -81,6 +81,11 @@ public class WebSecurityConfig {
     }
 
     @Bean
+    public SecurityHeadersFilter securityHeadersFilter() {
+        return new SecurityHeadersFilter();
+    }
+
+    @Bean
     @SuppressWarnings("java:S4502")
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -88,15 +93,17 @@ public class WebSecurityConfig {
                 .headers(headers -> {
                     headers.httpStrictTransportSecurity(hsts -> hsts
                             .includeSubDomains(true)
+                            .preload(true)
                             .maxAgeInSeconds(31_536_000)
                             .requestMatcher(AnyRequestMatcher.INSTANCE));
                     headers.contentTypeOptions(Customizer.withDefaults());
                     headers.frameOptions(frame -> frame.deny());
                     headers.referrerPolicy(policy -> policy.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN));
                     headers.permissionsPolicy(
-                            policy -> policy.policy("camera=(), microphone=(), geolocation=()"));
+                            policy -> policy.policy(
+                                    "geolocation=(), camera=(), microphone=(), payment=(), usb=(), display-capture=()"));
                     headers.contentSecurityPolicy(csp -> csp.policyDirectives(
-                            "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"));
+                            "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' ws: wss:; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'"));
                 })
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -144,6 +151,7 @@ public class WebSecurityConfig {
                         .anyRequest().authenticated());
 
         http.authenticationProvider(authenticationProvider());
+        http.addFilterBefore(securityHeadersFilter(), UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(securityAuditFilter(), UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(apiRateLimitFilter(), UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);

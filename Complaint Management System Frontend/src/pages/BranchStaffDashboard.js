@@ -12,8 +12,8 @@ import { isResolvedAtFcr, classifyComplaintFilter } from '../utils/slaMetrics';
 const { Title, Text } = Typography;
 
 const PRIMARY = BRAND_COLORS.primary;
-const EVIDENCE_FILE_ACCEPT = '.pdf,.png,.jpg,.jpeg,.doc,.docx';
-const VOICE_FILE_ACCEPT = '.mp3,.wav,.m4a,.ogg,.webm,.aac,.flac,.wma,.amr';
+const EVIDENCE_FILE_ACCEPT = '.pdf,.jpg,.jpeg,.png,.docx,.xlsx';
+const VOICE_FILE_ACCEPT = '.mp3,.wav,.m4a';
 
 const pageStackStyle = { width: '100%', maxWidth: '1400px', margin: '0 auto' };
 const headerRowStyle = {
@@ -282,6 +282,12 @@ function BranchStaffDashboard() {
   const handleSubmit = async (values) => {
     setIsSubmitting(true);
     setMessage('');
+
+    if (values.date && moment(values.date).isAfter(moment().endOf('day'))) {
+      antMessage.error('Complaint date cannot be in the future');
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       const phone = normalizePhone(values.phone);
@@ -594,8 +600,27 @@ function BranchStaffDashboard() {
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <Form.Item name="date" label={<StaffFormLabel>Complaint Date</StaffFormLabel>} rules={[{ required: true, message: 'Please select complaint date' }]}>
-                  <DatePicker format="DD/MM/YYYY" placeholder="DD/MM/YYYY" style={datePickerStyle} />
+                <Form.Item
+                  name="date"
+                  label={<StaffFormLabel>Complaint Date</StaffFormLabel>}
+                  rules={[
+                    { required: true, message: 'Please select complaint date' },
+                    {
+                      validator: (_, value) => {
+                        if (value && moment(value).isAfter(moment().endOf('day'))) {
+                          return Promise.reject(new Error('Complaint date cannot be in the future'));
+                        }
+                        return Promise.resolve();
+                      }
+                    }
+                  ]}
+                >
+                  <DatePicker
+                    format="DD/MM/YYYY"
+                    placeholder="DD/MM/YYYY"
+                    disabledDate={(current) => current && current.isAfter(moment().endOf('day'))}
+                    style={datePickerStyle}
+                  />
                 </Form.Item>
               </Col>
             </Row>

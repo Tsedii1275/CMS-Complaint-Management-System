@@ -19,12 +19,52 @@ function sanitizePublicPhone(formPhone, countryCode) {
   return countryCode + rawPhone;
 }
 
+function getCustomerNameError(name, language) {
+  if (!name || !name.trim()) {
+    return language === 'english' ? 'Customer name is required' : 'የደንበኛው ሙሉ ስም ግዴታ ነው';
+  }
+  const trimmed = name.trim();
+  if (trimmed.length < 2 || trimmed.length > 100) {
+    return language === 'english' ? 'Customer name must be between 2 and 100 characters' : 'ስም ከ2 እስከ 100 ፊደላት መሆን አለበት';
+  }
+  if (!/^[a-zA-Z\u00C0-\u024F\u1200-\u137F\s'\-]+$/.test(trimmed)) {
+    return language === 'english' ? 'Customer name contains invalid characters' : 'ስም የተከለከሉ ፊደላትን ይዟል';
+  }
+  return '';
+}
+
+function getDescriptionError(desc, language) {
+  if (!desc || !desc.trim()) {
+    return language === 'english' ? 'Complaint description is required' : 'የቅሬታው ዝርዝር መግለጫ ግዴታ ነው';
+  }
+  const trimmed = desc.trim();
+  if (trimmed.length < 10) {
+    return language === 'english' ? 'Complaint description must be at least 10 characters long' : 'የቅሬታ መግለጫ ቢያንስ 10 ፊደላት መሆን አለበት';
+  }
+  if (trimmed.length > 5000) {
+    return language === 'english' ? 'Complaint description cannot exceed 5000 characters' : 'የቅሬታ መግለጫ ከ5000 ፊደላት መብለጥ የለበትም';
+  }
+  if (/<[^>]*script[^>]*>|<[^>]+on\w+\s*=|javascript:/i.test(trimmed)) {
+    return language === 'english' ? 'Description contains invalid script or HTML tags' : 'መግለጫው የተከለከሉ ኮዶችን ይዟል';
+  }
+  return '';
+}
+
 function getAccountNumberError(accountNumber, language) {
   if (!accountNumber?.trim()) {
     return language === 'english' ? 'Account Number is mandatory' : 'የአካውንት ቁጥር ግዴታ ነው';
   }
   if (accountNumber.length !== 13 || !/^\d+$/.test(accountNumber)) {
     return language === 'english' ? 'Account Number must be 13 digits' : 'አካውንት ቁጥር 13 አሃዝ መሆን አለበት';
+  }
+  return '';
+}
+
+function getEmailError(email, language) {
+  if (!email || !email.trim()) return '';
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email.trim())) {
+    return language === 'english' ? 'Please enter a valid email address' : 'እባክዎን ትክክለኛ የኢሜይል አድራሻ ያስገቡ';
   }
   return '';
 }
@@ -78,15 +118,24 @@ function applyPublicFormInputChange(e, { setFormData, setErrors, language, error
     });
   }
 
-  if (name !== 'accountNumber') {
-    return;
+  if (name === 'accountNumber') {
+    const accountError = getAccountNumberError(value, language);
+    if (accountError) {
+      setErrors(prev => ({
+        ...prev,
+        accountNumber: accountError
+      }));
+    }
   }
-  const accountError = getAccountNumberError(value, language);
-  if (accountError) {
-    setErrors(prev => ({
-      ...prev,
-      accountNumber: accountError
-    }));
+
+  if (name === 'email') {
+    const emailErr = getEmailError(value, language);
+    if (emailErr) {
+      setErrors(prev => ({
+        ...prev,
+        email: emailErr
+      }));
+    }
   }
 }
 
@@ -115,11 +164,18 @@ async function submitPublicComplaint(e, ctx) {
 
   const phone = sanitizePublicPhone(formData.phone, countryCode);
 
+  const nameError = getCustomerNameError(formData.customerName, language);
+  const descError = getDescriptionError(formData.complaintDescription, language);
   const accountError = getAccountNumberError(formData.accountNumber, language);
-  if (accountError) {
+  const emailErr = getEmailError(formData.email, language);
+
+  if (nameError || descError || accountError || emailErr) {
     setErrors(prev => ({
       ...prev,
-      accountNumber: accountError
+      ...(nameError ? { customerName: nameError } : {}),
+      ...(descError ? { complaintDescription: descError } : {}),
+      ...(accountError ? { accountNumber: accountError } : {}),
+      ...(emailErr ? { email: emailErr } : {})
     }));
     setIsSubmitting(false);
     return;
@@ -129,6 +185,16 @@ async function submitPublicComplaint(e, ctx) {
     setErrors(prev => ({ ...prev, consent: t.consentError }));
     setIsSubmitting(false);
     return;
+  }
+
+  if (formData.date) {
+    const parsed = moment(formData.date, ['YYYY-MM-DD', 'DD/MM/YYYY']);
+    if (parsed.isValid() && parsed.isAfter(moment().endOf('day'))) {
+      const dateErrMsg = language === 'english' ? 'Complaint date cannot be in the future' : 'የቅሬታ ቀን የወደፊት መሆን አይችልም';
+      antMessage.error(dateErrMsg);
+      setIsSubmitting(false);
+      return;
+    }
   }
 
   try {
@@ -641,13 +707,18 @@ function CustomerForm() {
                   style={{
                     width: '100%',
                     padding: '12px 16px',
-                    border: '1px solid #dcdcdc',
+                    border: `1px solid ${errors.email ? '#ff4d4f' : '#dcdcdc'}`,
                     borderRadius: '4px',
                     fontSize: '15px',
                     outline: 'none',
                     transition: 'border-color 0.2s'
                   }}
                 />
+                {errors.email && (
+                  <div style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>
+                    {errors.email}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -708,6 +779,7 @@ function CustomerForm() {
                   <DatePicker
                     format="DD/MM/YYYY"
                     placeholder="DD/MM/YYYY"
+                    disabledDate={(current) => current && current.isAfter(moment().endOf('day'))}
                     value={formData.date ? moment(formData.date, 'YYYY-MM-DD') : null}
                     onChange={(date) => {
                       setFormData(prev => ({
@@ -929,7 +1001,7 @@ function CustomerForm() {
                 <input
                   id="evidence-file-input"
                   type="file"
-                  accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx,.xls,.xlsx,.txt,.zip"
+                  accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.mp3,.wav,.m4a"
                   style={{ display: 'none' }}
                   onChange={(e) => onPublicEvidenceSelected(e, {
                     setIsUploadingEvidence, setEvidenceUrl, setEvidenceName, setMessageType, setMessageText

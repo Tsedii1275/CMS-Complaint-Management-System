@@ -34,8 +34,28 @@ public class AttachmentService {
     @Autowired
     private AuditService auditService;
 
+    @Autowired
+    private com.dashenbank.cms.security.FileSecurityService fileSecurityService;
+
+    public static final int MAX_ATTACHMENTS_PER_COMPLAINT = 5;
+
+    public void checkAttachmentLimit(String complaintId) {
+        if (complaintId != null && !complaintId.isBlank()) {
+            List<Attachment> existing = attachmentRepository.findByComplaintIdOrderByUploadedAtDesc(complaintId);
+            if (existing.size() >= MAX_ATTACHMENTS_PER_COMPLAINT) {
+                log.warn(
+                        "SECURITY REJECTION: Complaint ticket '{}' has reached maximum allowed attachments limit of {}",
+                        complaintId, MAX_ATTACHMENTS_PER_COMPLAINT);
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.BAD_REQUEST,
+                        "Maximum allowed attachments limit (5) reached for this complaint.");
+            }
+        }
+    }
+
     public AttachmentDTO saveAttachment(MultipartFile file, String complaintId, String uploadedBy) throws IOException {
-        validateFile(file);
+        checkAttachmentLimit(complaintId);
+        fileSecurityService.validateUpload(file, false, uploadedBy);
 
         String originalFilename = file.getOriginalFilename();
         if (originalFilename != null && originalFilename.contains("..")) {
@@ -57,7 +77,8 @@ public class AttachmentService {
 
         // Audit Trail
         auditService.log(complaintId, "", "", "ATTACHMENT_UPLOADED", "ATTACHMENT",
-                uploadedBy, "Uploaded attachment: " + saved.getFileName(), "", "", "");
+                uploadedBy, "Uploaded attachment: " + saved.getFileName() + " [Size: " + file.getSize() + " bytes]", "",
+                "", "");
 
         return mapToDTO(saved);
     }
@@ -73,30 +94,6 @@ public class AttachmentService {
                 .uploadedAt(LocalDateTime.now())
                 .build();
         return attachmentRepository.save(attachment);
-    }
-
-    private void validateFile(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("File cannot be empty");
-        }
-
-        if (file.getSize() > MAX_FILE_SIZE_BYTES) {
-            throw new IllegalArgumentException("File size exceeds maximum threshold of 10MB");
-        }
-
-        String originalFilename = file.getOriginalFilename();
-        if (originalFilename == null || !originalFilename.contains(".")) {
-            throw new IllegalArgumentException("File must have a valid file extension");
-        }
-
-        String extension = originalFilename.substring(originalFilename.lastIndexOf(".") + 1).toLowerCase();
-        if (!ALLOWED_EXTENSIONS.contains(extension)) {
-            throw new IllegalArgumentException("File type ." + extension + " is not allowed");
-        }
-        String contentType = file.getContentType() == null ? "" : file.getContentType().toLowerCase();
-        if (contentType.contains("html") || contentType.contains("javascript") || contentType.contains("svg")) {
-            throw new IllegalArgumentException("Unsupported MIME type");
-        }
     }
 
     public List<AttachmentDTO> getAttachmentsByComplaintId(String complaintId) {

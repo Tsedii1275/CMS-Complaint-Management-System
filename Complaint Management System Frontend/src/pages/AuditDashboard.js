@@ -423,6 +423,7 @@ function AuditDashboard() {
                         <Space>
                           <input
                             type="file"
+                            accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx"
                             onChange={handleFileChange}
                             style={hiddenFileInputStyle}
                             id="audit-document-upload"

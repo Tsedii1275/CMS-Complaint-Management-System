@@ -196,6 +196,8 @@ public class ProcessController {
     @Autowired
     private com.dashenbank.cms.security.FileSecurityService fileSecurityService;
     @Autowired
+    private com.dashenbank.cms.security.InputValidationService inputValidationService;
+    @Autowired
     private CoreBankingClient coreBankingClient;
     @Autowired(required = false)
     private com.dashenbank.cms.service.SecurityAuditService securityAuditService;
@@ -331,36 +333,35 @@ public class ProcessController {
             String description = (String) complaint.get(KEY_DESCRIPTION);
             String category = (String) complaint.get(KEY_CATEGORY);
 
+            String district = (String) complaint.get(KEY_DISTRICT);
+            if (district == null || district.isBlank()) {
+                district = (String) customer.get(KEY_DISTRICT);
+            }
+            String branch = (String) complaint.get("branch");
+            if (branch == null || branch.isBlank()) {
+                branch = (String) customer.get("branch");
+            }
+
+            // Comprehensive Input Validation & XSS Penetration Test Remediation
+            inputValidationService.validateComplaintInput(name, phone, accountNumber, district, branch, description,
+                    email);
+
             if (category == null || category.isBlank()) {
                 category = CAT_CUSTOMER_SERVICE_ISSUES;
             }
 
-            if (name == null || name.isBlank() || phone == null
-                    || phone.isBlank() || channel == null || channel.isBlank() || description == null
-                    || description.isBlank()) {
-                return ResponseEntity.badRequest()
-                        .body(Map.of(KEY_ERROR,
-                                "All required fields (Name, Phone, Channel, Description) must be filled",
-                                "code", "VALIDATION_ERROR"));
-            }
-
-            if (email != null && !email.isBlank()) {
-                if (!email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")) {
-                    return ResponseEntity.badRequest()
-                            .body(Map.of(KEY_ERROR, "Invalid email format", "code", "VALIDATION_ERROR"));
-                }
-            } else {
-                email = "";
-            }
-
             String cleanPhone = phone.replaceAll("[\\s-]", "");
-            if (!cleanPhone.matches("^(\\+?2510?[79]\\d{8}|0?[79]\\d{8})$")) {
+            phone = cleanPhone;
+
+            Object rawDate = complaint.get("date");
+            if (rawDate == null) {
+                rawDate = payload.get("date");
+            }
+            if (isFutureDate(rawDate)) {
                 return ResponseEntity.badRequest()
-                        .body(Map.of(KEY_ERROR,
-                                "Invalid phone format; expected Ethiopian phone number (e.g. +2519XXXXXXXX, +2517XXXXXXXX, or 09/07XXXXXXXX)",
+                        .body(Map.of(KEY_ERROR, "Complaint date cannot be in the future",
                                 "code", "VALIDATION_ERROR"));
             }
-            phone = cleanPhone;
 
             Map<String, Object> customerVars = buildCustomerVariables(customer, name, email, phone, accountNumber);
             Map<String, Object> complaintVars = buildComplaintVariables(complaint, channel, description, category);
@@ -506,6 +507,40 @@ public class ProcessController {
         }
     }
 
+    private boolean isFutureDate(Object dateObj) {
+        if (dateObj == null) {
+            return false;
+        }
+        String dateStr = dateObj.toString().trim();
+        if (dateStr.isBlank()) {
+            return false;
+        }
+
+        try {
+            LocalDate today = LocalDate.now(SYSTEM_ZONE);
+
+            if (dateStr.matches("^\\d{4}-\\d{2}-\\d{2}.*")) {
+                LocalDate d = LocalDate.parse(dateStr.substring(0, 10));
+                return d.isAfter(today);
+            }
+
+            if (dateStr.matches("^\\d{2}/\\d{2}/\\d{4}$")) {
+                DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+                LocalDate d = LocalDate.parse(dateStr, dtf);
+                return d.isAfter(today);
+            }
+
+            try {
+                LocalDateTime ldt = LocalDateTime.parse(dateStr);
+                return ldt.toLocalDate().isAfter(today);
+            } catch (Exception ignored) {
+            }
+        } catch (Exception e) {
+            log.debug("Date validation check failed for date '{}': {}", dateStr, e.getMessage());
+        }
+        return false;
+    }
+
     private Map<String, Object> buildComplaintVariables(Map<String, Object> complaint, String channel,
             String description, String category) {
         Map<String, Object> complaintVars = new HashMap<>();
@@ -596,19 +631,34 @@ public class ProcessController {
 
         String name = (String) customer.get(KEY_NAME);
         String email = (String) customer.getOrDefault(KEY_EMAIL, "");
+        String phone = CustomerContactPhones.fromRequest(customer);
+        String accountNumber = (String) customer.get(KEY_ACCOUNT_NUMBER);
         String channel = (String) complaint.getOrDefault(KEY_CHANNEL, KEY_BRANCH);
         String description = (String) complaint.get(KEY_DESCRIPTION);
         String category = (String) complaint.get(KEY_CATEGORY);
         String resolutionNotes = (String) complaint.getOrDefault(KEY_RESOLUTION_NOTES, "");
+        String district = (String) complaint.get(KEY_DISTRICT);
+        if (district == null || district.isBlank()) {
+            district = (String) customer.get(KEY_DISTRICT);
+        }
         String branch = LocationKeys.fromRequestBranch(complaint);
         if (branch == null) {
             branch = "";
         }
+
         String preferredLanguage = (String) customer.getOrDefault(KEY_PREFERRED_LANGUAGE, LANG_ENGLISH);
 
-        if (name == null || name.isBlank() || description == null || description.isBlank()) {
+        // Comprehensive Input Validation & XSS Penetration Test Remediation
+        inputValidationService.validateComplaintInput(name, phone, accountNumber, district, branch, description, email);
+
+        Object rawDate = complaint.get("date");
+        if (rawDate == null) {
+            rawDate = payload.get("date");
+        }
+        if (isFutureDate(rawDate)) {
             return ResponseEntity.badRequest()
-                    .body(Map.of(KEY_ERROR, "Customer name and complaint description are required"));
+                    .body(Map.of(KEY_ERROR, "Complaint date cannot be in the future",
+                            "code", "VALIDATION_ERROR"));
         }
 
         String ticket = generateDbcTicketId();
@@ -2014,12 +2064,8 @@ public class ProcessController {
             // 1. URL-decode and Trim whitespace
             String queryTicket = URLDecoder.decode(rawTicket.trim(), StandardCharsets.UTF_8).trim();
 
-            // 2. Validate expected ticket format (e.g. CM-001/2026-27, DBC-123,
-            // FCR-001/2026-27)
-            if (!queryTicket.matches("^[A-Za-z0-9/\\-_]{3,50}$")) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(Map.of(KEY_ERROR, "Invalid ticket number format.", "code", "VALIDATION_ERROR"));
-            }
+            // 2. Validate expected ticket format & XSS security check
+            inputValidationService.validateTicketId(queryTicket);
 
             // 3. Query audit log
             List<AuditLog> logs = auditService.getLogs(null, queryTicket, null, null, null);
@@ -2154,8 +2200,9 @@ public class ProcessController {
 
     @PostMapping("/complaints/upload-audio")
     public ResponseEntity<Map<String, Object>> uploadAudio(@RequestParam("file") MultipartFile file,
-            @RequestParam(value = KEY_COMPLAINT_ID, required = false) String complaintId) {
-        return storePublicOrStaffUpload(file, complaintId, true);
+            @RequestParam(value = KEY_COMPLAINT_ID, required = false) String complaintId,
+            jakarta.servlet.http.HttpServletRequest request) {
+        return storePublicOrStaffUpload(file, complaintId, true, request);
     }
 
     @GetMapping("/complaints/attachments/{fileName:.+}")
@@ -2190,20 +2237,27 @@ public class ProcessController {
 
     @PostMapping("/complaints/upload-evidence")
     public ResponseEntity<Map<String, Object>> uploadEvidence(@RequestParam("file") MultipartFile file,
-            @RequestParam(value = KEY_COMPLAINT_ID, required = false) String complaintId) {
-        return storePublicOrStaffUpload(file, complaintId, false);
+            @RequestParam(value = KEY_COMPLAINT_ID, required = false) String complaintId,
+            jakarta.servlet.http.HttpServletRequest request) {
+        return storePublicOrStaffUpload(file, complaintId, false, request);
     }
 
     private ResponseEntity<Map<String, Object>> storePublicOrStaffUpload(MultipartFile file, String complaintId,
-            boolean audio) {
-        fileSecurityService.validateUpload(file, audio);
+            boolean audio, jakarta.servlet.http.HttpServletRequest request) {
         boolean staff = isStaffAuthenticated();
+        String uploader = staff ? getCurrentUsername() : "public";
+        String clientIp = fileSecurityService.extractClientIp(request);
         String boundTicket = fileSecurityService.bindComplaintId(complaintId, staff);
+
+        attachmentService.checkAttachmentLimit(boundTicket);
+        fileSecurityService.validateUpload(file, audio, uploader, clientIp, boundTicket);
         fileSecurityService.ensureUploadDirectory();
+
         String storedName = fileSecurityService.newStoredFileName(file);
         Path targetPath = fileSecurityService.resolveStoredFile(storedName);
         try {
             Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+            fileSecurityService.setNonExecutablePermissions(targetPath);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of(KEY_ERROR, "Failed to store file"));

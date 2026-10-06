@@ -202,6 +202,7 @@ function CommitteeDecisionWorkspace({
                     <Input
                       type="date"
                       name="decisionDate"
+                      max={new Date().toISOString().split('T')[0]}
                       value={formData.decisionDate}
                       onChange={handleFormChange}
                       style={{ borderRadius: '6px' }}
@@ -234,6 +235,7 @@ function CommitteeDecisionWorkspace({
                   <Space>
                     <input
                       type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx"
                       onChange={handleFileChange}
                       style={{ display: 'none' }}
                       id="committee-document-upload"

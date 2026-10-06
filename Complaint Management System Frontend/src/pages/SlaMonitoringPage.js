@@ -488,7 +488,12 @@ function SlaMonitoringPage() {
               />
             </Col>
             <Col xs={24} sm={12} md={10} lg={10}>
-              <RangePicker style={{ width: '100%', borderRadius: '6px' }} onChange={setDateRange} value={dateRange} />
+              <RangePicker
+                style={{ width: '100%', borderRadius: '6px' }}
+                disabledDate={(current) => current && current.isAfter(moment().endOf('day'))}
+                onChange={setDateRange}
+                value={dateRange}
+              />
             </Col>
             <Col xs={24} sm={24} md={4} lg={4}>
               <Button

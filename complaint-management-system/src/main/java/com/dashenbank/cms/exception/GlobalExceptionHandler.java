@@ -40,6 +40,18 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(body, ex.getStatus());
     }
 
+    @ExceptionHandler(InputValidationException.class)
+    public ResponseEntity<Map<String, Object>> handleInputValidationException(InputValidationException ex,
+            HttpServletRequest request) {
+        log.warn("Input Validation Error [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getErrors());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("status", 400);
+        body.put(KEY_MESSAGE, "Validation failed");
+        body.put("errors", ex.getErrors());
+        body.put(KEY_TIMESTAMP, currentTimestamp());
+        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(FeedbackTokenException.class)
     public ResponseEntity<Map<String, Object>> handleFeedbackTokenException(FeedbackTokenException ex,
             HttpServletRequest request) {
@@ -117,6 +129,19 @@ public class GlobalExceptionHandler {
         body.put("error", message);
         body.put(KEY_TIMESTAMP, currentTimestamp());
         return new ResponseEntity<>(body, ex.getStatusCode());
+    }
+
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleMaxUploadSizeExceeded(
+            org.springframework.web.multipart.MaxUploadSizeExceededException ex, HttpServletRequest request) {
+        log.warn("Max upload size exceeded [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put(KEY_SUCCESS, false);
+        body.put("code", "MAX_FILE_SIZE_EXCEEDED");
+        body.put(KEY_MESSAGE, "Uploaded file exceeds the maximum allowed size of 10 MB.");
+        body.put("error", "Uploaded file exceeds the maximum allowed size of 10 MB.");
+        body.put(KEY_TIMESTAMP, currentTimestamp());
+        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(Exception.class)
