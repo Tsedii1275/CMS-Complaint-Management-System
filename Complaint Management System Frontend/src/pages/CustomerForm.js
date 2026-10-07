@@ -312,10 +312,13 @@ async function submitPublicComplaint(e, ctx) {
     console.log('Complaint submitted successfully:', response);
   } catch (error) {
     console.error('Error details:', error);
-    let errorMessage = 'Failed to submit complaint. Please try again.';
-
-    if (error.message) {
-      errorMessage = `Error: ${error.message}`;
+    const raw = String(error.message || '');
+    let errorMessage = language === 'english'
+      ? 'Failed to submit complaint. Please try again.'
+      : 'ቅሬታውን ማስገባት አልተሳካም። እባክዎ እንደገና ይሞክሩ።';
+    if (raw && !raw.toLowerCase().includes('jdbc') && !raw.toLowerCase().includes('sql [')
+        && raw.length < 180) {
+      errorMessage = `Error: ${raw}`;
     }
 
     setMessageText(errorMessage);
@@ -732,7 +735,9 @@ function CustomerForm() {
               backgroundColor: messageType === 'success' ? '#d4edda' : '#f8d7da',
               color: messageType === 'success' ? '#155724' : '#721c24',
               border: `1px solid ${messageType === 'success' ? '#c3e6cb' : '#f5c6cb'}`,
-              borderRadius: '6px'
+              borderRadius: '6px',
+              wordBreak: 'break-word',
+              overflowWrap: 'anywhere'
             }}>
               {messageText}
             </div>
