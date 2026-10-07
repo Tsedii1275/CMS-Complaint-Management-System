@@ -2,8 +2,9 @@ package com.dashenbank.cms.notification.provider;
 
 /**
  * SMS transport. Register an implementation as a Spring bean and select it
- * with {@code NOTIFICATION_SMS_PROVIDER=<id>}; gateway connection settings are
- * available from {@code NotificationProperties.getSms().getGateway()}.
+ * with {@code NOTIFICATION_SMS_PROVIDER=<id>}. DataPower settings are
+ * {@code NotificationProperties.getSms().getDatapower()}; the unused generic
+ * gateway block remains for a future non-DataPower transport.
  *
  * <p>Implementations are called from dispatcher worker threads and must be
  * thread-safe. They must not throw for delivery problems: classify them in the

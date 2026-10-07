@@ -2,6 +2,9 @@ package com.dashenbank.cms.notification.provider;
 
 import com.dashenbank.cms.notification.NotificationChannel;
 import com.dashenbank.cms.notification.NotificationProperties;
+import com.dashenbank.cms.notification.provider.datapower.DataPowerSmsProvider;
+import com.dashenbank.cms.notification.provider.datapower.SmsMetrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -63,6 +66,29 @@ class NotificationProviderRegistryTest {
                 List.of(smtp, new LoggingEmailProvider()), List.of(new LoggingSmsProvider()), properties);
 
         assertEquals("smtp", registry.providerId(NotificationChannel.EMAIL));
+    }
+
+    @Test
+    void datapowerWithoutCredentialsFailsStartupOnlyWhenSmsIsEnabled() {
+        NotificationProperties properties = new NotificationProperties();
+        properties.getSms().setProvider(DataPowerSmsProvider.ID);
+        NotificationProperties.DataPower config = properties.getSms().getDatapower();
+        config.setTokenUrl("https://datapower-cp4iuat.dashenbanksc.com:9443/dashen-bank/sandbox/oauth19/oauth2/token");
+        config.setSendUrl("https://datapower-cp4iuat.dashenbanksc.com:9443/dashen-bank/sandbox/SMS/send");
+        config.setScope("DASHEN");
+        config.setSendFor("Voice Management");
+        config.setPhoneFormat("LOCAL_09");
+        config.setAllowedLocalPrefixes("09");
+        DataPowerSmsProvider datapower = new DataPowerSmsProvider(properties, new SmsMetrics(new SimpleMeterRegistry()));
+
+        IllegalStateException error = assertThrows(IllegalStateException.class, () -> new NotificationProviderRegistry(
+                List.of(new LoggingEmailProvider()), List.of(datapower, new LoggingSmsProvider()), properties));
+        assertTrue(error.getMessage().contains("SMS_DATAPOWER_CLIENT_ID"));
+
+        properties.getSms().setEnabled(false);
+        NotificationProviderRegistry registry = new NotificationProviderRegistry(
+                List.of(new LoggingEmailProvider()), List.of(datapower, new LoggingSmsProvider()), properties);
+        assertEquals("datapower", registry.providerId(NotificationChannel.SMS));
     }
 
     @SuppressWarnings("unchecked")

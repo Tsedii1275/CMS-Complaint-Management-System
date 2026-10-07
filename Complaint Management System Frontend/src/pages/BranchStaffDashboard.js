@@ -319,7 +319,7 @@ function BranchStaffDashboard() {
           preferredContactMethod: values.preferredContactMethod || 'Email',
           customerHomeBranch: cbsProfile?.homeBranch || '',
           customerHomeDistrict: cbsProfile?.homeDistrict || '',
-          customerBranchCode: cbsProfile?.branchCode || cbsProfile?.homeBranch || '',
+          customerBranchCode: cbsProfile?.branchCode || '',
           customerSegment: cbsProfile?.customerSegment || '',
           coreBankingPhone: cbsProfile?.phoneNumber || ''
         },
@@ -713,8 +713,8 @@ function BranchStaffDashboard() {
                 <Row gutter={[16, 12]}>
                   <Col xs={24} md={8}><Text type="secondary">Customer Name</Text><div><Text strong>{cbsProfile.customerName || 'N/A'}</Text></div></Col>
                   <Col xs={24} md={8}><Text type="secondary">Phone Number</Text><div><Text strong>{cbsProfile.phoneNumber || 'N/A'}</Text></div></Col>
+                  <Col xs={24} md={8}><Text type="secondary">Branch Code</Text><div><Text strong>{cbsProfile.branchCode || 'N/A'}</Text></div></Col>
                   <Col xs={24} md={8}><Text type="secondary">Home Branch</Text><div><Text strong>{cbsProfile.homeBranch || 'N/A'}</Text></div></Col>
-                  <Col xs={24} md={8}><Text type="secondary">Branch Code</Text><div><Text strong>{cbsProfile.branchCode || cbsProfile.homeBranch || 'N/A'}</Text></div></Col>
                   <Col xs={24} md={8}><Text type="secondary">Home District</Text><div><Text strong>{cbsProfile.homeDistrict || 'N/A'}</Text></div></Col>
                   <Col xs={24} md={8}><Text type="secondary">Customer Segment</Text><div><Text strong>{cbsProfile.customerSegment || 'N/A'}</Text></div></Col>
                 </Row>

@@ -34,6 +34,7 @@ class CbsProfileRowMapperTest {
         assertEquals("Bole Branch", profile.homeBranch());
         assertEquals("Addis District", profile.homeDistrict());
         assertEquals("Retail", profile.customerSegment());
+        assertNull(profile.branchCode());
     }
 
     @Test
@@ -72,7 +73,7 @@ class CbsProfileRowMapperTest {
 
         assertEquals("Abebe Kebede", profile.customerName());
         assertEquals("0912345678", profile.phoneNumber());
-        assertEquals("387", profile.homeBranch());
+        assertNull(profile.homeBranch());
         assertEquals("Addis District", profile.homeDistrict());
         assertEquals("Retail", profile.customerSegment());
         assertEquals("387", profile.branchCode());

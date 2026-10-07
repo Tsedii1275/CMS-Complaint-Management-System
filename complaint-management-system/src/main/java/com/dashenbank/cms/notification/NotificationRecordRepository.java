@@ -21,6 +21,10 @@ public interface NotificationRecordRepository extends JpaRepository<Notification
 
     List<NotificationRecord> findTop100ByOrderByIdDesc();
 
+    long countByChannelAndStatus(NotificationChannel channel, NotificationStatus status);
+
+    long countByChannelAndStatusIn(NotificationChannel channel, Collection<NotificationStatus> statuses);
+
     /**
      * Atomically moves a due row to SENDING so that only one worker (or one
      * application instance) delivers it. Returns 1 when this caller won the claim.

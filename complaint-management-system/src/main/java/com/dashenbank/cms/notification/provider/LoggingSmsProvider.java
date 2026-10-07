@@ -6,8 +6,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * Non-delivering provider used until the bank SMS gateway is approved.
- * Messages are recorded as SKIPPED in {@code notifications}; bodies are never logged.
+ * Non-delivering provider. Selected with {@code NOTIFICATION_SMS_PROVIDER=log}.
+ * UAT/production delivery uses {@code datapower}. Messages are recorded as SKIPPED;
+ * bodies are never logged.
  */
 @Component
 public class LoggingSmsProvider implements SmsProvider {

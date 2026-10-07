@@ -58,6 +58,7 @@ public class NotificationProperties {
         private String senderId = "";
         private String defaultCountryCode = "251";
         private final Gateway gateway = new Gateway();
+        private final DataPower datapower = new DataPower();
     }
 
     /**
@@ -73,6 +74,34 @@ public class NotificationProperties {
         private String apiKey = "";
         private int connectTimeoutMs = 5000;
         private int readTimeoutMs = 10000;
+    }
+
+    /**
+     * Dashen DataPower SMS gateway (OAuth2 client_credentials). URLs, sendFor and
+     * phone format come from {@code SMS_DATAPOWER_*} environment variables.
+     * Client id and secret belong only in gitignored {@code .env.*.local}.
+     */
+    @Getter
+    @Setter
+    public static class DataPower {
+        private String tokenUrl = "";
+        private String sendUrl = "";
+        private String clientId = "";
+        private String clientSecret = "";
+        private String scope = "";
+        private String sendFor = "";
+        private String phoneFormat = "";
+        /**
+         * Local prefixes DataPower may receive, comma-separated ({@code 09},
+         * {@code 07}). Independent of whether the number is a valid Ethiopian
+         * mobile. Default {@code 09} until the SMS team confirms Safaricom.
+         */
+        private String allowedLocalPrefixes = "09";
+        private int connectTimeoutMs = 5000;
+        private int readTimeoutMs = 10000;
+        private int tokenRefreshSkewSeconds = 60;
+        private String truststorePath = "";
+        private String truststorePassword = "";
     }
 
     @Getter

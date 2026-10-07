@@ -95,7 +95,8 @@ public class CbsProperties {
     public static class Columns {
         private String customerName = "CUSTOMER_NAME";
         private String phoneNumber = "REGISTERED_PHONE";
-        private String homeBranch = "BRANCH_CODE";
+        private String homeBranch = "BRANCH_NAME";
+        private String branchCode = "BRANCH_CODE";
         private String homeDistrict = "DISTRICT_NAME";
         private String customerSegment = "CUST_SEGMENT";
         private String accountNumber = "ACCOUNT_NUMBER";
@@ -122,6 +123,14 @@ public class CbsProperties {
 
         public void setHomeBranch(String homeBranch) {
             this.homeBranch = homeBranch;
+        }
+
+        public String getBranchCode() {
+            return branchCode;
+        }
+
+        public void setBranchCode(String branchCode) {
+            this.branchCode = branchCode;
         }
 
         public String getHomeDistrict() {

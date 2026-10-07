@@ -26,6 +26,7 @@ public final class CbsProfileRowMapper implements RowMapper<CoreBankingProfile> 
     private final String customerNameColumn;
     private final String phoneNumberColumn;
     private final String homeBranchColumn;
+    private final String branchCodeColumn;
     private final String homeDistrictColumn;
     private final String customerSegmentColumn;
 
@@ -33,6 +34,7 @@ public final class CbsProfileRowMapper implements RowMapper<CoreBankingProfile> 
         this.customerNameColumn = columns.getCustomerName();
         this.phoneNumberColumn = columns.getPhoneNumber();
         this.homeBranchColumn = columns.getHomeBranch();
+        this.branchCodeColumn = columns.getBranchCode();
         this.homeDistrictColumn = columns.getHomeDistrict();
         this.customerSegmentColumn = columns.getCustomerSegment();
     }
@@ -41,15 +43,15 @@ public final class CbsProfileRowMapper implements RowMapper<CoreBankingProfile> 
     public CoreBankingProfile mapRow(ResultSet rs, int rowNum) throws SQLException {
         Map<String, String> columns = readColumns(rs);
         logViewColumnsOnce(columns);
-        String branch = value(columns, homeBranchColumn, "BRANCH_CODE", "HOME_BRANCH", "BRANCH", "BRANCH_NAME");
-        String code = value(columns, "BRANCH_CODE", homeBranchColumn, "BRANCH");
+        String branchName = value(columns, homeBranchColumn, "BRANCH_NAME", "HOME_BRANCH");
+        String code = value(columns, branchCodeColumn, "BRANCH_CODE");
         return new CoreBankingProfile(
                 value(columns, customerNameColumn, "CUSTOMER_NAME", "FULL_NAME"),
                 value(columns, phoneNumberColumn, "REGISTERED_PHONE", "PHONE_NUMBER", "TELEPHONE", "MOBILE"),
-                branch,
+                branchName,
                 value(columns, homeDistrictColumn, "DISTRICT_NAME", "HOME_DISTRICT", "DISTRICT"),
                 value(columns, customerSegmentColumn, "CUST_SEGMENT", "CUSTOMER_SEGMENT", "SEGMENT"),
-                code != null ? code : branch);
+                code);
     }
 
     static Map<String, String> readColumns(ResultSet rs) throws SQLException {
