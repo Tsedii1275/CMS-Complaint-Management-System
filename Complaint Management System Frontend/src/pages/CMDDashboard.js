@@ -8,7 +8,7 @@ import TaskTable, { formatUniqueId, formatIntakeId, matchesTicketSearch, compare
 import { useAuth } from '../contexts/AuthContext';
 import { renderComplaintStatusTag } from '../utils/statusUtils';
 import { resolveCurrentContactPhone, resolveCoreBankingPhone } from '../utils/customerContact';
-import { customerHomeBranch, customerHomeDistrict, complaintBranch, complaintDistrict } from '../utils/locationKeys';
+import { customerHomeBranch, customerHomeDistrict, customerBranchCode, complaintBranch, complaintDistrict } from '../utils/locationKeys';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -2450,6 +2450,7 @@ function CmdCustomerProfileCard({ selectedTask, activeTab, editingFields, setEdi
   const nameVal = liveCbs?.customerName || customer.name || selectedTask.customerName;
   const segmentVal = liveCbs?.customerSegment || customer.customerSegment;
   const branchVal = liveCbs?.homeBranch || customerHomeBranch(customer);
+  const branchCodeVal = liveCbs?.branchCode || customerBranchCode(customer) || branchVal;
   const districtVal = liveCbs?.homeDistrict || customerHomeDistrict(customer);
   const phoneVal = liveCbs?.phoneNumber || resolveCoreBankingPhone(customer);
 
@@ -2519,6 +2520,7 @@ function CmdCustomerProfileCard({ selectedTask, activeTab, editingFields, setEdi
         </div>
 
         <CmdProfileField label="Customer Home Branch" value={branchVal || 'N/A'} />
+        <CmdProfileField label="Branch Code" value={branchCodeVal || 'N/A'} />
         <CmdProfileField label="Customer Home District" value={districtVal || 'N/A'} />
         <CmdProfileField
           label="Registered Phone"

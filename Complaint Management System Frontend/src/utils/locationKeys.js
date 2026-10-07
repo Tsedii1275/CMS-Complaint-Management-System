@@ -6,6 +6,10 @@ export function customerHomeDistrict(customer) {
   return customer?.customerHomeDistrict || customer?.district || '';
 }
 
+export function customerBranchCode(customer) {
+  return customer?.customerBranchCode || customer?.branchCode || '';
+}
+
 export function complaintBranch(variables, complaint) {
   const vars = variables || {};
   const c = complaint || vars.complaint || {};

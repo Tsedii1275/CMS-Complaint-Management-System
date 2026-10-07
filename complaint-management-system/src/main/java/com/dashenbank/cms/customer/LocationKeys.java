@@ -11,6 +11,7 @@ public final class LocationKeys {
 
     public static final String CUSTOMER_HOME_BRANCH = "customerHomeBranch";
     public static final String CUSTOMER_HOME_DISTRICT = "customerHomeDistrict";
+    public static final String CUSTOMER_BRANCH_CODE = "customerBranchCode";
     public static final String COMPLAINT_BRANCH = "complaintBranch";
     public static final String COMPLAINT_DISTRICT = "complaintDistrict";
     public static final String LEGACY_BRANCH = "branch";
@@ -26,6 +27,10 @@ public final class LocationKeys {
 
     public static String customerHomeDistrict(Map<String, ?> customer) {
         return firstNonBlank(value(customer, CUSTOMER_HOME_DISTRICT), value(customer, LEGACY_DISTRICT));
+    }
+
+    public static String customerBranchCode(Map<String, ?> customer) {
+        return firstNonBlank(value(customer, CUSTOMER_BRANCH_CODE), value(customer, "branchCode"));
     }
 
     public static String complaintBranch(Map<String, ?> vars, Map<String, ?> complaint) {
@@ -55,6 +60,10 @@ public final class LocationKeys {
     public static void applyCustomerHome(Map<String, Object> customerVars, String homeBranch, String homeDistrict) {
         putIfHasText(customerVars, CUSTOMER_HOME_BRANCH, homeBranch);
         putIfHasText(customerVars, CUSTOMER_HOME_DISTRICT, homeDistrict);
+    }
+
+    public static void applyCustomerBranchCode(Map<String, Object> customerVars, String branchCode) {
+        putIfHasText(customerVars, CUSTOMER_BRANCH_CODE, branchCode);
     }
 
     public static void applyComplaintLocation(Map<String, Object> complaintVars, String branch, String district) {

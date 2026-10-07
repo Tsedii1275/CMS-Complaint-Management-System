@@ -10,20 +10,6 @@ const { Title, Text } = Typography;
 
 const slaStyles = {
   root: { padding: '4px 0' },
-  summaryBox: {
-    background: '#f8fafc',
-    padding: '16px 20px',
-    borderRadius: '8px',
-    border: '1px solid #e2e8f0',
-    marginBottom: '16px'
-  },
-  summaryRow: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '16px',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  },
   summaryKpiBox: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
@@ -50,10 +36,6 @@ const slaStyles = {
     fontWeight: 700,
     color: '#0f172a'
   },
-  label: { fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' },
-  ticketId: { fontWeight: 700, fontSize: '16px', color: BRAND_COLORS.primary },
-  summaryValue: { fontWeight: 600, fontSize: '14px', color: '#1e293b' },
-  classTag: { fontWeight: 600, fontSize: '12px', margin: 0 },
   headerRow: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' },
   headerIcon: { color: BRAND_COLORS.primary, fontSize: '18px' },
   headerTitle: { color: BRAND_COLORS.primary, margin: 0, fontSize: '15px' },
@@ -189,33 +171,8 @@ function parseStoredUser() {
   }
 }
 
-function classificationTagProps(complaintSummary) {
-  const val = complaintSummary?.complaintClassification
-    || complaintSummary?.variables?.complaintClassification
-    || complaintSummary?.priority;
-  const isMissing = !val || String(val).trim() === '' || String(val).trim() === 'null';
-  if (isMissing) {
-    return { color: 'default', text: 'Not Classified' };
-  }
-  const raw = String(val).toUpperCase().trim();
-  let text = String(val).trim();
-  let color = 'blue';
-  if (raw.includes('HIGH') || raw.includes('CRITICAL')) {
-    text = 'Highly Sensitive';
-    color = 'red';
-  } else if (raw.includes('SENSITIVE')) {
-    text = 'Sensitive';
-    color = 'orange';
-  } else if (raw.includes('GENERAL') || raw.includes('NORMAL')) {
-    text = 'General';
-    color = 'green';
-  }
-  return { color, text };
-}
-
 function SlaTimelineComponent({ complaintId }) {
   const [timeline, setTimeline] = useState([]);
-  const [complaintSummary, setComplaintSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(moment());
 
@@ -241,16 +198,11 @@ function SlaTimelineComponent({ complaintId }) {
     if (!targetId) return;
     try {
       setLoading(true);
-      const [data, summaryData] = await Promise.all([
-        ApiService.getComplaintSlaTimeline(targetId).catch((err) => {
-          console.error('Failed to load complaint SLA timeline endpoint:', err);
-          return [];
-        }),
-        ApiService.getSlaByComplaintId(targetId).catch(() => null)
-      ]);
-      let list = toTimelineList(data);
-      setTimeline(list);
-      setComplaintSummary(summaryData || null);
+      const data = await ApiService.getComplaintSlaTimeline(targetId).catch((err) => {
+        console.error('Failed to load complaint SLA timeline endpoint:', err);
+        return [];
+      });
+      setTimeline(toTimelineList(data));
     } catch (err) {
       console.error('Failed to load SLA timeline:', err);
     } finally {
@@ -358,7 +310,6 @@ function SlaTimelineComponent({ complaintId }) {
 
   const breachStage = timeline.find(t => getStageBreachInfo(t)?.isBreached);
   const breachInfo = breachStage ? getStageBreachInfo(breachStage) : null;
-  const classification = complaintSummary ? classificationTagProps(complaintSummary) : null;
 
   // Summary Metrics Calculation
   const totalStages = timeline.length;
@@ -368,45 +319,6 @@ function SlaTimelineComponent({ complaintId }) {
 
   return (
     <div style={slaStyles.root}>
-      {complaintSummary && (
-        <div style={slaStyles.summaryBox}>
-          <div style={slaStyles.summaryRow}>
-            <div>
-              <Text type="secondary" style={slaStyles.label}>Ticket Identifier</Text>
-              <div style={slaStyles.ticketId}>
-                {complaintSummary.dbcTicketId || complaintSummary.complaintId || complaintId}
-              </div>
-            </div>
-            <div>
-              <Text type="secondary" style={slaStyles.label}>Customer Name</Text>
-              <div style={slaStyles.summaryValue}>
-                {complaintSummary.customerName || 'Recorded Complainant'}
-              </div>
-            </div>
-            <div>
-              <Text type="secondary" style={slaStyles.label}>Category</Text>
-              <div style={slaStyles.summaryValue}>
-                {complaintSummary.complaintCategory || 'General Issue'}
-              </div>
-            </div>
-            <div>
-              <Text type="secondary" style={slaStyles.label}>Classification</Text>
-              <div>
-                <Tag color={classification.color} style={slaStyles.classTag}>
-                  {classification.text}
-                </Tag>
-              </div>
-            </div>
-            <div>
-              <Text type="secondary" style={slaStyles.label}>Branch / Unit</Text>
-              <div style={slaStyles.summaryValue}>
-                {complaintSummary.branch || complaintSummary.department || 'Main Branch'}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Summary KPI Cards Section */}
       <div style={slaStyles.summaryKpiBox}>
         <div style={slaStyles.kpiCard}>

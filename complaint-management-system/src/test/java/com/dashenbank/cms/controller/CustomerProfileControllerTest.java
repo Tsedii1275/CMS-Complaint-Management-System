@@ -50,7 +50,7 @@ class CustomerProfileControllerTest {
     @Test
     void returnsOnlyApprovedProfileFields() throws Exception {
         when(cbsCustomerProfileService.findByAccountNumber("5555666677778")).thenReturn(Optional.of(
-                new CoreBankingProfile("Abebe Kebede", "0912345678", "Bole", "Addis District", "Retail")));
+                new CoreBankingProfile("Abebe Kebede", "0912345678", "Bole", "Addis District", "Retail", "387")));
         ResponseEntity<Object> response = controller.findByAccountNumber("5555666677778");
         assertEquals(HttpStatus.OK, response.getStatusCode());
 
@@ -60,11 +60,12 @@ class CustomerProfileControllerTest {
         assertEquals("Bole", body.getHomeBranch());
         assertEquals("Addis District", body.getHomeDistrict());
         assertEquals("Retail", body.getCustomerSegment());
+        assertEquals("387", body.getBranchCode());
 
         JsonNode json = OBJECT_MAPPER.readTree(OBJECT_MAPPER.writeValueAsString(body));
         Set<String> fields = new HashSet<>();
         json.fieldNames().forEachRemaining(fields::add);
-        assertEquals(Set.of("customerName", "phoneNumber", "homeBranch", "homeDistrict", "customerSegment"), fields);
+        assertEquals(Set.of("customerName", "phoneNumber", "homeBranch", "homeDistrict", "customerSegment", "branchCode"), fields);
         assertFalse(json.has("cifNumber"));
         assertFalse(json.has("accountNumber"));
         assertFalse(json.has("email"));

@@ -487,6 +487,7 @@ public class ProcessController {
             putIfHasText(customerVars, KEY_NAME, profile.customerName());
             putIfHasText(customerVars, KEY_CORE_BANKING_PHONE, profile.phoneNumber());
             LocationKeys.applyCustomerHome(customerVars, profile.homeBranch(), profile.homeDistrict());
+            LocationKeys.applyCustomerBranchCode(customerVars, profile.branchCode());
             putIfHasText(customerVars, "customerSegment", profile.customerSegment());
             customerVars.put(KEY_PROFILE_SOURCE, VAL_CORE_BANKING);
             customerVars.put(KEY_CBS_LOOKUP_STATUS, "FOUND");
