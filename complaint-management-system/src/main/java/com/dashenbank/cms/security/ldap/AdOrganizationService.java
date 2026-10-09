@@ -200,15 +200,23 @@ public class AdOrganizationService {
         return ous;
     }
 
-    private static String branchLocationName(AdUserProfile profile, String office, String department) {
+    static List<String> locationCandidates(AdUserProfile profile) {
         List<String> candidates = new ArrayList<>();
-        if (StringUtils.hasText(office)) {
-            candidates.add(office.trim());
+        if (profile == null) {
+            return candidates;
+        }
+        if (StringUtils.hasText(profile.office())) {
+            candidates.add(profile.office().trim());
         }
         candidates.addAll(ousFromDn(profile.distinguishedName()));
-        if (StringUtils.hasText(department)) {
-            candidates.add(department.trim());
+        if (StringUtils.hasText(profile.department())) {
+            candidates.add(profile.department().trim());
         }
+        return candidates;
+    }
+
+    private static String branchLocationName(AdUserProfile profile, String office, String department) {
+        List<String> candidates = locationCandidates(profile);
         for (String candidate : candidates) {
             if (AdBranchCatalog.looksLikeBranchUnit(candidate)) {
                 return candidate;
@@ -245,12 +253,38 @@ public class AdOrganizationService {
     }
 
     private boolean isOfficerInUnit(AdUserProfile profile, AdAssignmentScope scope, String expectedName) {
-        if (!matchesConfiguredScope(profile, scope) || !StringUtils.hasText(profile.samAccountName())
+        if (profile == null || !profile.enabled() || !StringUtils.hasText(profile.samAccountName())
                 || expectedName == null) {
+            return false;
+        }
+        if (scope == AdAssignmentScope.BRANCH) {
+            return isBranchOfficerFor(profile, expectedName);
+        }
+        if (!matchesConfiguredScope(profile, scope)) {
             return false;
         }
         String unit = orgUnitName(profile, scope);
         return AdOrgUnitMatcher.sameUnit(unit, expectedName);
+    }
+
+    private boolean isBranchOfficerFor(AdUserProfile profile, String expectedName) {
+        String normalizedTitle = AdWorkUnitTitleMatcher.normalize(profile.title());
+        if (AdWorkUnitTitleMatcher.isDistrictTitle(normalizedTitle)) {
+            return false;
+        }
+        List<String> extras = extras(AdAssignmentScope.BRANCH);
+        boolean leadership = AdWorkUnitTitleMatcher.matchesTitle(profile.title(), AdAssignmentScope.BRANCH,
+                expectedName, extras)
+                || AdWorkUnitTitleMatcher.matchesGroup(profile.memberOf(), AdAssignmentScope.BRANCH, extras);
+        if (!leadership) {
+            return false;
+        }
+        for (String candidate : locationCandidates(profile)) {
+            if (AdOrgUnitMatcher.sameUnit(candidate, expectedName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private List<String> extras(AdAssignmentScope scope) {

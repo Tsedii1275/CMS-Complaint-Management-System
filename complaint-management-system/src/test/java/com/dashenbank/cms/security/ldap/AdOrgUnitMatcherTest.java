@@ -11,6 +11,8 @@ class AdOrgUnitMatcherTest {
     void conventionalBranchNamesMatchWithOrWithoutBranchSuffix() {
         assertTrue(AdOrgUnitMatcher.sameUnit("Bole Branch", "Bole"));
         assertTrue(AdOrgUnitMatcher.sameUnit("Bole Branch", "Dashen Bank Bole Branch"));
+        assertTrue(AdOrgUnitMatcher.sameUnit("Bole", "Dashen Bole Branch"));
+        assertTrue(AdOrgUnitMatcher.sameUnit("Mekelle", "Dashen Mekelle Branch"));
         assertFalse(AdOrgUnitMatcher.sameUnit("Bole Branch", "Bole IFB"));
         assertTrue(AdOrgUnitMatcher.sameUnit("Bole IFB", "Bole Interest Free Banking"));
         assertTrue(AdOrgUnitMatcher.sameUnit("Customer Experience Department", "Customer Experience"));

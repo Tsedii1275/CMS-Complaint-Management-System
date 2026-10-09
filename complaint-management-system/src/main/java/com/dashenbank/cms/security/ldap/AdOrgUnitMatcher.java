@@ -2,6 +2,7 @@ package com.dashenbank.cms.security.ldap;
 
 import org.springframework.util.StringUtils;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
@@ -34,7 +35,7 @@ public final class AdOrgUnitMatcher {
     }
 
     static Canonical canonicalize(String name) {
-        String folded = AdWorkUnitTitleMatcher.normalize(name);
+        String folded = stripOrgPrefix(AdWorkUnitTitleMatcher.normalize(name));
         boolean ifb = AdBranchCatalog.isIfbName(folded);
         folded = folded.replace("interest free banking", " ")
                 .replace("interestfree", " ")
@@ -56,6 +57,23 @@ public final class AdOrgUnitMatcher {
             core.append(token);
         }
         return new Canonical(core.toString().trim().toLowerCase(Locale.ROOT), ifb);
+    }
+
+    static String stripOrgPrefix(String folded) {
+        String current = folded == null ? "" : folded.trim();
+        boolean stripped = true;
+        while (stripped && !current.isEmpty()) {
+            stripped = false;
+            for (String prefix : List.of("dashen bank ", "dashens bank ", "dashen s bank ", "dashenbank ",
+                    "dashen ", "dashens ")) {
+                if (current.startsWith(prefix)) {
+                    current = current.substring(prefix.length()).trim();
+                    stripped = true;
+                    break;
+                }
+            }
+        }
+        return current;
     }
 
     record Canonical(String core, boolean ifb) {

@@ -64,6 +64,9 @@ public final class AdBranchCatalog {
         if (isHeadOfficeIfbDepartment(lower)) {
             return false;
         }
+        if (lower.contains("head office") && !isIfbName(lower)) {
+            return false;
+        }
         if (isIfbBranchWindow(lower)) {
             return true;
         }

@@ -24,6 +24,24 @@ class AdOrganizationServiceTest {
     }
 
     @Test
+    void dashenPrefixedBranchOuStillListsBranchManagerAndCsm() {
+        AdOrganizationService service = service();
+        AdUserProfile bm = new AdUserProfile("bm1", "1", "Sara", "s@d.com", "Branch Manager", true, List.of(),
+                "Credit Department", null, "Bole");
+        AdUserProfile csm = new AdUserProfile("csm1", "2", "Lidya", "l@d.com", "CSM", true, List.of(),
+                null, "CN=Lidya,OU=Users,OU=Dashen Bole Branch,OU=Addis Ababa District,DC=dashenbank,DC=local",
+                null);
+        AdUserProfile teller = new AdUserProfile("t1", "3", "Teller", "t@d.com", "Teller", true, List.of(),
+                null, null, "Bole Branch");
+        String unitId = AdOrganizationService.idFor("Dashen Bole Branch");
+        List<AdOrgOfficer> officers = service.officersFrom(List.of(bm, csm, teller), AdAssignmentScope.BRANCH, unitId);
+        assertEquals(2, officers.size());
+        assertTrue(officers.stream().anyMatch(o -> "Branch Manager".equals(o.title())));
+        assertTrue(officers.stream().anyMatch(o -> "CSM".equals(o.title())));
+        assertFalse(officers.stream().anyMatch(o -> "Teller".equals(o.title())));
+    }
+
+    @Test
     void branchListIncludesDistrictChildOuEvenWithoutTheWordBranch() {
         AdUserProfile teller = new AdUserProfile("t1", "g", "Teller", "t@d.com", "Teller", true, List.of(),
                 null, "CN=Teller,OU=Bole,OU=Addis Ababa District,OU=Dashen Bank,DC=dashenbank,DC=local", null);
