@@ -2913,7 +2913,9 @@ function CmdScreeningFormCard(props) {
                       <Select
                         showSearch
                         optionFilterProp="children"
-                        placeholder="Loaded from Active Directory"
+                        placeholder={normalizeAssignmentScope(formData.assignmentType) === 'BRANCH'
+                          ? 'Search all branches including IFB'
+                          : 'Loaded from Active Directory'}
                         loading={adOrgLoading}
                         value={formData.adUnitId || undefined}
                         onChange={(unitId) => {
@@ -2949,7 +2951,13 @@ function CmdScreeningFormCard(props) {
                       <Select
                         showSearch
                         optionFilterProp="children"
-                        placeholder={formData.adUnitId ? 'Loaded from Active Directory' : 'Select a unit first'}
+                        placeholder={formData.adUnitId
+                          ? (normalizeAssignmentScope(formData.assignmentType) === 'BRANCH'
+                            ? 'Search Branch Manager, CSM, and Service Manager'
+                            : normalizeAssignmentScope(formData.assignmentType) === 'HQ_DEPARTMENT'
+                              ? 'Search Director, Senior Manager, and department heads'
+                              : 'Loaded from Active Directory')
+                          : 'Select a unit first'}
                         loading={adOfficerLoading}
                         disabled={!formData.adUnitId}
                         value={formData.assigneeUsername || undefined}

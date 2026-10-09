@@ -118,24 +118,71 @@ public class DataPowerSmsProvider implements SmsProvider {
                 phone.get(),
                 sendDate());
         ensureClients();
-        DataPowerHttpOutcome first = postSms(tokens.getAccessToken(), request);
-        if (first.statusCode() == 401) {
-            tokens.invalidate();
-            DataPowerHttpOutcome second = postSms(tokens.getAccessToken(), request);
-            if (second.statusCode() == 401) {
-                log.warn("DataPower SMS authentication failed after token refresh to {}",
-                        RecipientFormat.maskPhone(phone.get()));
-                return ProviderResult.permanent("DataPower SMS authentication failed after token refresh");
-            }
-            return classifySend(second, phone.get());
+        List<DataPowerGatewayTargets.Target> targets = DataPowerGatewayTargets.of(config);
+        if (targets.isEmpty()) {
+            return ProviderResult.permanent("DataPower SMS URLs are not configured");
         }
-        return classifySend(first, phone.get());
+        DataPowerGatewayException lastFailure = null;
+        DataPowerHttpOutcome lastRetryable = null;
+        for (int i = 0; i < targets.size(); i++) {
+            DataPowerGatewayTargets.Target target = targets.get(i);
+            try {
+                DataPowerHttpOutcome outcome = postSmsOnTarget(target, request);
+                if (outcome.statusCode() >= 200 && outcome.statusCode() < 300) {
+                    if (i > 0) {
+                        log.info("DataPower SMS accepted on fallback host {}",
+                                DataPowerGatewayTargets.hostLabel(target.sendUrl()));
+                    }
+                    return classifySend(outcome, phone.get());
+                }
+                if (outcome.statusCode() == 401) {
+                    return classifySend(outcome, phone.get());
+                }
+                if (i + 1 < targets.size() && DataPowerGatewayTargets.shouldTryNextHost(outcome.statusCode())) {
+                    log.warn("DataPower SMS host {} returned HTTP {}; trying fallback",
+                            DataPowerGatewayTargets.hostLabel(target.sendUrl()), outcome.statusCode());
+                    lastRetryable = outcome;
+                    continue;
+                }
+                return classifySend(outcome, phone.get());
+            } catch (DataPowerGatewayException e) {
+                lastFailure = e;
+                if (i + 1 < targets.size() && e.result() != null
+                        && e.result().outcome() == ProviderResult.Outcome.RETRYABLE_FAILURE) {
+                    log.warn("DataPower SMS host {} unreachable; trying fallback",
+                            DataPowerGatewayTargets.hostLabel(target.sendUrl()));
+                    continue;
+                }
+                throw e;
+            }
+        }
+        if (lastRetryable != null) {
+            return classifySend(lastRetryable, phone.get());
+        }
+        if (lastFailure != null) {
+            throw lastFailure;
+        }
+        return ProviderResult.retryable("DataPower SMS no reachable gateway");
     }
 
-    private DataPowerHttpOutcome postSms(String accessToken, DataPowerSmsRequest request) {
+    private DataPowerHttpOutcome postSmsOnTarget(DataPowerGatewayTargets.Target target, DataPowerSmsRequest request) {
+        DataPowerHttpOutcome first = postSms(target.sendUrl(), tokens.getAccessToken(target.tokenUrl()), request);
+        if (first.statusCode() != 401) {
+            return first;
+        }
+        tokens.invalidate(target.tokenUrl());
+        DataPowerHttpOutcome second = postSms(target.sendUrl(), tokens.getAccessToken(target.tokenUrl()), request);
+        if (second.statusCode() == 401) {
+            log.warn("DataPower SMS authentication failed after token refresh on {}",
+                    DataPowerGatewayTargets.hostLabel(target.sendUrl()));
+        }
+        return second;
+    }
+
+    private DataPowerHttpOutcome postSms(String sendUrl, String accessToken, DataPowerSmsRequest request) {
         try {
             return http.post()
-                    .uri(datapower().getSendUrl().trim())
+                    .uri(sendUrl)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                     .body(request)

@@ -89,6 +89,175 @@ class AdOrganizationServiceTest {
     }
 
     @Test
+    void branchOfficersIncludeCsmAndActingTitlesEvenWhenOfficeOmitsBranchSuffix() {
+        AdOrganizationService service = service();
+        AdUserProfile bm = new AdUserProfile("bm1", "1", "Sara", "s@d.com", "Acting Branch Manager", true, List.of(),
+                null, null, "Bole");
+        AdUserProfile csm = new AdUserProfile("csm1", "2", "Lidya", "l@d.com", "Customer Service Manager", true,
+                List.of(), null, null, "Bole Branch");
+        AdUserProfile seniorCsm = new AdUserProfile("csm2", "3", "Hana", "h@d.com", "Senior Customer Service Manager",
+                true, List.of(), null, null, "Bole Branch");
+        AdUserProfile serviceMgr = new AdUserProfile("csm3", "4", "Miki", "m@d.com", "Service Manager", true, List.of(),
+                null, null, "Bole Branch");
+        AdUserProfile teller = new AdUserProfile("t1", "5", "Teller", "t@d.com", "Teller", true, List.of(),
+                null, null, "Bole Branch");
+        List<AdUserProfile> people = List.of(bm, csm, seniorCsm, serviceMgr, teller);
+        String boleId = AdOrganizationService.idFor("Bole Branch");
+        List<AdOrgOfficer> officers = service.officersFrom(people, AdAssignmentScope.BRANCH, boleId);
+        assertEquals(4, officers.size());
+        assertTrue(officers.stream().anyMatch(o -> "Acting Branch Manager".equals(o.title())));
+        assertTrue(officers.stream().anyMatch(o -> "Customer Service Manager".equals(o.title())));
+        assertTrue(officers.stream().anyMatch(o -> "Senior Customer Service Manager".equals(o.title())));
+        assertTrue(officers.stream().anyMatch(o -> "Service Manager".equals(o.title())));
+        assertFalse(officers.stream().anyMatch(o -> "Teller".equals(o.title())));
+    }
+
+    @Test
+    void headOfficeLeadersIncludeDirectorAndManagerVariantsForTheSameDepartment() {
+        AdOrganizationService service = service();
+        AdUserProfile director = new AdUserProfile("d1", "1", "Daniel", "d@d.com", "Department Director", true,
+                List.of(), "Customer Experience", null, "Head Office");
+        AdUserProfile senior = new AdUserProfile("s1", "2", "Hanna", "h@d.com", "Acting Senior Manager", true, List.of(),
+                "Customer Experience Department", null, null);
+        AdUserProfile manager = new AdUserProfile("m1", "3", "Kedir", "k@d.com", "Head of Department", true, List.of(),
+                "Customer Experience Department", null, null);
+        AdUserProfile specialist = new AdUserProfile("x1", "4", "Officer", "o@d.com", "Analyst", true, List.of(),
+                "Customer Experience Department", null, null);
+        List<AdUserProfile> people = List.of(director, senior, manager, specialist);
+        String deptId = AdOrganizationService.idFor("Customer Experience Department");
+        List<AdOrgOfficer> leaders = service.officersFrom(people, AdAssignmentScope.HEAD_OFFICE_DEPARTMENT, deptId);
+        assertEquals(3, leaders.size());
+        assertTrue(leaders.stream().anyMatch(o -> "Department Director".equals(o.title())));
+        assertTrue(leaders.stream().anyMatch(o -> "Acting Senior Manager".equals(o.title())));
+        assertTrue(leaders.stream().anyMatch(o -> "Head of Department".equals(o.title())));
+        assertFalse(leaders.stream().anyMatch(o -> "Analyst".equals(o.title())));
+    }
+
+    @Test
+    void configuredTitleMappingsAddBankSpecificTitlesWithoutReplacingTheCatalog() {
+        LdapProperties props = new LdapProperties();
+        props.setTitleMappings("Cluster Champion=ROLE_CUSTOMER_SERVICE_MANAGER;Value Stream Owner=ROLE_SENIOR_MANAGER");
+        AdOrganizationService service = new AdOrganizationService(new DirectoryOperations() {
+            @Override
+            public boolean configured() {
+                return true;
+            }
+
+            @Override
+            public DirectoryHealth health() {
+                return new DirectoryHealth(true, "ldaps://example", "ok");
+            }
+
+            @Override
+            public AdUserProfile authenticate(String username, String password) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public java.util.Optional<AdUserProfile> findBySamAccountName(String username) {
+                return java.util.Optional.empty();
+            }
+
+            @Override
+            public List<AdUserProfile> searchDirectoryUsers(int maxResults) {
+                return List.of();
+            }
+
+            @Override
+            public List<AdUserProfile> searchDirectoryUsersPaged(int pageSize, int maxTotal) {
+                return List.of();
+            }
+        }, props);
+        AdUserProfile cluster = new AdUserProfile("csmx", "g", "Selam", "s@d.com", "Cluster Champion", true,
+                List.of(), null, null, "Hawassa Branch");
+        AdUserProfile product = new AdUserProfile("dirx", "g", "Yonas", "y@d.com", "Value Stream Owner", true, List.of(),
+                "Digital Banking Department", null, null);
+        assertTrue(service.matchesConfiguredScope(cluster, AdAssignmentScope.BRANCH));
+        assertTrue(service.matchesConfiguredScope(product, AdAssignmentScope.HEAD_OFFICE_DEPARTMENT));
+        assertTrue(AdOrganizationService.matchesScope(
+                new AdUserProfile("bm1", "g", "Sara", "s@d.com", "Branch Manager", true, List.of(), null, null,
+                        "Hawassa Branch"),
+                AdAssignmentScope.BRANCH));
+    }
+
+    @Test
+    void ifbOfficeWithoutTheWordBranchIsAValidAssignmentDestination() {
+        AdUserProfile ifbManager = new AdUserProfile("ifb1", "g", "Selam", "s@d.com", "IFB Manager", true, List.of(),
+                null, "CN=Selam,OU=Bole IFB,OU=Dashen Bank,DC=dashenbank,DC=local", "Bole IFB");
+        assertEquals("Bole IFB", AdOrganizationService.orgUnitName(ifbManager, AdAssignmentScope.BRANCH));
+        assertTrue(AdOrganizationService.matchesScope(ifbManager, AdAssignmentScope.BRANCH));
+        assertFalse(AdOrganizationService.matchesScope(ifbManager, AdAssignmentScope.HEAD_OFFICE_DEPARTMENT));
+        AdOrganizationService service = service();
+        List<AdOrgUnit> branches = service.unitsFrom(List.of(ifbManager), AdAssignmentScope.BRANCH);
+        assertEquals(1, branches.size());
+        assertEquals("Bole IFB", branches.get(0).name());
+    }
+
+    @Test
+    void headOfficeIfbDepartmentIsNotListedAsABranch() {
+        AdUserProfile hoIfb = new AdUserProfile("ifbho", "g", "Kedir", "k@d.com", "Director", true, List.of(),
+                "Interest Free Banking Department", null, "Head Office");
+        assertFalse(AdOrganizationService.matchesScope(hoIfb, AdAssignmentScope.BRANCH));
+        assertTrue(AdOrganizationService.matchesScope(hoIfb, AdAssignmentScope.HEAD_OFFICE_DEPARTMENT));
+    }
+
+    @Test
+    void branchMasterMergesAdOusIncludingIfbWithPeopleDerivedNames() {
+        List<AdOrgUnit> merged = AdOrganizationService.mergeBranchMaster(
+                List.of("Bole Branch", "Bole IFB", "Interest Free Banking Department", "Addis Ababa District"),
+                List.of(new AdOrgUnit("x", "Piassa Branch")));
+        assertTrue(merged.stream().anyMatch(u -> "Bole Branch".equals(u.name())));
+        assertTrue(merged.stream().anyMatch(u -> "Bole IFB".equals(u.name())));
+        assertTrue(merged.stream().anyMatch(u -> "Piassa Branch".equals(u.name())));
+        assertFalse(merged.stream().anyMatch(u -> "Interest Free Banking Department".equals(u.name())));
+        assertFalse(merged.stream().anyMatch(u -> "Addis Ababa District".equals(u.name())));
+    }
+
+    @Test
+    void branchesEndpointUsesOuMasterWhenPeopleAreMissing() {
+        AdOrganizationService service = new AdOrganizationService(new DirectoryOperations() {
+            @Override
+            public boolean configured() {
+                return true;
+            }
+
+            @Override
+            public DirectoryHealth health() {
+                return new DirectoryHealth(true, "ldaps://example", "ok");
+            }
+
+            @Override
+            public AdUserProfile authenticate(String username, String password) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public java.util.Optional<AdUserProfile> findBySamAccountName(String username) {
+                return java.util.Optional.empty();
+            }
+
+            @Override
+            public List<AdUserProfile> searchDirectoryUsers(int maxResults) {
+                return List.of();
+            }
+
+            @Override
+            public List<AdUserProfile> searchDirectoryUsersPaged(int pageSize, int maxTotal) {
+                return List.of();
+            }
+
+            @Override
+            public List<String> searchOrganizationalUnitNames(int maxResults) {
+                return List.of("Hawassa Branch", "Adama IFB");
+            }
+        }, new LdapProperties());
+        List<AdOrgUnit> branches = service.branches();
+        assertEquals(2, branches.size());
+        assertTrue(branches.stream().anyMatch(u -> "Adama IFB".equals(u.name())));
+        assertTrue(branches.stream().anyMatch(u -> "Hawassa Branch".equals(u.name())));
+    }
+
+    @Test
     void knownTitleDoesNotMoveScopeViaGroupFallback() {
         AdUserProfile profile = new AdUserProfile("bm1", "g", "Sara", "s@d.com", "Senior Branch Manager", true,
                 List.of("CN=Director,OU=Groups,DC=dashenbank,DC=local"), "Bole Branch", null, "Bole Branch");

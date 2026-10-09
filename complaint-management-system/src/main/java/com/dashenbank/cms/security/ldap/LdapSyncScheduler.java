@@ -27,23 +27,33 @@ public class LdapSyncScheduler {
     private final UserRepository userRepository;
     private final LdapSyncStatusRepository statusRepository;
     private final Clock clock;
+    private final AdOrganizationService organizationService;
     @Autowired(required = false)
     private com.dashenbank.cms.service.SecurityAuditService securityAuditService;
 
     @Autowired
     public LdapSyncScheduler(LdapProperties properties, DirectoryOperations directory, AdUserSyncService syncService,
-            UserRepository userRepository, LdapSyncStatusRepository statusRepository) {
-        this(properties, directory, syncService, userRepository, statusRepository, Clock.systemDefaultZone());
+            UserRepository userRepository, LdapSyncStatusRepository statusRepository,
+            AdOrganizationService organizationService) {
+        this(properties, directory, syncService, userRepository, statusRepository, Clock.systemDefaultZone(),
+                organizationService);
     }
 
     LdapSyncScheduler(LdapProperties properties, DirectoryOperations directory, AdUserSyncService syncService,
             UserRepository userRepository, LdapSyncStatusRepository statusRepository, Clock clock) {
+        this(properties, directory, syncService, userRepository, statusRepository, clock, null);
+    }
+
+    LdapSyncScheduler(LdapProperties properties, DirectoryOperations directory, AdUserSyncService syncService,
+            UserRepository userRepository, LdapSyncStatusRepository statusRepository, Clock clock,
+            AdOrganizationService organizationService) {
         this.properties = properties;
         this.directory = directory;
         this.syncService = syncService;
         this.userRepository = userRepository;
         this.statusRepository = statusRepository;
         this.clock = clock;
+        this.organizationService = organizationService;
     }
 
     @Scheduled(cron = "${ldap.sync.cron:0 0 * * * *}")
@@ -80,6 +90,7 @@ public class LdapSyncScheduler {
             status.setLastResult("SUCCESS");
             status.setLastError(null);
             status.setLastSuccessAt(now);
+            validateBranchCatalogAfterSync();
         } catch (RuntimeException e) {
             log.warn("LDAP sync failed: {}", rootDetail(e));
             status.setLastResult("FAILED");
@@ -123,6 +134,17 @@ public class LdapSyncScheduler {
             }
         }
         return new SyncCounts(synced, failed);
+    }
+
+    private void validateBranchCatalogAfterSync() {
+        if (organizationService == null) {
+            return;
+        }
+        try {
+            organizationService.validateBranchCatalog();
+        } catch (RuntimeException e) {
+            log.warn("Branch catalog validation after LDAP sync failed: {}", e.getMessage());
+        }
     }
 
     private SyncOutcome syncOneProfile(AdUserProfile profile) {

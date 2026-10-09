@@ -23,8 +23,10 @@ import javax.naming.ldap.PagedResultsResponseControl;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 @Component
@@ -38,6 +40,8 @@ public class LdapDirectoryClient implements DirectoryOperations {
             "sAMAccountName", "displayName", "cn", "mail", "title", "userAccountControl", "objectGUID", "memberOf",
             "userPrincipalName", "department", "distinguishedName", "physicalDeliveryOfficeName", "company"
     };
+    private static final String OU_FILTER = "(objectClass=organizationalUnit)";
+    private static final String[] OU_ATTRS = { "ou", "name", "distinguishedName" };
 
     private final LdapProperties properties;
 
@@ -172,6 +176,70 @@ public class LdapDirectoryClient implements DirectoryOperations {
         } finally {
             closeQuietly(raw);
         }
+    }
+
+    @Override
+    public List<String> searchOrganizationalUnitNames(int maxResults) {
+        if (!configured()) {
+            return List.of();
+        }
+        int cap = Math.max(1, maxResults);
+        DirContext ctx = serviceContext();
+        try {
+            SearchControls controls = new SearchControls();
+            controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
+            controls.setReturningAttributes(OU_ATTRS);
+            controls.setCountLimit(cap);
+            NamingEnumeration<SearchResult> results = ctx.search(properties.organizationSearchBase(), OU_FILTER,
+                    controls);
+            return collectOrganizationalUnits(results, cap);
+        } catch (NamingException e) {
+            log.warn("LDAP organizational unit search failed: {}", safeDetail(e));
+            throw new DirectoryUnavailableException("Directory OU search failed: " + safeDetail(e), e);
+        } finally {
+            closeQuietly(ctx);
+        }
+    }
+
+    private List<String> collectOrganizationalUnits(NamingEnumeration<SearchResult> results, int maxResults)
+            throws NamingException {
+        Map<String, String> unique = new LinkedHashMap<>();
+        try {
+            while (results.hasMore() && unique.size() < maxResults) {
+                SearchResult result = results.next();
+                String name = organizationalUnitName(result);
+                if (AdBranchCatalog.looksLikeBranchUnit(name)) {
+                    unique.putIfAbsent(name.trim().toLowerCase(Locale.ROOT), name.trim());
+                }
+            }
+        } catch (javax.naming.SizeLimitExceededException | javax.naming.PartialResultException e) {
+            log.warn("LDAP OU search stopped after {} units: {}", unique.size(), safeDetail(e));
+            if (!unique.isEmpty()) {
+                return new ArrayList<>(unique.values());
+            }
+            throw new DirectoryUnavailableException("Directory OU search failed: " + safeDetail(e), e);
+        } finally {
+            results.close();
+        }
+        return new ArrayList<>(unique.values());
+    }
+
+    private static String organizationalUnitName(SearchResult result) throws NamingException {
+        if (result == null) {
+            return "";
+        }
+        String fromAttrs = first(result.getAttributes(), "ou");
+        if (!StringUtils.hasText(fromAttrs)) {
+            fromAttrs = first(result.getAttributes(), "name");
+        }
+        if (StringUtils.hasText(fromAttrs)) {
+            return fromAttrs.trim();
+        }
+        String dn = result.getNameInNamespace();
+        if (!StringUtils.hasText(dn)) {
+            dn = first(result.getAttributes(), "distinguishedName");
+        }
+        return AdOrganizationService.ouFromDn(dn);
     }
 
     private List<AdUserProfile> pagedUserSearch(LdapContext ctx, int pageSize, int maxTotal)

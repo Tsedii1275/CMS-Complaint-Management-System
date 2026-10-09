@@ -86,6 +86,15 @@ public class NotificationProperties {
     public static class DataPower {
         private String tokenUrl = "";
         private String sendUrl = "";
+        /** Second DataPower node (token URL). Used when the primary host is unreachable. */
+        private String fallbackTokenUrl = "";
+        /** Second DataPower node (SMS send URL). Paired with {@link #fallbackTokenUrl}. */
+        private String fallbackSendUrl = "";
+        /**
+         * Certificate hostname to verify when token/send URLs use an IP address.
+         * Still TLS hostname verification — not trust-all.
+         */
+        private String sslPeerName = "";
         private String clientId = "";
         private String clientSecret = "";
         private String scope = "";

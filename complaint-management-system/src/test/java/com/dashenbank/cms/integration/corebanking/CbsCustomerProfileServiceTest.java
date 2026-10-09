@@ -87,9 +87,10 @@ class CbsCustomerProfileServiceTest {
     void columnDefaultsMatchConfirmedViewStyle() {
         CbsProperties.Columns columns = new CbsProperties.Columns();
         assertEquals("CUSTOMER_NAME", columns.getCustomerName());
-        assertEquals("PHONE_NUMBER", columns.getPhoneNumber());
-        assertEquals("HOME_BRANCH", columns.getHomeBranch());
-        assertEquals("HOME_DISTRICT", columns.getHomeDistrict());
-        assertEquals("CUSTOMER_SEGMENT", columns.getCustomerSegment());
+        assertEquals("REGISTERED_PHONE", columns.getPhoneNumber());
+        assertEquals("BRANCH_NAME", columns.getHomeBranch());
+        assertEquals("BRANCH_CODE", columns.getBranchCode());
+        assertEquals("DISTRICT_NAME", columns.getHomeDistrict());
+        assertEquals("CUST_SEGMENT", columns.getCustomerSegment());
     }
 }

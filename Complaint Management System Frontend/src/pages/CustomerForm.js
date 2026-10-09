@@ -20,21 +20,21 @@ function sanitizePublicPhone(formPhone, countryCode) {
 }
 
 function getCustomerNameError(name, language) {
-  if (!name || !name.trim()) {
+  if (!name?.trim()) {
     return language === 'english' ? 'Customer name is required' : 'የደንበኛው ሙሉ ስም ግዴታ ነው';
   }
   const trimmed = name.trim();
   if (trimmed.length < 2 || trimmed.length > 100) {
     return language === 'english' ? 'Customer name must be between 2 and 100 characters' : 'ስም ከ2 እስከ 100 ፊደላት መሆን አለበት';
   }
-  if (!/^[a-zA-Z\u00C0-\u024F\u1200-\u137F\s'\-]+$/.test(trimmed)) {
+  if (!/^[a-zA-Z\u00C0-\u024F\u1200-\u137F\s'-]+$/.test(trimmed)) {
     return language === 'english' ? 'Customer name contains invalid characters' : 'ስም የተከለከሉ ፊደላትን ይዟል';
   }
   return '';
 }
 
 function getDescriptionError(desc, language) {
-  if (!desc || !desc.trim()) {
+  if (!desc?.trim()) {
     return language === 'english' ? 'Complaint description is required' : 'የቅሬታው ዝርዝር መግለጫ ግዴታ ነው';
   }
   const trimmed = desc.trim();
@@ -44,7 +44,7 @@ function getDescriptionError(desc, language) {
   if (trimmed.length > 5000) {
     return language === 'english' ? 'Complaint description cannot exceed 5000 characters' : 'የቅሬታ መግለጫ ከ5000 ፊደላት መብለጥ የለበትም';
   }
-  if (/<[^>]*script[^>]*>|<[^>]+on\w+\s*=|javascript:/i.test(trimmed)) {
+  if (/<\s*script[\s/>]|on\w+\s*=|javascript:/i.test(trimmed)) {
     return language === 'english' ? 'Description contains invalid script or HTML tags' : 'መግለጫው የተከለከሉ ኮዶችን ይዟል';
   }
   return '';
@@ -61,29 +61,30 @@ function getAccountNumberError(accountNumber, language) {
 }
 
 function getEmailError(email, language) {
-  if (!email || !email.trim()) return '';
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email.trim())) {
+  if (!email?.trim()) return '';
+  const trimmed = email.trim();
+  const at = trimmed.indexOf('@');
+  const domain = at > 0 ? trimmed.slice(at + 1) : '';
+  const dot = domain.lastIndexOf('.');
+  const looksValid = at > 0 && dot > 0 && dot < domain.length - 1 && !/\s/.test(trimmed);
+  if (!looksValid) {
     return language === 'english' ? 'Please enter a valid email address' : 'እባክዎን ትክክለኛ የኢሜይል አድራሻ ያስገቡ';
   }
   return '';
 }
 
 function getPhoneError(phone, countryCode, language) {
-  if (!phone || !phone.trim()) {
+  if (!phone?.trim()) {
     return language === 'english' ? 'Phone number is required' : 'የስልክ ቁጥር ግዴታ ነው';
   }
   const digits = phone.trim().replace(/\D/g, '');
-  if (countryCode === '+251') {
-    if (!/^(0?[79]\d{8})$/.test(digits)) {
-      return language === 'english'
-        ? 'Invalid Ethiopian phone number'
-        : 'ትክክለኛ የኢትዮጵያ ስልክ ቁጥር ያስገቡ';
-    }
-  } else {
-    if (digits.length < 7 || digits.length > 15) {
-      return language === 'english' ? 'Please enter a valid phone number' : 'እባክዎን ትክክለኛ የስልክ ቁጥር ያስገቡ';
-    }
+  if (countryCode === '+251' && !/^(0?[79]\d{8})$/.test(digits)) {
+    return language === 'english'
+      ? 'Invalid Ethiopian phone number'
+      : 'ትክክለኛ የኢትዮጵያ ስልክ ቁጥር ያስገቡ';
+  }
+  if (countryCode !== '+251' && (digits.length < 7 || digits.length > 15)) {
+    return language === 'english' ? 'Please enter a valid phone number' : 'እባክዎን ትክክለኛ የስልክ ቁጥር ያስገቡ';
   }
   return '';
 }
@@ -216,6 +217,45 @@ const EMPTY_PUBLIC_FORM = {
   preferredContactMethod: 'SMS'
 };
 
+function collectPublicSubmitErrors(formData, countryCode, language) {
+  const next = {};
+  const customerName = getCustomerNameError(formData.customerName, language);
+  const complaintDescription = getDescriptionError(formData.complaintDescription, language);
+  const accountNumber = getAccountNumberError(formData.accountNumber, language);
+  const email = getEmailError(formData.email, language);
+  const phone = getPhoneError(formData.phone, countryCode, language);
+  if (customerName) next.customerName = customerName;
+  if (complaintDescription) next.complaintDescription = complaintDescription;
+  if (accountNumber) next.accountNumber = accountNumber;
+  if (email) next.email = email;
+  if (phone) next.phone = phone;
+  return next;
+}
+
+function isFutureComplaintDate(dateStr) {
+  if (!dateStr) {
+    return false;
+  }
+  const parsed = moment(dateStr, ['YYYY-MM-DD', 'DD/MM/YYYY']);
+  return parsed.isValid() && parsed.isAfter(moment().endOf('day'));
+}
+
+function publicSubmitErrorMessage(error, language) {
+  const fallback = language === 'english'
+    ? 'Failed to submit complaint. Please try again.'
+    : 'ቅሬታውን ማስገባት አልተሳካም። እባክዎ እንደገና ይሞክሩ።';
+  const raw = String(error?.message || '');
+  const lower = raw.toLowerCase();
+  if (raw.length > 0 && raw.length < 180 && !lower.includes('jdbc') && !lower.includes('sql [')) {
+    return `Error: ${raw}`;
+  }
+  return fallback;
+}
+
+function isComplaintDateDisabled(current) {
+  return current?.isAfter(moment().endOf('day'));
+}
+
 async function submitPublicComplaint(e, ctx) {
   e?.preventDefault?.();
   const {
@@ -227,22 +267,10 @@ async function submitPublicComplaint(e, ctx) {
   setMessageText('');
 
   const phone = sanitizePublicPhone(formData.phone, countryCode);
+  const fieldErrors = collectPublicSubmitErrors(formData, countryCode, language);
 
-  const nameError = getCustomerNameError(formData.customerName, language);
-  const descError = getDescriptionError(formData.complaintDescription, language);
-  const accountError = getAccountNumberError(formData.accountNumber, language);
-  const emailErr = getEmailError(formData.email, language);
-  const phoneErr = getPhoneError(formData.phone, countryCode, language);
-
-  if (nameError || descError || accountError || emailErr || phoneErr) {
-    setErrors(prev => ({
-      ...prev,
-      ...(nameError ? { customerName: nameError } : {}),
-      ...(descError ? { complaintDescription: descError } : {}),
-      ...(accountError ? { accountNumber: accountError } : {}),
-      ...(emailErr ? { email: emailErr } : {}),
-      ...(phoneErr ? { phone: phoneErr } : {})
-    }));
+  if (Object.keys(fieldErrors).length > 0) {
+    setErrors(prev => ({ ...prev, ...fieldErrors }));
     antMessage.error(language === 'english' ? 'Please fix the errors in the form before submitting.' : 'እባክዎን ከማስገባትዎ በፊት በቅጹ ላይ ያሉትን ስህተቶች ያርሙ።');
     setIsSubmitting(false);
     return;
@@ -254,14 +282,10 @@ async function submitPublicComplaint(e, ctx) {
     return;
   }
 
-  if (formData.date) {
-    const parsed = moment(formData.date, ['YYYY-MM-DD', 'DD/MM/YYYY']);
-    if (parsed.isValid() && parsed.isAfter(moment().endOf('day'))) {
-      const dateErrMsg = language === 'english' ? 'Complaint date cannot be in the future' : 'የቅሬታ ቀን የወደፊት መሆን አይችልም';
-      antMessage.error(dateErrMsg);
-      setIsSubmitting(false);
-      return;
-    }
+  if (isFutureComplaintDate(formData.date)) {
+    antMessage.error(language === 'english' ? 'Complaint date cannot be in the future' : 'የቅሬታ ቀን የወደፊት መሆን አይችልም');
+    setIsSubmitting(false);
+    return;
   }
 
   try {
@@ -312,16 +336,7 @@ async function submitPublicComplaint(e, ctx) {
     console.log('Complaint submitted successfully:', response);
   } catch (error) {
     console.error('Error details:', error);
-    const raw = String(error.message || '');
-    let errorMessage = language === 'english'
-      ? 'Failed to submit complaint. Please try again.'
-      : 'ቅሬታውን ማስገባት አልተሳካም። እባክዎ እንደገና ይሞክሩ።';
-    if (raw && !raw.toLowerCase().includes('jdbc') && !raw.toLowerCase().includes('sql [')
-        && raw.length < 180) {
-      errorMessage = `Error: ${raw}`;
-    }
-
-    setMessageText(errorMessage);
+    setMessageText(publicSubmitErrorMessage(error, language));
     setMessageType('error');
 
     setTimeout(() => {
@@ -430,6 +445,34 @@ function applyConsentCheckedChange(checked, setConsentChecked, setErrors) {
     delete next.consent;
     return next;
   });
+}
+
+function publicFieldBorder(hasError) {
+  return `1px solid ${hasError ? '#ff4d4f' : '#dcdcdc'}`;
+}
+
+function publicMessageBannerStyle(messageType) {
+  const ok = messageType === 'success';
+  return {
+    padding: '12px',
+    marginBottom: '20px',
+    backgroundColor: ok ? '#d4edda' : '#f8d7da',
+    color: ok ? '#155724' : '#721c24',
+    border: `1px solid ${ok ? '#c3e6cb' : '#f5c6cb'}`
+  };
+}
+
+function bindPublicFormHandlers(ctx) {
+  return {
+    onSubmit: (e) => submitPublicComplaint(e, ctx),
+    onInputChange: (e) => applyPublicFormInputChange(e, ctx),
+    onCheckStatus: () => checkPublicComplaintStatus(ctx),
+    statusTag: (action) => getPublicStatusTag(action, ctx.language),
+    highlightEvidenceChooser: (e) => applyEvidenceChooserHover(e, ctx.isUploadingEvidence, true),
+    resetEvidenceChooser: (e) => applyEvidenceChooserHover(e, ctx.isUploadingEvidence, false),
+    highlightTrackButton: (e) => applyTrackButtonHover(e, true),
+    resetTrackButton: (e) => applyTrackButtonHover(e, false)
+  };
 }
 
 function CustomerForm() {
@@ -615,33 +658,23 @@ function CustomerForm() {
     syncEthiopianFormDate(language, ethMonth, ethDay, ethYear, setFormData);
   }, [ethMonth, ethDay, ethYear, language]);
 
-  const handleInputChange = (e) => {
-    applyPublicFormInputChange(e, { setFormData, setErrors, language, errors, countryCode });
-  };
-
-  const handleSubmit = async (e) => {
-    await submitPublicComplaint(e, {
-      formData, countryCode, language, consentChecked, t, evidenceUrl, evidenceName,
-      setIsSubmitting, setMessageText, setMessageType, setErrors, setFormData, setConsentChecked,
-      setEvidenceUrl, setEvidenceName
-    });
-  };
-
-  const handleCheckStatus = async () => {
-    await checkPublicComplaintStatus({
-      ticketSearch, language, t, setSearchError, setIsSearching, setSearchResult
-    });
-  };
-
-  const getStatusTag = (action) => getPublicStatusTag(action, language);
-
   const evidenceButtonLabel = publicEvidenceButtonLabel(t, isUploadingEvidence, evidenceUrl);
   const submitButtonLabel = publicSubmitButtonLabel(t, isSubmitting, language);
-
-  const highlightEvidenceChooser = (e) => applyEvidenceChooserHover(e, isUploadingEvidence, true);
-  const resetEvidenceChooser = (e) => applyEvidenceChooserHover(e, isUploadingEvidence, false);
-  const highlightTrackButton = (e) => applyTrackButtonHover(e, true);
-  const resetTrackButton = (e) => applyTrackButtonHover(e, false);
+  const {
+    onSubmit: handleSubmit,
+    onInputChange: handleInputChange,
+    onCheckStatus: handleCheckStatus,
+    statusTag: getStatusTag,
+    highlightEvidenceChooser,
+    resetEvidenceChooser,
+    highlightTrackButton,
+    resetTrackButton
+  } = bindPublicFormHandlers({
+    formData, countryCode, language, consentChecked, t, evidenceUrl, evidenceName, errors,
+    ticketSearch, isUploadingEvidence,
+    setIsSubmitting, setMessageText, setMessageType, setErrors, setFormData, setConsentChecked,
+    setEvidenceUrl, setEvidenceName, setSearchError, setIsSearching, setSearchResult
+  });
 
   return (
     <div
@@ -732,9 +765,7 @@ function CustomerForm() {
             <div style={{
               padding: '12px',
               marginBottom: '20px',
-              backgroundColor: messageType === 'success' ? '#d4edda' : '#f8d7da',
-              color: messageType === 'success' ? '#155724' : '#721c24',
-              border: `1px solid ${messageType === 'success' ? '#c3e6cb' : '#f5c6cb'}`,
+              ...publicMessageBannerStyle(messageType),
               borderRadius: '6px',
               wordBreak: 'break-word',
               overflowWrap: 'anywhere'
@@ -759,7 +790,7 @@ function CustomerForm() {
                   style={{
                     width: '100%',
                     padding: '12px 16px',
-                    border: `1px solid ${errors.customerName ? '#ff4d4f' : '#dcdcdc'}`,
+                    border: publicFieldBorder(errors.customerName),
                     borderRadius: '4px',
                     fontSize: '15px',
                     outline: 'none',
@@ -784,7 +815,7 @@ function CustomerForm() {
                   style={{
                     width: '100%',
                     padding: '12px 16px',
-                    border: `1px solid ${errors.email ? '#ff4d4f' : '#dcdcdc'}`,
+                    border: publicFieldBorder(errors.email),
                     borderRadius: '4px',
                     fontSize: '15px',
                     outline: 'none',
@@ -839,7 +870,7 @@ function CustomerForm() {
                     style={{
                       flex: 1,
                       padding: '12px 16px',
-                      border: `1px solid ${errors.phone ? '#ff4d4f' : '#dcdcdc'}`,
+                      border: publicFieldBorder(errors.phone),
                       borderRadius: '0 4px 4px 0',
                       fontSize: '15px',
                       outline: 'none',
@@ -862,7 +893,7 @@ function CustomerForm() {
                   <DatePicker
                     format="DD/MM/YYYY"
                     placeholder="DD/MM/YYYY"
-                    disabledDate={(current) => current && current.isAfter(moment().endOf('day'))}
+                    disabledDate={isComplaintDateDisabled}
                     value={formData.date ? moment(formData.date, 'YYYY-MM-DD') : null}
                     onChange={(date) => {
                       setFormData(prev => ({
@@ -962,7 +993,7 @@ function CustomerForm() {
                   style={{
                     width: '100%',
                     padding: '12px 16px',
-                    border: `1px solid ${errors.accountNumber ? '#ff4d4f' : '#dcdcdc'}`,
+                    border: publicFieldBorder(errors.accountNumber),
                     borderRadius: '4px',
                     fontSize: '15px',
                     transition: 'border-color 0.2s',
@@ -1062,7 +1093,7 @@ function CustomerForm() {
                 style={{
                   width: '100%',
                   padding: '12px 16px',
-                  border: `1px solid ${errors.complaintDescription ? '#ff4d4f' : '#dcdcdc'}`,
+                  border: publicFieldBorder(errors.complaintDescription),
                   borderRadius: '4px',
                   fontSize: '15px',
                   resize: 'vertical',

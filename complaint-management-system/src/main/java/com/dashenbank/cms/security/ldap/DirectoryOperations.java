@@ -22,4 +22,12 @@ public interface DirectoryOperations {
      * RFC 2696 paged search of enabled user objects. Used for Work Unit assignment.
      */
     List<AdUserProfile> searchDirectoryUsersPaged(int pageSize, int maxTotal);
+
+    /**
+     * Organizational unit names under the Dashen Bank search base. Default empty
+     * so test doubles need not implement LDAP OU search.
+     */
+    default List<String> searchOrganizationalUnitNames(int maxResults) {
+        return List.of();
+    }
 }

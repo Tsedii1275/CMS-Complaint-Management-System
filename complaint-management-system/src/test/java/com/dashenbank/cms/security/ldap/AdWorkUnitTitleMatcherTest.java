@@ -24,6 +24,17 @@ class AdWorkUnitTitleMatcherTest {
         assertTrue(AdWorkUnitTitleMatcher.matchesTitle("Senior Branch Manager", AdAssignmentScope.BRANCH));
         assertFalse(AdWorkUnitTitleMatcher.matchesTitle("Senior Branch Manager",
                 AdAssignmentScope.HEAD_OFFICE_DEPARTMENT));
+        assertTrue(AdWorkUnitTitleMatcher.matchesTitle("IFB Manager", AdAssignmentScope.BRANCH));
+        assertTrue(AdWorkUnitTitleMatcher.matchesTitle("Interest Free Banking Head", AdAssignmentScope.BRANCH));
+        assertFalse(AdWorkUnitTitleMatcher.matchesTitle("IFB Manager", AdAssignmentScope.HEAD_OFFICE_DEPARTMENT));
+        assertTrue(AdWorkUnitTitleMatcher.matchesTitle("Acting Branch Manager", AdAssignmentScope.BRANCH));
+        assertTrue(AdWorkUnitTitleMatcher.matchesTitle("Customer Service Manager", AdAssignmentScope.BRANCH));
+        assertTrue(AdWorkUnitTitleMatcher.matchesTitle("Senior Customer Service Manager", AdAssignmentScope.BRANCH));
+        assertTrue(AdWorkUnitTitleMatcher.matchesTitle("CSM", AdAssignmentScope.BRANCH));
+        assertTrue(AdWorkUnitTitleMatcher.matchesTitle("Service Manager", AdAssignmentScope.BRANCH, "Bole Branch",
+                List.of()));
+        assertFalse(AdWorkUnitTitleMatcher.matchesTitle("Customer Service Manager",
+                AdAssignmentScope.HEAD_OFFICE_DEPARTMENT));
     }
 
     @Test
@@ -38,6 +49,20 @@ class AdWorkUnitTitleMatcherTest {
         assertFalse(AdWorkUnitTitleMatcher.matchesTitle("District Director", AdAssignmentScope.HEAD_OFFICE_DEPARTMENT));
         assertFalse(AdWorkUnitTitleMatcher.matchesTitle("Operational Manager",
                 AdAssignmentScope.HEAD_OFFICE_DEPARTMENT));
+        assertTrue(AdWorkUnitTitleMatcher.matchesTitle("Department Director",
+                AdAssignmentScope.HEAD_OFFICE_DEPARTMENT));
+        assertTrue(AdWorkUnitTitleMatcher.matchesTitle("Acting Senior Manager",
+                AdAssignmentScope.HEAD_OFFICE_DEPARTMENT));
+        assertTrue(AdWorkUnitTitleMatcher.matchesTitle("Manager", AdAssignmentScope.HEAD_OFFICE_DEPARTMENT));
+        assertTrue(AdWorkUnitTitleMatcher.matchesTitle("Department Manager",
+                AdAssignmentScope.HEAD_OFFICE_DEPARTMENT));
+        assertTrue(AdWorkUnitTitleMatcher.matchesTitle("Head of Department",
+                AdAssignmentScope.HEAD_OFFICE_DEPARTMENT));
+        assertTrue(AdWorkUnitTitleMatcher.matchesTitle("Division Head", AdAssignmentScope.HEAD_OFFICE_DEPARTMENT));
+        assertFalse(AdWorkUnitTitleMatcher.matchesTitle("IT Service Manager", AdAssignmentScope.BRANCH,
+                "Information Technology Department", List.of()));
+        assertTrue(AdWorkUnitTitleMatcher.matchesTitle("IT Service Manager",
+                AdAssignmentScope.HEAD_OFFICE_DEPARTMENT, "Information Technology Department", List.of()));
     }
 
     @Test

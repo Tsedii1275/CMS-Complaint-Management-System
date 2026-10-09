@@ -17,6 +17,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class DataPowerHttpFactoryTest {
 
     @Test
+    void sslContextIsCreatedWhenPeerNameIsSetForIpUrls() {
+        NotificationProperties.DataPower config = new NotificationProperties.DataPower();
+        config.setSslPeerName("datapower-cp4iuat.dashenbanksc.com");
+        assertNotNull(DataPowerHttpFactory.sslContext(config));
+    }
+
+    @Test
     void usesJvmDefaultTrustWhenTruststorePathBlank() {
         NotificationProperties.DataPower config = new NotificationProperties.DataPower();
         config.setTruststorePath(" ");

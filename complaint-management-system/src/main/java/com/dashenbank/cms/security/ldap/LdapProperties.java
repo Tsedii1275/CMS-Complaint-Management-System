@@ -3,7 +3,9 @@ package com.dashenbank.cms.security.ldap;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -17,6 +19,8 @@ public class LdapProperties {
     private String bindPassword = "";
     private String baseDn = "DC=dashenbank,DC=local";
     private String userSearchBase = "";
+    /** OU tree used as the branch master, e.g. {@code OU=Dashen Bank,DC=dashenbank,DC=local}. */
+    private String groupSearchBase = "";
     private String userSearchFilter = "(&(objectClass=user)(sAMAccountName={0}))";
     private String domain = "dashenbank.local";
     /**
@@ -34,6 +38,7 @@ public class LdapProperties {
      * {@code CMS_BRANCH_MANAGER=ROLE_BRANCH_MANAGER}
      */
     private String groupMappings = "";
+    private final WorkUnit workUnit = new WorkUnit();
     private final Sync sync = new Sync();
 
     public boolean isEnabled() {
@@ -90,6 +95,21 @@ public class LdapProperties {
 
     public void setUserSearchBase(String userSearchBase) {
         this.userSearchBase = userSearchBase;
+    }
+
+    public String getGroupSearchBase() {
+        return groupSearchBase;
+    }
+
+    public void setGroupSearchBase(String groupSearchBase) {
+        this.groupSearchBase = groupSearchBase;
+    }
+
+    public String organizationSearchBase() {
+        if (StringUtils.hasText(groupSearchBase)) {
+            return groupSearchBase.trim();
+        }
+        return searchBase();
     }
 
     public String getUserSearchFilter() {
@@ -191,6 +211,44 @@ public class LdapProperties {
         return parseMap(groupMappings);
     }
 
+    public WorkUnit getWorkUnit() {
+        return workUnit;
+    }
+
+    /**
+     * Extra title phrases for a Work Unit scope: configured lists plus
+     * {@code ldap.title-mappings} keys whose CMS role belongs to that scope.
+     */
+    public List<String> extraTitlesFor(AdAssignmentScope scope) {
+        List<String> extras = new ArrayList<>();
+        extras.addAll(AdWorkUnitTitleMatcher.parseTitleList(workUnit.titlesRaw(scope)));
+        for (Map.Entry<String, String> entry : parsedTitleMappings().entrySet()) {
+            if (scope.equals(scopeForMappedRole(entry.getValue()))) {
+                extras.add(entry.getKey());
+            }
+        }
+        return extras;
+    }
+
+    static AdAssignmentScope scopeForMappedRole(String role) {
+        if (!StringUtils.hasText(role)) {
+            return null;
+        }
+        String folded = role.trim().toUpperCase(Locale.ROOT).replace('-', '_');
+        if (folded.contains("DISTRICT")) {
+            return AdAssignmentScope.DISTRICT;
+        }
+        if (folded.contains("BRANCH_MANAGER") || folded.contains("CUSTOMER_SERVICE_MANAGER")
+                || folded.contains("CUSTOMER_SERVICE") || folded.endsWith("_CSM") || folded.contains("_CSM_")) {
+            return AdAssignmentScope.BRANCH;
+        }
+        if (folded.contains("DIRECTOR") || folded.contains("SENIOR_MANAGER") || folded.contains("DEPARTMENT")
+                || folded.contains("HEAD_OFFICE") || folded.contains("DIVISION_HEAD")) {
+            return AdAssignmentScope.HEAD_OFFICE_DEPARTMENT;
+        }
+        return null;
+    }
+
     /**
      * Accepts a real DN or the bank Windows path
      * {@code dashenbank.local/Dashen Bank/.../CASHCOMP}.
@@ -246,6 +304,49 @@ public class LdapProperties {
             out.put(item.substring(0, eq).trim(), item.substring(eq + 1).trim());
         }
         return out;
+    }
+
+    public static class WorkUnit {
+        private String branchTitles = "";
+        private String headOfficeTitles = "";
+        private String districtTitles = "";
+
+        public String getBranchTitles() {
+            return branchTitles;
+        }
+
+        public void setBranchTitles(String branchTitles) {
+            this.branchTitles = branchTitles;
+        }
+
+        public String getHeadOfficeTitles() {
+            return headOfficeTitles;
+        }
+
+        public void setHeadOfficeTitles(String headOfficeTitles) {
+            this.headOfficeTitles = headOfficeTitles;
+        }
+
+        public String getDistrictTitles() {
+            return districtTitles;
+        }
+
+        public void setDistrictTitles(String districtTitles) {
+            this.districtTitles = districtTitles;
+        }
+
+        String titlesRaw(AdAssignmentScope scope) {
+            if (scope == AdAssignmentScope.BRANCH) {
+                return branchTitles;
+            }
+            if (scope == AdAssignmentScope.HEAD_OFFICE_DEPARTMENT) {
+                return headOfficeTitles;
+            }
+            if (scope == AdAssignmentScope.DISTRICT) {
+                return districtTitles;
+            }
+            return "";
+        }
     }
 
     public static class Sync {
