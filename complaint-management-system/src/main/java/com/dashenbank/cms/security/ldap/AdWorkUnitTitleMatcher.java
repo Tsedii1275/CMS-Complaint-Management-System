@@ -17,6 +17,11 @@ public final class AdWorkUnitTitleMatcher {
             "branch manager",
             "senior branch manager",
             "acting branch manager",
+            "bbmgr",
+            "bb mgr",
+            "bbrm",
+            "branch business manager",
+            "branch business relationship manager",
             "customer service manager",
             "customer services manager",
             "senior customer service manager",
@@ -25,6 +30,7 @@ public final class AdWorkUnitTitleMatcher {
             "service manager",
             "senior service manager",
             "csm",
+            "relief csm",
             "branch operations manager",
             "branch head",
             "branch leader",
@@ -171,6 +177,11 @@ public final class AdWorkUnitTitleMatcher {
 
     static boolean isExclusiveBranchLeadership(String normalized) {
         return containsPhrase(normalized, "branch manager")
+                || containsPhrase(normalized, "branch business manager")
+                || containsPhrase(normalized, "branch business relationship manager")
+                || containsPhrase(normalized, "bbmgr")
+                || containsPhrase(normalized, "bb mgr")
+                || containsPhrase(normalized, "bbrm")
                 || containsPhrase(normalized, "customer service manager")
                 || containsPhrase(normalized, "customer services manager")
                 || containsPhrase(normalized, "csm")

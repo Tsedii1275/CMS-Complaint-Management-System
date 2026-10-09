@@ -48,7 +48,7 @@ public final class AdOrgUnitMatcher {
         }
         StringBuilder core = new StringBuilder();
         for (String token : folded.split(" ")) {
-            if (token.isEmpty() || NOISE.contains(token)) {
+            if (token.isEmpty() || NOISE.contains(token) || token.chars().allMatch(Character::isDigit)) {
                 continue;
             }
             if (!core.isEmpty()) {

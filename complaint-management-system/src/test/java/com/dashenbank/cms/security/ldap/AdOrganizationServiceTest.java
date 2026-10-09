@@ -42,6 +42,34 @@ class AdOrganizationServiceTest {
     }
 
     @Test
+    void dashenPrefixedBranchUsesOfficeLocationNotTheSharedOu() {
+        AdOrganizationService service = service();
+        String boleDn = "CN=Person,OU=Users,OU=Dashen Bole Branch,OU=Dashen Bank,DC=dashenbank,DC=local";
+        AdUserProfile reliefCsm = new AdUserProfile("Sentayehua", "1", "Sentayehu", "s@d.com", "Relief CSM", true,
+                List.of(), "Bole Branch", boleDn, "Bole Branch-012");
+        AdUserProfile bbMgr = new AdUserProfile("GirmaAD", "2", "Girma", "g@d.com", "BBMgr", true, List.of(),
+                "Bole Branch", boleDn, "Bole Branch-012");
+        AdUserProfile ifbRm = new AdUserProfile("Hawah", "3", "Hawa", "h@d.com",
+                "Branch Business Relationship Manager - IFB", true, List.of(), "Bole Branch", boleDn, "Bole Branch-012");
+        AdUserProfile hidaseCsm = new AdUserProfile("Mikerm", "4", "Mikir", "m@d.com", "CSM", true, List.of(),
+                "Hidase Sefer Branch", boleDn, "Hidase Sefer Branch-616");
+        AdUserProfile kotebeRm = new AdUserProfile("TesfayeKe", "5", "Tesfaye", "t@d.com",
+                "Branch Business Relationship Manager I", true, List.of(), "Kotebe Branch", boleDn, "Kotebe Branch-107");
+        AdUserProfile cso = new AdUserProfile("Genetad", "6", "Genet", "g2@d.com", "CSO", true, List.of(),
+                "Bole Branch", boleDn, "Bole Branch-012");
+        String unitId = AdOrganizationService.idFor("Dashen Bole Branch");
+        List<AdOrgOfficer> officers = service.officersFrom(
+                List.of(reliefCsm, bbMgr, ifbRm, hidaseCsm, kotebeRm, cso), AdAssignmentScope.BRANCH, unitId);
+        assertEquals(3, officers.size());
+        assertTrue(officers.stream().anyMatch(o -> "Relief CSM".equals(o.title())));
+        assertTrue(officers.stream().anyMatch(o -> "BBMgr".equals(o.title())));
+        assertTrue(officers.stream().anyMatch(o -> "Branch Business Relationship Manager - IFB".equals(o.title())));
+        assertFalse(officers.stream().anyMatch(o -> "Mikerm".equals(o.username())));
+        assertFalse(officers.stream().anyMatch(o -> "TesfayeKe".equals(o.username())));
+        assertFalse(officers.stream().anyMatch(o -> "CSO".equals(o.title())));
+    }
+
+    @Test
     void branchListIncludesDistrictChildOuEvenWithoutTheWordBranch() {
         AdUserProfile teller = new AdUserProfile("t1", "g", "Teller", "t@d.com", "Teller", true, List.of(),
                 null, "CN=Teller,OU=Bole,OU=Addis Ababa District,OU=Dashen Bank,DC=dashenbank,DC=local", null);

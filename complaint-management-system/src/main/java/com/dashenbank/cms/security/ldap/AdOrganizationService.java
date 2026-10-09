@@ -279,12 +279,8 @@ public class AdOrganizationService {
         if (!leadership) {
             return false;
         }
-        for (String candidate : locationCandidates(profile)) {
-            if (AdOrgUnitMatcher.sameUnit(candidate, expectedName)) {
-                return true;
-            }
-        }
-        return false;
+        String workLocation = orgUnitName(profile, AdAssignmentScope.BRANCH);
+        return AdOrgUnitMatcher.sameUnit(workLocation, expectedName);
     }
 
     private List<String> extras(AdAssignmentScope scope) {

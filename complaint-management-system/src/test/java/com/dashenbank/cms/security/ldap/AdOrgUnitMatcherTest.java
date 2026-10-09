@@ -17,4 +17,12 @@ class AdOrgUnitMatcherTest {
         assertTrue(AdOrgUnitMatcher.sameUnit("Bole IFB", "Bole Interest Free Banking"));
         assertTrue(AdOrgUnitMatcher.sameUnit("Customer Experience Department", "Customer Experience"));
     }
+
+    @Test
+    void officeNamesWithBranchCodesMatchDashenPrefixedOus() {
+        assertTrue(AdOrgUnitMatcher.sameUnit("Bole Branch-012", "Dashen Bole Branch"));
+        assertTrue(AdOrgUnitMatcher.sameUnit("Bole Branch", "Dashen Bole Branch"));
+        assertFalse(AdOrgUnitMatcher.sameUnit("Hidase Sefer Branch-616", "Dashen Bole Branch"));
+        assertFalse(AdOrgUnitMatcher.sameUnit("Kotebe Branch-107", "Dashen Bole Branch"));
+    }
 }
