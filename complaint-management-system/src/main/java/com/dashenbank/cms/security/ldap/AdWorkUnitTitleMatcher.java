@@ -130,7 +130,8 @@ public final class AdWorkUnitTitleMatcher {
         }
         if (containsAnyPhrase(normalized, DEFAULT_BRANCH_TITLES) || containsAnyPhrase(normalized, extras)) {
             if (isBareServiceManager(normalized) && !isCustomerServiceTitle(normalized)
-                    && StringUtils.hasText(unitName) && !AdBranchCatalog.looksLikeBranchUnit(unitName)) {
+                    && StringUtils.hasText(unitName) && !AdBranchCatalog.looksLikeBranchUnit(unitName)
+                    && !AdBranchCatalog.isPlausibleBranchLocation(unitName)) {
                 return false;
             }
             return true;

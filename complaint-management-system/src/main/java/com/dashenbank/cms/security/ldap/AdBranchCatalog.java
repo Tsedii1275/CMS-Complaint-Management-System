@@ -14,6 +14,48 @@ public final class AdBranchCatalog {
     private AdBranchCatalog() {
     }
 
+    /**
+     * Branch assignment destination: conventional/IFB name, or a leaf OU sitting
+     * under a District (Dashen often names those OUs {@code Bole} not {@code Bole Branch}).
+     */
+    public static boolean isAssignableBranch(String name, String distinguishedName) {
+        if (looksLikeBranchUnit(name)) {
+            return true;
+        }
+        return isDistrictChildBranch(name, distinguishedName);
+    }
+
+    public static boolean isDistrictChildBranch(String name, String distinguishedName) {
+        String lower = fold(name);
+        if (!isPlausibleBranchLocation(lower)) {
+            return false;
+        }
+        if (!StringUtils.hasText(distinguishedName)) {
+            return false;
+        }
+        String dn = distinguishedName.toLowerCase(Locale.ROOT);
+        return (dn.contains("ou=") && (dn.contains("district") || dn.contains("region")))
+                && !lower.contains("district") && !lower.contains("region");
+    }
+
+    public static boolean isPlausibleBranchLocation(String name) {
+        String lower = fold(name);
+        if (lower.isEmpty() || isContainerOu(lower)) {
+            return false;
+        }
+        if (lower.contains("district") || lower.contains("region")) {
+            return false;
+        }
+        if (isHeadOfficeIfbDepartment(lower)) {
+            return false;
+        }
+        if ((lower.contains("department") || lower.contains("directorate") || lower.contains("division"))
+                && !lower.contains("branch") && !isIfbName(lower)) {
+            return false;
+        }
+        return true;
+    }
+
     public static boolean looksLikeBranchUnit(String name) {
         String lower = fold(name);
         if (lower.isEmpty() || isContainerOu(lower)) {

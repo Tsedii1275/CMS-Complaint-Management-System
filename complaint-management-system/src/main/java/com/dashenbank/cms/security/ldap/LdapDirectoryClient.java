@@ -208,16 +208,17 @@ public class LdapDirectoryClient implements DirectoryOperations {
             while (results.hasMore() && unique.size() < maxResults) {
                 SearchResult result = results.next();
                 String name = organizationalUnitName(result);
-                if (AdBranchCatalog.looksLikeBranchUnit(name)) {
+                String dn = result.getNameInNamespace();
+                if (!StringUtils.hasText(dn)) {
+                    dn = first(result.getAttributes(), "distinguishedName");
+                }
+                if (AdBranchCatalog.isAssignableBranch(name, dn)) {
                     unique.putIfAbsent(name.trim().toLowerCase(Locale.ROOT), name.trim());
                 }
             }
         } catch (javax.naming.SizeLimitExceededException | javax.naming.PartialResultException e) {
             log.warn("LDAP OU search stopped after {} units: {}", unique.size(), safeDetail(e));
-            if (!unique.isEmpty()) {
-                return new ArrayList<>(unique.values());
-            }
-            throw new DirectoryUnavailableException("Directory OU search failed: " + safeDetail(e), e);
+            return new ArrayList<>(unique.values());
         } finally {
             results.close();
         }

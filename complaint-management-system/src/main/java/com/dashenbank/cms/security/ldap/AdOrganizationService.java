@@ -56,7 +56,13 @@ public class AdOrganizationService {
     List<AdOrgUnit> unitsFrom(List<AdUserProfile> profiles, AdAssignmentScope scope) {
         Map<String, String> byId = new LinkedHashMap<>();
         for (AdUserProfile profile : profiles) {
-            if (matchesConfiguredScope(profile, scope)) {
+            if (profile == null || !profile.enabled()) {
+                continue;
+            }
+            boolean include = scope == AdAssignmentScope.BRANCH
+                    ? StringUtils.hasText(orgUnitName(profile, scope))
+                    : matchesConfiguredScope(profile, scope);
+            if (include) {
                 String name = orgUnitName(profile, scope);
                 if (StringUtils.hasText(name)) {
                     byId.putIfAbsent(idFor(name), name.trim());
@@ -160,19 +166,7 @@ public class AdOrganizationService {
         }
 
         if (scope == AdAssignmentScope.BRANCH) {
-            String name = firstNonBlank(office, ou, department);
-            String lower = name.toLowerCase(Locale.ROOT);
-            if (lower.contains("district") || lower.contains("region")) {
-                return "";
-            }
-            if (AdBranchCatalog.isHeadOfficeIfbDepartment(name)) {
-                return "";
-            }
-            if ((lower.contains("department") || lower.contains("directorate") || lower.contains("division"))
-                    && !lower.contains("branch") && !AdBranchCatalog.isIfbBranchWindow(name)) {
-                return "";
-            }
-            return name;
+            return branchLocationName(profile, office, department);
         }
 
         String name = firstNonBlank(office, ou, department);
@@ -188,13 +182,51 @@ public class AdOrganizationService {
     }
 
     static String ouFromDn(String distinguishedName) {
+        List<String> ous = ousFromDn(distinguishedName);
+        return ous.isEmpty() ? "" : ous.get(0);
+    }
+
+    static List<String> ousFromDn(String distinguishedName) {
+        List<String> ous = new ArrayList<>();
         if (!StringUtils.hasText(distinguishedName)) {
-            return "";
+            return ous;
         }
         for (String part : distinguishedName.split(",")) {
             String ou = parseAssignableOu(part);
             if (StringUtils.hasText(ou)) {
-                return ou;
+                ous.add(ou);
+            }
+        }
+        return ous;
+    }
+
+    private static String branchLocationName(AdUserProfile profile, String office, String department) {
+        List<String> candidates = new ArrayList<>();
+        if (StringUtils.hasText(office)) {
+            candidates.add(office.trim());
+        }
+        candidates.addAll(ousFromDn(profile.distinguishedName()));
+        if (StringUtils.hasText(department)) {
+            candidates.add(department.trim());
+        }
+        for (String candidate : candidates) {
+            if (AdBranchCatalog.looksLikeBranchUnit(candidate)) {
+                return candidate;
+            }
+        }
+        String dn = profile.distinguishedName();
+        for (String candidate : candidates) {
+            if (AdBranchCatalog.isDistrictChildBranch(candidate, dn)) {
+                return candidate;
+            }
+        }
+        String title = AdWorkUnitTitleMatcher.normalize(profile.title());
+        if (AdWorkUnitTitleMatcher.isBranchTitle(title, "", List.of())
+                || AdWorkUnitTitleMatcher.matchesGroup(profile.memberOf(), AdAssignmentScope.BRANCH)) {
+            for (String candidate : candidates) {
+                if (AdBranchCatalog.isPlausibleBranchLocation(candidate)) {
+                    return candidate;
+                }
             }
         }
         return "";
@@ -293,7 +325,7 @@ public class AdOrganizationService {
         Map<String, String> byId = new LinkedHashMap<>();
         if (masterNames != null) {
             for (String name : masterNames) {
-                if (!AdBranchCatalog.looksLikeBranchUnit(name)) {
+                if (!AdBranchCatalog.looksLikeBranchUnit(name) && !AdBranchCatalog.isPlausibleBranchLocation(name)) {
                     continue;
                 }
                 String trimmed = name.trim();
@@ -319,7 +351,7 @@ public class AdOrganizationService {
         Set<String> masterFolded = foldedNames(masterNames);
         List<String> missingFromPeople = masterGaps(masterNames, foldedUnitNames(peopleUnits));
         List<String> extraInPeople = peopleOnlyGaps(peopleUnits, masterFolded);
-        List<String> withoutOfficers = branchesWithoutOfficers(merged, people);
+        List<String> withoutOfficers = branchesMissingOfficerTitle(merged, people);
         log.info("Branch catalog sync: ouMaster={} peopleDerived={} merged={} missingPeopleRecords={} extraPeopleOnly={} withoutOfficers={}",
                 masterNames == null ? 0 : masterNames.size(),
                 peopleUnits == null ? 0 : peopleUnits.size(),
@@ -342,7 +374,7 @@ public class AdOrganizationService {
     private static List<String> masterGaps(List<String> masterNames, Set<String> peopleFolded) {
         List<String> missing = new ArrayList<>();
         for (String master : masterNames == null ? List.<String>of() : masterNames) {
-            if (AdBranchCatalog.looksLikeBranchUnit(master)
+            if ((AdBranchCatalog.looksLikeBranchUnit(master) || AdBranchCatalog.isPlausibleBranchLocation(master))
                     && !peopleFolded.contains(master.trim().toLowerCase(Locale.ROOT))) {
                 missing.add(master.trim());
             }
@@ -364,10 +396,28 @@ public class AdOrganizationService {
         return extra;
     }
 
-    private List<String> branchesWithoutOfficers(List<AdOrgUnit> merged, List<AdUserProfile> people) {
+    private List<String> branchesMissingOfficerTitle(List<AdOrgUnit> merged, List<AdUserProfile> people) {
+        List<String> officerUnits = new ArrayList<>();
+        if (people != null) {
+            for (AdUserProfile profile : people) {
+                if (matchesConfiguredScope(profile, AdAssignmentScope.BRANCH)) {
+                    String unit = orgUnitName(profile, AdAssignmentScope.BRANCH);
+                    if (StringUtils.hasText(unit)) {
+                        officerUnits.add(unit);
+                    }
+                }
+            }
+        }
         List<String> withoutOfficers = new ArrayList<>();
         for (AdOrgUnit unit : merged) {
-            if (officersFrom(people, AdAssignmentScope.BRANCH, unit.id()).isEmpty()) {
+            boolean found = false;
+            for (String officerUnit : officerUnits) {
+                if (AdOrgUnitMatcher.sameUnit(unit.name(), officerUnit)) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
                 withoutOfficers.add(unit.name());
             }
         }

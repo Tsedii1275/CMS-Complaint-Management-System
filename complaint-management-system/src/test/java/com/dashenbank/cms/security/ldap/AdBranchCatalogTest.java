@@ -23,4 +23,12 @@ class AdBranchCatalogTest {
         assertFalse(AdBranchCatalog.looksLikeBranchUnit("Addis Ababa District"));
         assertFalse(AdBranchCatalog.looksLikeBranchUnit("Dashen Bank"));
     }
+
+    @Test
+    void districtChildOuWithoutTheWordBranchIsStillABranch() {
+        String dn = "OU=Bole,OU=Addis Ababa District,OU=Dashen Bank,DC=dashenbank,DC=local";
+        assertTrue(AdBranchCatalog.isDistrictChildBranch("Bole", dn));
+        assertTrue(AdBranchCatalog.isAssignableBranch("Bole", dn));
+        assertFalse(AdBranchCatalog.isDistrictChildBranch("Addis Ababa District", dn));
+    }
 }

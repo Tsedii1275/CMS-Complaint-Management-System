@@ -24,6 +24,17 @@ class AdOrganizationServiceTest {
     }
 
     @Test
+    void branchListIncludesDistrictChildOuEvenWithoutTheWordBranch() {
+        AdUserProfile teller = new AdUserProfile("t1", "g", "Teller", "t@d.com", "Teller", true, List.of(),
+                null, "CN=Teller,OU=Bole,OU=Addis Ababa District,OU=Dashen Bank,DC=dashenbank,DC=local", null);
+        AdOrganizationService service = service();
+        List<AdOrgUnit> branches = service.unitsFrom(List.of(teller), AdAssignmentScope.BRANCH);
+        assertEquals(1, branches.size());
+        assertEquals("Bole", branches.get(0).name());
+        assertTrue(service.officersFrom(List.of(teller), AdAssignmentScope.BRANCH, branches.get(0).id()).isEmpty());
+    }
+
+    @Test
     void branchesReturnOnlyBranchManagers() {
         AdOrganizationService service = service();
         List<AdOrgUnit> branches = service.unitsFrom(sampleDirectory(), AdAssignmentScope.BRANCH);
