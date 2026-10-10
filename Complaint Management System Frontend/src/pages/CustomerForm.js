@@ -73,18 +73,42 @@ function getEmailError(email, language) {
   return '';
 }
 
+const PUBLIC_COUNTRY_PHONES = [
+  { code: '+251', flag: '🇪🇹', name: 'Ethiopia', minDigits: 9, maxDigits: 10, national: /^(0?[79]\d{8})$/ },
+  { code: '+1', flag: '🇺🇸', name: 'USA', minDigits: 10, maxDigits: 10, national: /^\d{10}$/ },
+  { code: '+44', flag: '🇬🇧', name: 'UK', minDigits: 10, maxDigits: 11, national: /^(0\d{10}|\d{10})$/ },
+  { code: '+254', flag: '🇰🇪', name: 'Kenya', minDigits: 9, maxDigits: 10, national: /^(0\d{9}|\d{9})$/ },
+  { code: '+253', flag: '🇩🇯', name: 'Djibouti', minDigits: 8, maxDigits: 8, national: /^\d{8}$/ },
+  { code: '+971', flag: '🇦🇪', name: 'UAE', minDigits: 8, maxDigits: 10, national: /^(0\d{8,9}|\d{8,9})$/ },
+  { code: '+966', flag: '🇸🇦', name: 'Saudi Arabia', minDigits: 9, maxDigits: 10, national: /^(0\d{9}|\d{9})$/ }
+];
+
+function publicPhoneRule(countryCode) {
+  return PUBLIC_COUNTRY_PHONES.find((country) => country.code === countryCode) || PUBLIC_COUNTRY_PHONES[0];
+}
+
+function phoneLengthMessage(rule, language) {
+  const count = rule.minDigits === rule.maxDigits
+    ? String(rule.maxDigits)
+    : `${rule.minDigits}-${rule.maxDigits}`;
+  return language === 'english'
+    ? `Enter ${count} digits for ${rule.name}`
+    : `ለ${rule.name} ${count} አሃዝ ያስገቡ`;
+}
+
 function getPhoneError(phone, countryCode, language) {
   if (!phone?.trim()) {
     return language === 'english' ? 'Phone number is required' : 'የስልክ ቁጥር ግዴታ ነው';
   }
   const digits = phone.trim().replace(/\D/g, '');
-  if (countryCode === '+251' && !/^(0?[79]\d{8})$/.test(digits)) {
-    return language === 'english'
-      ? 'Invalid Ethiopian phone number'
-      : 'ትክክለኛ የኢትዮጵያ ስልክ ቁጥር ያስገቡ';
+  const rule = publicPhoneRule(countryCode);
+  if (digits.length < rule.minDigits || digits.length > rule.maxDigits) {
+    return phoneLengthMessage(rule, language);
   }
-  if (countryCode !== '+251' && (digits.length < 7 || digits.length > 15)) {
-    return language === 'english' ? 'Please enter a valid phone number' : 'እባክዎን ትክክለኛ የስልክ ቁጥር ያስገቡ';
+  if (!rule.national.test(digits)) {
+    return language === 'english'
+      ? `Invalid ${rule.name} phone number`
+      : `ትክክለኛ የ${rule.name} ስልክ ቁጥር ያስገቡ`;
   }
   return '';
 }
@@ -128,7 +152,7 @@ function applyPublicFormInputChange(e, { setFormData, setErrors, language, error
 
   if (name === 'phone') {
     let cleanDigits = value.replace(/\D/g, '');
-    const maxLen = countryCode === '+251' ? 10 : 15;
+    const maxLen = publicPhoneRule(countryCode).maxDigits;
     if (cleanDigits.length > maxLen) {
       cleanDigits = cleanDigits.substring(0, maxLen);
     }
@@ -514,15 +538,7 @@ function CustomerForm() {
   const [evidenceName, setEvidenceName] = useState('');
   const [isUploadingEvidence, setIsUploadingEvidence] = useState(false);
 
-  const countryCodes = [
-    { code: '+251', flag: '🇪🇹', name: 'Ethiopia' },
-    { code: '+1', flag: '🇺🇸', name: 'USA' },
-    { code: '+44', flag: '🇬🇧', name: 'UK' },
-    { code: '+254', flag: '🇰🇪', name: 'Kenya' },
-    { code: '+253', flag: '🇩ጂ', name: 'Djibouti' },
-    { code: '+971', flag: '🇦🇪', name: 'UAE' },
-    { code: '+966', flag: '🇸🇦', name: 'Saudi Arabia' }
-  ];
+  const countryCodes = PUBLIC_COUNTRY_PHONES;
 
   // Standardized 11 Categories List
   const STANDARDIZED_CATEGORIES = [
@@ -840,7 +856,19 @@ function CustomerForm() {
                 <div style={{ display: 'flex' }}>
                   <select
                     value={countryCode}
-                    onChange={(e) => setCountryCode(e.target.value)}
+                    onChange={(e) => {
+                      const nextCode = e.target.value;
+                      const phone = (formData.phone || '').replace(/\D/g, '').slice(0, publicPhoneRule(nextCode).maxDigits);
+                      setCountryCode(nextCode);
+                      setFormData(prev => ({ ...prev, phone }));
+                      const phoneErr = getPhoneError(phone, nextCode, language);
+                      setErrors(prev => {
+                        const next = { ...prev };
+                        if (phone && phoneErr) next.phone = phoneErr;
+                        else delete next.phone;
+                        return next;
+                      });
+                    }}
                     style={{
                       padding: '12px',
                       border: '1px solid #dcdcdc',
@@ -866,7 +894,7 @@ function CustomerForm() {
                     name="phone"
                     value={formData.phone}
                     onChange={handleInputChange}
-                    maxLength={countryCode === '+251' ? 10 : 15}
+                    maxLength={publicPhoneRule(countryCode).maxDigits}
                     required
                     style={{
                       flex: 1,

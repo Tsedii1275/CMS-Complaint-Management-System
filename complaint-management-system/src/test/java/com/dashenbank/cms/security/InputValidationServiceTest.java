@@ -30,6 +30,15 @@ class InputValidationServiceTest {
 
         service.validateComplaintInput("Abebe Kebede", "0911223344", "1234567890123", "Bole",
                 "Bole Branch", "The ATM did not dispense cash.", "abebe@example.com");
+        service.validateComplaintInput("Abebe Kebede", "+12025550123", "1234567890123", "Bole",
+                "Bole Branch", "The ATM did not dispense cash.", null);
+        service.validateComplaintInput("Abebe Kebede", "+25377123456", "1234567890123", "Bole",
+                "Bole Branch", "The ATM did not dispense cash.", null);
+
+        InputValidationException shortForeign = assertThrows(InputValidationException.class,
+                () -> service.validateComplaintInput("Abebe Kebede", "+1123", "1234567890123", "Bole",
+                        "Bole Branch", "The ATM did not dispense cash.", null));
+        assertEquals("Invalid phone number format", shortForeign.getErrors().get("phone"));
     }
 
     @Test

@@ -19,9 +19,10 @@ public class InputValidationService {
     private static final Pattern NAME_PATTERN = Pattern
             .compile("^[a-zA-Z\\u00C0-\\u024F\\u1200-\\u137F\\s'\\-]{2,100}$");
 
-    // 2. Phone Number: Ethiopian phone numbers (+2519XXXXXXXX, +2517XXXXXXXX,
-    // 09XXXXXXXX, 07XXXXXXXX)
-    private static final Pattern ETHIOPIAN_PHONE_PATTERN = Pattern.compile("^(\\+251[79]\\d{8}|0[79]\\d{8})$");
+    // National lengths after the country code, plus the Ethiopian local form used by staff.
+    // Ethiopia 9, USA 10, UK 10, Kenya 9, Djibouti 8, UAE 8-9, Saudi Arabia 9.
+    private static final Pattern PHONE_PATTERN = Pattern.compile(
+            "^(\\+251[79]\\d{8}|0[79]\\d{8}|\\+1\\d{10}|\\+44\\d{10}|\\+254\\d{9}|\\+253\\d{8}|\\+971\\d{8,9}|\\+966\\d{9})$");
 
     // 3. Account Number: Exactly 13 numeric digits
     private static final Pattern ACCOUNT_NUMBER_PATTERN = Pattern.compile("^\\d{13}$");
@@ -65,8 +66,8 @@ public class InputValidationService {
             errors.put("phone", "Phone number is required");
         } else {
             String trimmedPhone = phone.trim().replaceAll("\\s+", "");
-            if (!ETHIOPIAN_PHONE_PATTERN.matcher(trimmedPhone).matches() || containsXssOrHtml(trimmedPhone)) {
-                errors.put("phone", "Invalid Ethiopian phone number format");
+            if (!PHONE_PATTERN.matcher(trimmedPhone).matches() || containsXssOrHtml(trimmedPhone)) {
+                errors.put("phone", "Invalid phone number format");
             }
         }
 
