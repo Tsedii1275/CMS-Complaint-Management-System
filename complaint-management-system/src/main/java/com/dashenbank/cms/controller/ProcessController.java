@@ -24,6 +24,7 @@ import com.dashenbank.cms.service.SlaAlertAuthorizationService;
 import com.dashenbank.cms.service.SlaAlertScope;
 import com.dashenbank.cms.service.SlaTrackingService;
 import com.dashenbank.cms.service.StageSlaLedgerService;
+import com.dashenbank.cms.exception.InputValidationException;
 import com.dashenbank.cms.security.ClientIp;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.flowable.engine.HistoryService;
@@ -304,12 +305,12 @@ public class ProcessController {
     @PostMapping("/complaints/start")
     public ResponseEntity<Map<String, Object>> startComplaint(
             @RequestBody(required = false) Map<String, Object> payload, HttpServletRequest request) {
-        return startComplaintInternal(payload, false, ClientIp.from(request));
+        return startComplaintInternal(payload, false, ClientIp.from(request), true);
     }
 
     @SuppressWarnings("java:S3776")
     private ResponseEntity<Map<String, Object>> startComplaintInternal(
-            Map<String, Object> payload, boolean skipNotification, String sourceIp) {
+            Map<String, Object> payload, boolean skipNotification, String sourceIp, boolean publicRegistration) {
         try {
             if (payload == null) {
                 return ResponseEntity.badRequest()
@@ -345,6 +346,13 @@ public class ProcessController {
             // Comprehensive Input Validation & XSS Penetration Test Remediation
             inputValidationService.validateComplaintInput(name, phone, accountNumber, district, branch, description,
                     email);
+            if (publicRegistration) {
+                Object consent = customer.get("consent");
+                if (consent == null) {
+                    consent = payload.get("consent");
+                }
+                inputValidationService.requirePublicConsent(consent);
+            }
 
             if (category == null || category.isBlank()) {
                 category = CAT_CUSTOMER_SERVICE_ISSUES;
@@ -435,6 +443,8 @@ public class ProcessController {
             response.put("completed", instance.isEnded());
             response.put("ticketId", ticket);
             return ResponseEntity.ok(response);
+        } catch (InputValidationException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error initiating complaint process: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -614,7 +624,7 @@ public class ProcessController {
     @PostMapping("/complaints/staff-submit")
     public ResponseEntity<Map<String, Object>> startComplaintByStaff(
             @RequestBody(required = false) Map<String, Object> payload, HttpServletRequest request) {
-        return startComplaintInternal(payload, false, ClientIp.from(request));
+        return startComplaintInternal(payload, false, ClientIp.from(request), false);
     }
 
     @PostMapping("/complaints/fcr-resolve")

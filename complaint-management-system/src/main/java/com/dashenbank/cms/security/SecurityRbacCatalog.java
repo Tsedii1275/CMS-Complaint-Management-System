@@ -56,7 +56,7 @@ public final class SecurityRbacCatalog {
                                 new HttpHeaderSetting("X-Frame-Options", "DENY"),
                                 new HttpHeaderSetting("Referrer-Policy", "strict-origin-when-cross-origin"),
                                 new HttpHeaderSetting("Content-Security-Policy",
-                                                "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' ws: wss:; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'"),
+                                                SecurityHeadersFilter.CONTENT_SECURITY_POLICY),
                                 new HttpHeaderSetting("Permissions-Policy",
                                                 "geolocation=(), camera=(), microphone=(), payment=(), usb=(), display-capture=()"));
         }

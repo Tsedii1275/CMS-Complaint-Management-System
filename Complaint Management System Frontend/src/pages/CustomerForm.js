@@ -296,7 +296,8 @@ async function submitPublicComplaint(e, ctx) {
         phone: phone,
         currentContactPhone: phone,
         accountNumber: formData.accountNumber,
-        preferredLanguage: language
+        preferredLanguage: language,
+        consent: true
       },
       complaint: {
         channel: 'web',

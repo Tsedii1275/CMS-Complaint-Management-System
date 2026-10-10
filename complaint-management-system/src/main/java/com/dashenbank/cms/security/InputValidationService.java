@@ -70,8 +70,10 @@ public class InputValidationService {
             }
         }
 
-        // 3. Account Number Validation
-        if (accountNumber != null && !accountNumber.isBlank()) {
+        // 3. Account Number Validation (required on public and staff registration)
+        if (accountNumber == null || accountNumber.isBlank()) {
+            errors.put("accountNumber", "Account number is required");
+        } else {
             String trimmedAccount = accountNumber.trim();
             if (!ACCOUNT_NUMBER_PATTERN.matcher(trimmedAccount).matches() || containsXssOrHtml(trimmedAccount)) {
                 errors.put("accountNumber", "Account number must be exactly 13 numeric digits");
@@ -126,6 +128,19 @@ public class InputValidationService {
         if (!errors.isEmpty()) {
             log.warn("SECURITY REJECTION: Input validation failed: {}", sanitizeForLog(errors.toString()));
             throw new InputValidationException(errors);
+        }
+    }
+
+    /**
+     * Public customer registration must include an explicit consent flag.
+     * Staff intake does not use this check.
+     */
+    public void requirePublicConsent(Object consent) {
+        boolean accepted = Boolean.TRUE.equals(consent)
+                || (consent instanceof String text && "true".equalsIgnoreCase(text.trim()));
+        if (!accepted) {
+            throw new InputValidationException(
+                    Map.of("consent", "You must agree before submitting your complaint."));
         }
     }
 

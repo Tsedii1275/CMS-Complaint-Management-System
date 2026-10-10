@@ -16,6 +16,16 @@ import java.io.IOException;
  */
 public class SecurityHeadersFilter extends OncePerRequestFilter {
 
+    /**
+     * Scripts are same-origin files only. Style attributes stay allowed because the
+     * React UI sets them in markup.
+     */
+    public static final String CONTENT_SECURITY_POLICY = "default-src 'self'; script-src 'self'; "
+            + "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            + "font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; "
+            + "connect-src 'self' ws: wss:; frame-ancestors 'none'; object-src 'none'; "
+            + "base-uri 'self'; form-action 'self'";
+
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response,
@@ -39,8 +49,7 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
                 "geolocation=(), camera=(), microphone=(), payment=(), usb=(), display-capture=()");
 
         // 6. Content-Security-Policy (CSP)
-        response.setHeader("Content-Security-Policy",
-                "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' ws: wss:; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'");
+        response.setHeader("Content-Security-Policy", CONTENT_SECURITY_POLICY);
 
         // 7. Cache-Control for sensitive endpoints (login, complaints, status,
         // dashboard, user profiles)

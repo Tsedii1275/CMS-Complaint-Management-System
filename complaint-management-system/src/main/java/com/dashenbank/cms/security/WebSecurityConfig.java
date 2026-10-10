@@ -103,7 +103,7 @@ public class WebSecurityConfig {
                             policy -> policy.policy(
                                     "geolocation=(), camera=(), microphone=(), payment=(), usb=(), display-capture=()"));
                     headers.contentSecurityPolicy(csp -> csp.policyDirectives(
-                            "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' ws: wss:; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'"));
+                            SecurityHeadersFilter.CONTENT_SECURITY_POLICY));
                 })
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
