@@ -42,6 +42,24 @@ class InputValidationServiceTest {
     }
 
     @Test
+    void districtAndBranchAcceptLettersOnly() {
+        service.validateComplaintInput("Abebe Kebede", "0911223344", "1234567890123", "East Addis",
+                "Bole Branch", "The ATM did not dispense cash.", null);
+        service.validateComplaintInput("Abebe Kebede", "0911223344", "1234567890123", "ቦሌ",
+                "ቦሌ ቅርንጫፍ", "The ATM did not dispense cash.", null);
+
+        InputValidationException digits = assertThrows(InputValidationException.class,
+                () -> service.validateComplaintInput("Abebe Kebede", "0911223344", "1234567890123", "East 1",
+                        "Bole", "The ATM did not dispense cash.", null));
+        assertEquals("District may contain letters and spaces only", digits.getErrors().get("district"));
+
+        InputValidationException markup = assertThrows(InputValidationException.class,
+                () -> service.validateComplaintInput("Abebe Kebede", "0911223344", "1234567890123", "Bole",
+                        "Bole<script>", "The ATM did not dispense cash.", null));
+        assertEquals("Branch may contain letters and spaces only", markup.getErrors().get("branch"));
+    }
+
+    @Test
     void publicConsentMustBeExplicit() {
         assertThrows(InputValidationException.class, () -> service.requirePublicConsent(null));
         assertThrows(InputValidationException.class, () -> service.requirePublicConsent(false));

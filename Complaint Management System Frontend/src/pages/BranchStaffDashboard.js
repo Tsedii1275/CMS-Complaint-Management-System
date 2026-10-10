@@ -693,16 +693,20 @@ function BranchStaffDashboard() {
                 <Form.Item
                   name="district"
                   label={<StaffFormLabel>Complaint District</StaffFormLabel>}
+                  getValueFromEvent={(e) => String(e.target.value || '').replace(/[^\p{L} ]/gu, '').slice(0, 100)}
+                  rules={[{ pattern: /^[\p{L} ]*$/u, message: 'Letters and spaces only' }]}
                 >
-                  <Input placeholder="Enter Complaint District" style={controlStyle} />
+                  <Input maxLength={100} placeholder="Enter Complaint District" style={controlStyle} />
                 </Form.Item>
               </Col>
               <Col xs={24} md={8}>
                 <Form.Item
                   name="branch"
                   label={<StaffFormLabel>Complaint Branch</StaffFormLabel>}
+                  getValueFromEvent={(e) => String(e.target.value || '').replace(/[^\p{L} ]/gu, '').slice(0, 100)}
+                  rules={[{ pattern: /^[\p{L} ]*$/u, message: 'Letters and spaces only' }]}
                 >
-                  <Input placeholder="Enter Complaint Branch" style={controlStyle} />
+                  <Input maxLength={100} placeholder="Enter Complaint Branch" style={controlStyle} />
                 </Form.Item>
               </Col>
             </Row>

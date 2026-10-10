@@ -334,13 +334,13 @@ public class ProcessController {
             String description = (String) complaint.get(KEY_DESCRIPTION);
             String category = (String) complaint.get(KEY_CATEGORY);
 
-            String district = (String) complaint.get(KEY_DISTRICT);
+            String district = LocationKeys.fromRequestDistrict(complaint);
             if (district == null || district.isBlank()) {
-                district = (String) customer.get(KEY_DISTRICT);
+                district = LocationKeys.fromRequestDistrict(customer);
             }
-            String branch = (String) complaint.get("branch");
+            String branch = LocationKeys.fromRequestBranch(complaint);
             if (branch == null || branch.isBlank()) {
-                branch = (String) customer.get("branch");
+                branch = LocationKeys.fromRequestBranch(customer);
             }
 
             // Comprehensive Input Validation & XSS Penetration Test Remediation

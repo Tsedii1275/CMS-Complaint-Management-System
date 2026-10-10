@@ -27,10 +27,8 @@ public class InputValidationService {
     // 3. Account Number: Exactly 13 numeric digits
     private static final Pattern ACCOUNT_NUMBER_PATTERN = Pattern.compile("^\\d{13}$");
 
-    // 4 & 5. District & Branch: Max 100 chars, alphanumeric + Ge'ez + standard
-    // punctuation, no HTML/JS/SQL
-    private static final Pattern DISTRICT_BRANCH_PATTERN = Pattern
-            .compile("^[a-zA-Z0-9\\u00C0-\\u024F\\u1200-\\u137F\\s'\\-_/.]{1,100}$");
+    // District and branch: letters and spaces only (Latin and Ethiopic), 1 to 100 characters.
+    private static final Pattern DISTRICT_BRANCH_PATTERN = Pattern.compile("^[\\p{L} ]{1,100}$");
 
     // Ticket & Task ID Validation
     private static final Pattern TICKET_ID_PATTERN = Pattern.compile("^[A-Za-z0-9/\\-_]{3,50}$");
@@ -88,7 +86,7 @@ public class InputValidationService {
                 errors.put("district", "District name cannot exceed 100 characters");
             } else if (!DISTRICT_BRANCH_PATTERN.matcher(trimmedDistrict).matches()
                     || containsXssOrHtml(trimmedDistrict)) {
-                errors.put("district", "District contains invalid characters or script tags");
+                errors.put("district", "District may contain letters and spaces only");
             }
         }
 
@@ -98,7 +96,7 @@ public class InputValidationService {
             if (trimmedBranch.length() > 100) {
                 errors.put("branch", "Branch name cannot exceed 100 characters");
             } else if (!DISTRICT_BRANCH_PATTERN.matcher(trimmedBranch).matches() || containsXssOrHtml(trimmedBranch)) {
-                errors.put("branch", "Branch contains invalid characters or script tags");
+                errors.put("branch", "Branch may contain letters and spaces only");
             }
         }
 

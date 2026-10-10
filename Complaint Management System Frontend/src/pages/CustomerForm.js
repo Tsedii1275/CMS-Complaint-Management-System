@@ -60,6 +60,21 @@ function getAccountNumberError(accountNumber, language) {
   return '';
 }
 
+function lettersOnlyPlaceName(value) {
+  return String(value || '').replace(/[^\p{L} ]/gu, '').slice(0, 100);
+}
+
+function getPlaceNameError(value, language, label) {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return '';
+  if (!/^[\p{L} ]{1,100}$/u.test(trimmed)) {
+    return language === 'english'
+      ? `${label} may contain letters and spaces only`
+      : `${label} ፊደላት እና ክፍተት ብቻ መያዝ አለበት`;
+  }
+  return '';
+}
+
 function getEmailError(email, language) {
   if (!email?.trim()) return '';
   const trimmed = email.trim();
@@ -174,9 +189,11 @@ function applyPublicFormInputChange(e, { setFormData, setErrors, language, error
     return;
   }
 
+  const nextValue = name === 'district' || name === 'branch' ? lettersOnlyPlaceName(value) : value;
+
   setFormData(prev => ({
     ...prev,
-    [name]: value
+    [name]: nextValue
   }));
 
   if (errors[name]) {
@@ -217,6 +234,16 @@ function applyPublicFormInputChange(e, { setFormData, setErrors, language, error
     });
   }
 
+  if (name === 'district' || name === 'branch') {
+    const placeErr = getPlaceNameError(nextValue, language, name === 'district' ? 'Complaint District' : 'Complaint Branch');
+    setErrors(prev => {
+      const next = { ...prev };
+      if (placeErr) next[name] = placeErr;
+      else delete next[name];
+      return next;
+    });
+  }
+
   if (name === 'email') {
     const emailErr = getEmailError(value, language);
     setErrors(prev => {
@@ -248,11 +275,15 @@ function collectPublicSubmitErrors(formData, countryCode, language) {
   const accountNumber = getAccountNumberError(formData.accountNumber, language);
   const email = getEmailError(formData.email, language);
   const phone = getPhoneError(formData.phone, countryCode, language);
+  const district = getPlaceNameError(formData.district, language, 'Complaint District');
+  const branch = getPlaceNameError(formData.branch, language, 'Complaint Branch');
   if (customerName) next.customerName = customerName;
   if (complaintDescription) next.complaintDescription = complaintDescription;
   if (accountNumber) next.accountNumber = accountNumber;
   if (email) next.email = email;
   if (phone) next.phone = phone;
+  if (district) next.district = district;
+  if (branch) next.branch = branch;
   return next;
 }
 
@@ -1045,10 +1076,11 @@ function CustomerForm() {
                   name="district"
                   value={formData.district}
                   onChange={handleInputChange}
+                  maxLength={100}
                   style={{
                     width: '100%',
                     padding: '12px 16px',
-                    border: '1px solid #dcdcdc',
+                    border: publicFieldBorder(errors.district),
                     borderRadius: '4px',
                     fontSize: '15px',
                     outline: 'none',
@@ -1056,6 +1088,11 @@ function CustomerForm() {
                     transition: 'border-color 0.2s'
                   }}
                 />
+                {errors.district && (
+                  <div style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>
+                    {errors.district}
+                  </div>
+                )}
               </div>
 
               <div style={{ flex: '1 1 180px' }}>
@@ -1067,10 +1104,11 @@ function CustomerForm() {
                   name="branch"
                   value={formData.branch}
                   onChange={handleInputChange}
+                  maxLength={100}
                   style={{
                     width: '100%',
                     padding: '12px 16px',
-                    border: '1px solid #dcdcdc',
+                    border: publicFieldBorder(errors.branch),
                     borderRadius: '4px',
                     fontSize: '15px',
                     outline: 'none',
@@ -1078,6 +1116,11 @@ function CustomerForm() {
                     transition: 'border-color 0.2s'
                   }}
                 />
+                {errors.branch && (
+                  <div style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>
+                    {errors.branch}
+                  </div>
+                )}
               </div>
             </div>
 
