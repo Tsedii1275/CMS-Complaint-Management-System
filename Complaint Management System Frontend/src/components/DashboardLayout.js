@@ -14,7 +14,9 @@ import {
   PieChartOutlined,
   ClockCircleOutlined,
   LockOutlined,
-  CloudServerOutlined
+  CloudServerOutlined,
+  SafetyCertificateOutlined,
+  ApiOutlined
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { BRAND_COLORS } from '../constants/theme';
@@ -50,11 +52,39 @@ function formatSlaDeadline(value) {
 function SidebarMenu({ collapsed, userRole, user, onNavigate }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const role = user?.role || userRole || '';
+  const role = user?.role || '';
 
   const menuItems = [];
 
-  if (role === 'ROLE_ADMIN' || userRole === 'admin') {
+  if (role === 'ROLE_SYSTEM_ADMIN' || (!role && userRole === 'system-admin')) {
+    menuItems.push(
+      {
+        key: '/system-admin',
+        icon: <DashboardOutlined />,
+        label: 'System Overview',
+      },
+      {
+        key: '/system-admin/users',
+        icon: <UserOutlined />,
+        label: 'User Management & Access Control',
+      },
+      {
+        key: '/system-admin/ldap',
+        icon: <CloudServerOutlined />,
+        label: 'LDAP / Active Directory',
+      },
+      {
+        key: '/system-admin/security-logs',
+        icon: <SafetyCertificateOutlined />,
+        label: 'Security & Audit Logs',
+      },
+      {
+        key: '/system-admin/integrations',
+        icon: <ApiOutlined />,
+        label: 'Integration & Notification Diagnostics',
+      }
+    );
+  } else if (role === 'ROLE_ADMIN' || (!role && userRole === 'admin')) {
     menuItems.push(
       {
         key: '/admin',
@@ -80,16 +110,6 @@ function SidebarMenu({ collapsed, userRole, user, onNavigate }) {
         key: '/admin/customer-experience',
         icon: <PieChartOutlined />,
         label: 'Customer Experience',
-      },
-      {
-        key: '/admin/users',
-        icon: <UserOutlined />,
-        label: 'User & Role Management',
-      },
-      {
-        key: '/admin/ldap',
-        icon: <CloudServerOutlined />,
-        label: 'LDAP / Active Directory',
       },
       {
         key: '/admin/sla-config',
@@ -200,7 +220,7 @@ function AppHeader({ collapsed, isMobile, onMenuClick, userRole, user, onLogout,
 
   const fetchTasks = async () => {
     try {
-      if (!user || userRole === 'admin') return;
+      if (!user || userRole === 'admin' || userRole === 'system-admin') return;
       const data = await ApiService.getSlaAlerts();
       const mine = (data || []).filter(alert => isSlaAlertForUser(alert, user));
       setTasks(mine);

@@ -30,6 +30,7 @@ import java.util.List;
 public class WebSecurityConfig {
 
     private static final String ROLE_ADMIN = Role.ROLE_ADMIN.name();
+    private static final String ROLE_SYSTEM_ADMIN = Role.ROLE_SYSTEM_ADMIN.name();
 
     private final UserDetailsServiceImpl userDetailsService;
     private final AuthEntryPointJwt unauthorizedHandler;
@@ -124,13 +125,17 @@ public class WebSecurityConfig {
                         .requestMatchers("/api/complaints/staff-submit", "/api/complaints/fcr-resolve").authenticated()
                         .requestMatchers("/api/customer-profile/**", "/api/customers/by-account/**").authenticated()
                         .requestMatchers("/api/users/password-status").authenticated()
-                        .requestMatchers("/api/users/officers").hasAnyAuthority(
+                        .requestMatchers("/api/users/officers", "/api/admin/users/officers").hasAnyAuthority(
                                 "ROLE_CUSTOMER_CARE_OFFICER",
                                 "ROLE_CUSTOMER_CARE_TEAM_LEADER",
                                 "ROLE_CUSTOMER_CARE_SENIOR_MANAGER",
                                 "ROLE_SERVICE_QUALITY_DIRECTOR",
                                 ROLE_ADMIN)
-                        .requestMatchers("/api/admin/**", "/api/users", "/api/users/**").hasAuthority(ROLE_ADMIN)
+                        .requestMatchers("/api/admin/ldap/**", "/api/admin/notifications/**",
+                                "/api/admin/security/**", "/api/system-admin/**")
+                        .hasAuthority(ROLE_SYSTEM_ADMIN)
+                        .requestMatchers("/api/admin/users", "/api/admin/users/**", "/api/users", "/api/users/**")
+                        .hasAuthority(ROLE_SYSTEM_ADMIN)
                         .requestMatchers("/api/sla/alerts", "/api/sla/alerts/**").authenticated()
                         .requestMatchers("/api/sla/config/**").hasAuthority(ROLE_ADMIN)
                         .requestMatchers("/api/rca/**").hasAuthority(ROLE_ADMIN)

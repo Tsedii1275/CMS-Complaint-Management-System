@@ -1,13 +1,12 @@
 import React from 'react';
-import { Card, Typography, Button, Tag, Row, Col, Alert, Divider, Space } from 'antd';
+import { Card, Typography, Button, Tag, Row, Col, Alert, Divider } from 'antd';
 import {
     ClockCircleOutlined,
     LogoutOutlined,
     UserOutlined,
     MailOutlined,
     IdcardOutlined,
-    ClusterOutlined,
-    CheckCircleFilled
+    ClusterOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -95,18 +94,12 @@ function PendingAccessPage({ user }) {
                         style={{
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'space-between',
+                            justifyContent: 'flex-end',
                             paddingBottom: '20px',
                             borderBottom: '1px solid #f1f5f9',
                             marginBottom: '24px'
                         }}
                     >
-                        <Space align="center" size={8}>
-                            <CheckCircleFilled style={{ color: '#10b981', fontSize: '18px' }} />
-                            <Text strong style={{ color: '#0f172a', fontSize: '14px' }}>
-                                AD Identity Verified
-                            </Text>
-                        </Space>
                         <Tag
                             icon={<ClockCircleOutlined />}
                             style={{

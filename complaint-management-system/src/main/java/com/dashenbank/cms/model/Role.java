@@ -4,7 +4,10 @@ public enum Role {
     ROLE_CONTACT_CENTER_AGENT,
     ROLE_DIGITAL_MARKETING_OFFICER,
     ROLE_DEPARTMENT_WORKUNIT,
+    /** Operational administration: SLA, NBE, RCA, and customer-experience reports. */
     ROLE_ADMIN,
+    /** Application Development / IT system administration. */
+    ROLE_SYSTEM_ADMIN,
 
     // Customer Care Division Roles
     ROLE_CUSTOMER_CARE_SENIOR_MANAGER,

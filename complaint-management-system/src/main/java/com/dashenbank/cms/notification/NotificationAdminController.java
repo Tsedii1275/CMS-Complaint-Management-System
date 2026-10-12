@@ -21,7 +21,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/admin/notifications")
-@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+@PreAuthorize("hasAuthority('ROLE_SYSTEM_ADMIN')")
 public class NotificationAdminController {
 
     private final NotificationRecordRepository repository;

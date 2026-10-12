@@ -66,7 +66,7 @@ public class UserController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_SYSTEM_ADMIN')")
     public ResponseEntity<List<User>> getAllUsers() {
         return ResponseEntity.ok(userRepository.findAll());
     }
@@ -82,7 +82,7 @@ public class UserController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_SYSTEM_ADMIN')")
     public ResponseEntity<Object> createUser(@Valid @RequestBody UserCreateRequest payload) {
         String username = payload.getUsername();
         String email = payload.getEmail();
@@ -134,7 +134,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_SYSTEM_ADMIN')")
     public ResponseEntity<Object> updateUser(@PathVariable Long id, @RequestBody Map<String, String> payload,
             HttpServletRequest request) {
         Optional<User> userOpt = userRepository.findById(id);
@@ -177,7 +177,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}/toggle-status")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_SYSTEM_ADMIN')")
     public ResponseEntity<Object> toggleUserStatus(@PathVariable Long id) {
         Optional<User> userOpt = userRepository.findById(id);
         if (userOpt.isEmpty()) {
@@ -195,7 +195,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}/approve")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_SYSTEM_ADMIN')")
     public ResponseEntity<Object> approveUser(@PathVariable Long id, @RequestBody Map<String, String> payload,
             HttpServletRequest request) {
         Optional<User> userOpt = userRepository.findById(id);
@@ -234,7 +234,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}/reject")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_SYSTEM_ADMIN')")
     public ResponseEntity<Object> rejectUser(@PathVariable Long id) {
         Optional<User> userOpt = userRepository.findById(id);
         if (userOpt.isEmpty()) {
@@ -257,7 +257,7 @@ public class UserController {
     }
 
     @PostMapping("/{id}/reset-password")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_SYSTEM_ADMIN')")
     public ResponseEntity<Object> resetPassword(@PathVariable Long id, @Valid @RequestBody PasswordResetRequest payload,
             HttpServletRequest request) {
         Optional<User> userOpt = userRepository.findById(id);
@@ -293,7 +293,7 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_SYSTEM_ADMIN')")
     public ResponseEntity<Object> deleteUser(@PathVariable Long id) {
         Optional<User> userOpt = userRepository.findById(id);
         if (userOpt.isEmpty()) {

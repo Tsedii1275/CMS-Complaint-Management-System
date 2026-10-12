@@ -18,6 +18,9 @@ import SlaMonitoringPage from './pages/SlaMonitoringPage';
 import ExecutiveDashboard from './pages/ExecutiveDashboard';
 import UserManagementPage from './pages/UserManagementPage';
 import LdapMaintenancePage from './pages/LdapMaintenancePage';
+import SystemAdminDashboard from './pages/SystemAdminDashboard';
+import SystemSecurityLogsPage from './pages/SystemSecurityLogsPage';
+import SystemIntegrationsPage from './pages/SystemIntegrationsPage';
 import Unauthorized from './pages/Unauthorized';
 import PendingAccessPage from './pages/PendingAccessPage';
 import { RequireAuth, RequireRole } from './components/RoleGuard';
@@ -44,8 +47,11 @@ function AppRoutes() {
       <Route path="/work-unit" element={guarded(<WorkUnitDashboard />)} />
       <Route path="/chief-committee" element={guarded(<ChiefCommitteeDashboard />)} />
       <Route path="/admin" element={guarded(<AdminDashboard />)} />
-      <Route path="/admin/users" element={guarded(<UserManagementPage />)} />
-      <Route path="/admin/ldap" element={guarded(<LdapMaintenancePage />)} />
+      <Route path="/system-admin" element={guarded(<SystemAdminDashboard />)} />
+      <Route path="/system-admin/users" element={guarded(<UserManagementPage />)} />
+      <Route path="/system-admin/ldap" element={guarded(<LdapMaintenancePage />)} />
+      <Route path="/system-admin/security-logs" element={guarded(<SystemSecurityLogsPage />)} />
+      <Route path="/system-admin/integrations" element={guarded(<SystemIntegrationsPage />)} />
       <Route path="/admin/sla-monitoring" element={guarded(<SlaMonitoringPage />)} />
       <Route path="/admin/sla-config" element={guarded(<SlaConfigPage />)} />
       <Route path="/admin/nbe-reports" element={guarded(<NBEReports />)} />

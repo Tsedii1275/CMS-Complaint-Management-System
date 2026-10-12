@@ -1,6 +1,8 @@
 package com.dashenbank.cms.service;
 
-import com.dashenbank.cms.model.*;
+import com.dashenbank.cms.model.AuthSource;
+import com.dashenbank.cms.model.Role;
+import com.dashenbank.cms.model.User;
 import com.dashenbank.cms.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,9 +13,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Production-Ready Data Seeder & Bootstrap Initializer.
- * Creates ONLY the initial bootstrap Administrator account.
- * All operational users must be created and managed via the Admin Dashboard.
+ * Seeds the System Administrator ({@code admin}) and Operational Admin ({@code opadmin})
+ * when those usernames are missing. Existing user-management accounts are never deleted.
  */
 @Component
 public class DataSeeder implements CommandLineRunner {
@@ -35,25 +36,59 @@ public class DataSeeder implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) throws Exception {
-        bootstrapAdministrator();
+        bootstrapSystemAdministrator();
+        bootstrapOperationalAdministrator();
     }
 
-    private void bootstrapAdministrator() {
+    private void bootstrapSystemAdministrator() {
         var adminOpt = userRepository.findByUsernameIgnoreCase("admin");
         if (adminOpt.isPresent()) {
-            log.info(">>> Bootstrap administrator account 'admin' already exists.");
+            User admin = adminOpt.get();
+            if (admin.getRole() == Role.ROLE_ADMIN) {
+                admin.setRole(Role.ROLE_SYSTEM_ADMIN);
+                admin.setFullName("System Administrator");
+                admin.setDepartment("Application Development");
+                userRepository.save(admin);
+                log.info(">>> Existing account 'admin' is now System Administrator. Password unchanged.");
+            } else {
+                log.info(">>> System administrator account 'admin' already exists.");
+            }
             return;
         }
 
-        String initialPassword = resolveInitialAdminPassword();
-        User admin = User.builder()
-                .username("admin")
-                .email("admin@dashenbank.com")
-                .password(passwordEncoder.encode(initialPassword))
-                .role(Role.ROLE_ADMIN)
-                .authSource(com.dashenbank.cms.model.AuthSource.LOCAL)
-                .fullName("System Administrator")
-                .department("System Administration")
+        userRepository.save(newLocalAdmin(
+                "admin",
+                "admin@dashenbank.com",
+                Role.ROLE_SYSTEM_ADMIN,
+                "System Administrator",
+                "Application Development"));
+        log.info(">>> System administrator account 'admin' created.");
+    }
+
+    private void bootstrapOperationalAdministrator() {
+        if (userRepository.findByUsernameIgnoreCase("opadmin").isPresent()) {
+            log.info(">>> Operational administrator account 'opadmin' already exists.");
+            return;
+        }
+
+        userRepository.save(newLocalAdmin(
+                "opadmin",
+                "opadmin@dashenbank.com",
+                Role.ROLE_ADMIN,
+                "Operational Admin",
+                "Operational Administration"));
+        log.info(">>> Operational administrator account 'opadmin' created.");
+    }
+
+    private User newLocalAdmin(String username, String email, Role role, String fullName, String department) {
+        return User.builder()
+                .username(username)
+                .email(email)
+                .password(passwordEncoder.encode(resolveInitialAdminPassword()))
+                .role(role)
+                .authSource(AuthSource.LOCAL)
+                .fullName(fullName)
+                .department(department)
                 .approved(true)
                 .approvalStatus("APPROVED")
                 .enabled(true)
@@ -62,9 +97,6 @@ public class DataSeeder implements CommandLineRunner {
                 .passwordExpiryDate(java.time.LocalDateTime.now().plusDays(
                         com.dashenbank.cms.security.SecurityPolicy.PASSWORD_EXPIRY_DAYS))
                 .build();
-
-        userRepository.save(admin);
-        log.info(">>> Bootstrap administrator account 'admin' created successfully.");
     }
 
     private String resolveInitialAdminPassword() {

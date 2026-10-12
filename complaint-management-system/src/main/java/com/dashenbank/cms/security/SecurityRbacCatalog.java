@@ -13,8 +13,10 @@ public final class SecurityRbacCatalog {
 
         public static List<RbacRow> rows() {
                 return List.of(
-                                row("ROLE_ADMIN", "Admin APIs",
-                                                "/api/admin/**, /api/users/**, /api/sla/config/**, /api/rca/**, /api/nbe-compliance-reports/**, /api/audit/logs"),
+                                row("ROLE_ADMIN", "Operational Admin",
+                                                "/api/sla/config/**, /api/rca/**, /api/nbe-compliance-reports/**, /api/audit/logs, /api/users/officers"),
+                                row("ROLE_SYSTEM_ADMIN", "System Admin",
+                                                "/api/system-admin/**, /api/admin/users/**, /api/admin/ldap/**, /api/admin/security/**, /api/admin/notifications/**"),
                                 row("ROLE_CUSTOMER_CARE_OFFICER", "Operational",
                                                 "/api/tasks/**, /api/process/**, /api/complaints/staff-submit, /api/customer-profile/**, /api/users/officers"),
                                 row("ROLE_CUSTOMER_CARE_TEAM_LEADER", "Operational + officers",

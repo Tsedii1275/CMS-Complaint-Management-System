@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Card, Typography, Button, Tag, Modal, Form, Input, Select, Switch, Space, Row, Col, Alert, Tooltip, Popconfirm, Tabs, Badge, message as antMessage } from 'antd';
-import { UserOutlined, PlusOutlined, EditOutlined, KeyOutlined, SearchOutlined, DeleteOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
+import { UserOutlined, PlusOutlined, EditOutlined, SearchOutlined, DeleteOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import DashboardLayout from '../components/DashboardLayout';
 import Pagination from '../components/Pagination';
 import ApiService from '../services/api';
@@ -28,7 +28,8 @@ const ROLE_OPTIONS = [
   { label: 'Contact Center Agent', value: 'ROLE_CONTACT_CENTER_AGENT' },
   { label: 'Digital Marketing Officer', value: 'ROLE_DIGITAL_MARKETING_OFFICER' },
   { label: 'Work Unit Specialist', value: 'ROLE_DEPARTMENT_WORKUNIT' },
-  { label: 'System Admin', value: 'ROLE_ADMIN' }
+  { label: 'Operational Admin', value: 'ROLE_ADMIN' },
+  { label: 'System Administrator', value: 'ROLE_SYSTEM_ADMIN' }
 ];
 
 const RETIRED_ROLE_LABELS = {
@@ -60,13 +61,11 @@ function UserManagementPage() {
   // Modals
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
 
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
-  const [resetForm] = Form.useForm();
   const [approveForm] = Form.useForm();
 
   useEffect(() => {
@@ -150,19 +149,6 @@ function UserManagementPage() {
     }
   };
 
-  const handleResetPassword = async (values) => {
-    if (!selectedUser) return;
-    try {
-      const response = await ApiService.resetUserPassword(selectedUser.id, values.newPassword);
-      antMessage.success(response.message || 'Password reset successfully');
-      setIsResetPasswordModalOpen(false);
-      resetForm.resetFields();
-      setSelectedUser(null);
-    } catch (err) {
-      antMessage.error(err.message || 'Failed to reset password');
-    }
-  };
-
   const handleDeleteUser = async (id) => {
     try {
       await ApiService.deleteUser(id);
@@ -176,8 +162,6 @@ function UserManagementPage() {
   const openEditModal = (record) => {
     setSelectedUser(record);
     editForm.setFieldsValue({
-      fullName: record.fullName,
-      email: record.email,
       role: record.role,
       enabled: record.enabled
     });
@@ -190,12 +174,6 @@ function UserManagementPage() {
       role: record.role !== 'ROLE_PENDING' ? record.role : undefined
     });
     setIsApproveModalOpen(true);
-  };
-
-  const openResetPasswordModal = (record) => {
-    setSelectedUser(record);
-    resetForm.setFieldsValue({ newPassword: 'Password@123' });
-    setIsResetPasswordModalOpen(true);
   };
 
   // Group Users into Pending vs Approved
@@ -283,16 +261,6 @@ function UserManagementPage() {
               size="small"
               icon={<EditOutlined />}
               onClick={() => openEditModal(record)}
-            />
-          </Tooltip>
-          <Tooltip title={record.authSource === 'AD' ? 'Password is managed in Active Directory' : 'Reset Password'}>
-            <Button
-              type="text"
-              style={{ color: '#d97706' }}
-              size="small"
-              icon={<KeyOutlined />}
-              disabled={record.authSource === 'AD'}
-              onClick={() => openResetPasswordModal(record)}
             />
           </Tooltip>
           <Tooltip title="Delete User">
@@ -404,7 +372,7 @@ function UserManagementPage() {
   const paginatedUsers = filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <DashboardLayout userRole="admin">
+    <DashboardLayout userRole="system-admin">
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
           <div>
@@ -552,19 +520,6 @@ function UserManagementPage() {
           style={{ maxWidth: 650 }}
         >
           <Form form={editForm} layout="vertical" onFinish={handleEditUser}>
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item name="fullName" label="Full Name" rules={[{ required: true }]}>
-                  <Input />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item name="email" label="Email Address" rules={[{ required: true, type: 'email' }]}>
-                  <Input />
-                </Form.Item>
-              </Col>
-            </Row>
-
             <Form.Item name="role" label="Assign System Role" rules={[{ required: true }]}>
               <Select>
                 {assignableRoleOptions(selectedUser?.role).map(r => (
@@ -611,34 +566,6 @@ function UserManagementPage() {
                   <Option key={r.value} value={r.value}>{r.label}</Option>
                 ))}
               </Select>
-            </Form.Item>
-          </Form>
-        </Modal>
-
-        {/* Reset Password Modal */}
-        <Modal
-          title={<span style={{ color: '#d97706', fontWeight: 'bold' }}><KeyOutlined /> Reset Password</span>}
-          open={isResetPasswordModalOpen}
-          onCancel={() => { setIsResetPasswordModalOpen(false); resetForm.resetFields(); setSelectedUser(null); }}
-          onOk={() => resetForm.submit()}
-          okText="Reset Password"
-        >
-          <Alert message={`Resetting password for user: ${selectedUser?.username}`} type="warning" showIcon style={{ marginBottom: '16px' }} />
-          <Form form={resetForm} layout="vertical" onFinish={handleResetPassword}>
-            <Form.Item
-              name="newPassword"
-              label="New Password"
-              rules={[
-                { required: true, message: 'Please enter new password' },
-                {
-                  validator: (_, value) => {
-                    if (!value || PASSWORD_POLICY.test(value)) return Promise.resolve();
-                    return Promise.reject(new Error(PASSWORD_REQUIREMENTS_MESSAGE));
-                  }
-                }
-              ]}
-            >
-              <Input.Password placeholder="Enter new password" />
             </Form.Item>
           </Form>
         </Modal>

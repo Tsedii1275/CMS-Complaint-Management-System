@@ -14,6 +14,8 @@ public interface SecurityAuditLogRepository extends JpaRepository<SecurityAuditL
 
     List<SecurityAuditLog> findTop200ByOrderByCreatedAtDesc();
 
+    List<SecurityAuditLog> findTop500ByOrderByCreatedAtDesc();
+
     List<SecurityAuditLog> findTop100ByEventTypeInOrderByCreatedAtDesc(List<SecurityAuditEvent> types);
 
     interface EventSummary {

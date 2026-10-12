@@ -56,7 +56,7 @@ function LdapMaintenancePage() {
   };
 
   return (
-    <DashboardLayout userRole="admin">
+    <DashboardLayout userRole="system-admin">
       <div style={{ padding: 24 }}>
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
           <div>

@@ -4,6 +4,7 @@ import com.dashenbank.cms.config.CbsDataSourceConfig;
 import com.dashenbank.cms.config.CbsProperties;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -37,6 +38,21 @@ public class CbsCustomerProfileRepository {
 
     public boolean isConfigured() {
         return cbsJdbc != null;
+    }
+
+    /**
+     * Confirms the CBS Oracle session without reading customer data.
+     */
+    public String probe() {
+        if (cbsJdbc == null) {
+            return "not-configured";
+        }
+        try {
+            Integer one = cbsJdbc.getJdbcOperations().queryForObject("SELECT 1 FROM DUAL", Integer.class);
+            return one != null && one == 1 ? "up" : "unexpected";
+        } catch (DataAccessException e) {
+            return "down";
+        }
     }
 
     @SuppressWarnings("null")

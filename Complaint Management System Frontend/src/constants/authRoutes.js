@@ -28,7 +28,8 @@ export const ROLE_ROUTES = {
 
   // Other Existing Roles
   'ROLE_DEPARTMENT_WORKUNIT': '/work-unit',
-  'ROLE_ADMIN': '/admin'
+  'ROLE_ADMIN': '/admin',
+  'ROLE_SYSTEM_ADMIN': '/system-admin'
 };
 
 export const getRouteForRole = (role, user) => {
@@ -63,6 +64,9 @@ export function canAccessPath(pathname, role) {
   const r = (role || '').toUpperCase();
   if (!pathname) return false;
 
+  if (pathname.startsWith('/system-admin')) {
+    return r === 'ROLE_SYSTEM_ADMIN';
+  }
   if (pathname.startsWith('/admin')) {
     return r === 'ROLE_ADMIN';
   }

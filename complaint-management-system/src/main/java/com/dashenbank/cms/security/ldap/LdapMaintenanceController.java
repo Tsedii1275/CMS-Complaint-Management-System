@@ -15,7 +15,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin/ldap")
-@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+@PreAuthorize("hasAuthority('ROLE_SYSTEM_ADMIN')")
 public class LdapMaintenanceController {
 
     private final LdapProperties properties;

@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface NotificationRecordRepository extends JpaRepository<NotificationRecord, Long> {
 
@@ -22,6 +23,12 @@ public interface NotificationRecordRepository extends JpaRepository<Notification
     List<NotificationRecord> findTop100ByOrderByIdDesc();
 
     long countByChannelAndStatus(NotificationChannel channel, NotificationStatus status);
+
+    Optional<NotificationRecord> findFirstByChannelAndStatusOrderBySentAtDesc(NotificationChannel channel,
+            NotificationStatus status);
+
+    Optional<NotificationRecord> findFirstByChannelAndStatusOrderByIdDesc(NotificationChannel channel,
+            NotificationStatus status);
 
     long countByChannelAndStatusIn(NotificationChannel channel, Collection<NotificationStatus> statuses);
 

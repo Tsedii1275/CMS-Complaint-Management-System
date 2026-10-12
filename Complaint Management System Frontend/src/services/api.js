@@ -760,6 +760,22 @@ class ApiService {
     return this.post('/api/admin/ldap/sync', {});
   }
 
+  async getSystemOverview() {
+    return this.get('/api/system-admin/overview');
+  }
+
+  async getSystemIntegrations() {
+    return this.get('/api/system-admin/integrations');
+  }
+
+  async getSystemSecurityLogs(query, eventType) {
+    const params = new URLSearchParams();
+    if (query) params.set('q', query);
+    if (eventType && eventType !== 'ALL') params.set('eventType', eventType);
+    const suffix = params.toString() ? `?${params.toString()}` : '';
+    return this.get(`/api/system-admin/security-logs${suffix}`);
+  }
+
   async logout() {
     const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
       method: 'POST',
