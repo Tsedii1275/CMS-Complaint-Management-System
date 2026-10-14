@@ -77,6 +77,9 @@ services:
       FILE_UPLOAD_DIR: /app/uploads
     volumes:
       - cms_uploads:/app/uploads
+      # Optional DataPower truststore (public Sectigo intermediate only). Create ./certs on the
+      # host and set SMS_DATAPOWER_TRUSTSTORE_PATH/PASSWORD in .env.prod.local (not in git).
+      - ./certs:/app/certs:ro
     ports:
       - "8082:8080"
 
