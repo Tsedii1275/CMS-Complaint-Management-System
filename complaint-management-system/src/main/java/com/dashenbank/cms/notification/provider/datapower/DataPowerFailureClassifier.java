@@ -92,7 +92,9 @@ final class DataPowerFailureClassifier {
             if (isTlsFailure(cause)) {
                 return ProviderResult.permanent(operation + " TLS verification failed");
             }
-            return ProviderResult.retryable(operation + " connection failure");
+            // Exception class only: no URL, host, or message text is stored.
+            return ProviderResult.retryable(operation + " connection failure ("
+                    + (cause == null ? "unknown" : cause.getClass().getSimpleName()) + ")");
         }
         return ProviderResult.retryable(operation + " " + root.getClass().getSimpleName());
     }
