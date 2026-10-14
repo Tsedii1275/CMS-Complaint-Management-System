@@ -1162,21 +1162,6 @@ function AdminDashboard() {
         width="100%"
         style={{ maxWidth: 1000 }}
         footer={[
-          <Button key="reset" danger onClick={async () => {
-            if (window.confirm('Reset all SLA configurations to Dashen Bank defaults?')) {
-              try {
-                await ApiService.resetSlaConfigs();
-                message.success('SLA Configurations reset to Dashen Bank defaults.');
-                const cfgs = await ApiService.getSlaConfigs();
-                setSlaConfigs(cfgs);
-              } catch (e) {
-                console.error(e);
-                message.error('Failed to reset SLA configs.');
-              }
-            }
-          }}>
-            Reset Defaults
-          </Button>,
           <Button key="close" type="primary" onClick={() => setIsSlaConfigModalOpen(false)}>
             Close
           </Button>

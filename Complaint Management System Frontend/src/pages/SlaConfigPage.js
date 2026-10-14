@@ -48,32 +48,6 @@ function SlaConfigPage() {
     }
   };
 
-  const handlePurgeOperationalData = async () => {
-    if (!window.confirm('Purge SLA operational data (stage events, breach logs, metrics, audit trail)? The policy matrix on this page is kept.')) {
-      return;
-    }
-    try {
-      await ApiService.purgeSlaOperationalData();
-      message.success('Stage SLA events and operational SLA data were purged. Policy minutes are unchanged.');
-    } catch (err) {
-      console.error(err);
-      message.error('Failed to purge SLA operational data.');
-    }
-  };
-
-  const handleResetDefaults = async () => {
-    if (window.confirm('Are you sure you want to reset all SLA configurations to Dashen Bank institutional baseline defaults?')) {
-      try {
-        await ApiService.resetSlaConfigs();
-        message.success('SLA Configurations successfully reset to Dashen Bank defaults.');
-        await loadAllConfigs();
-      } catch (err) {
-        console.error(err);
-        message.error('Failed to reset SLA configurations.');
-      }
-    }
-  };
-
   const handleSaveSlaConfig = async () => {
     if (!editingConfig) return;
     try {
@@ -156,19 +130,13 @@ function SlaConfigPage() {
       <div style={{ padding: '24px', maxWidth: '1240px', margin: '0 auto' }}>
 
         {/* Title Header Bar */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
-          <div>
-            <Title level={2} style={{ color: BRAND_COLORS.primary, margin: 0, fontWeight: 700 }}>
-              SLA Governance & Policy Configuration
-            </Title>
-            <Text type="secondary" style={{ fontSize: '14px' }}>
-              Institutional Service Level Agreement (SLA) policy administration, resolution matrix, 80% reminder and 100% breach alerts, and banking calendar management.
-            </Text>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button onClick={handlePurgeOperationalData}>Purge Stage SLA Events</Button>
-            <Button danger onClick={handleResetDefaults}>Reset to Policy Defaults</Button>
-          </div>
+        <div style={{ marginBottom: '24px' }}>
+          <Title level={2} style={{ color: BRAND_COLORS.primary, margin: 0, fontWeight: 700 }}>
+            SLA Governance & Policy Configuration
+          </Title>
+          <Text type="secondary" style={{ fontSize: '14px' }}>
+            Institutional Service Level Agreement (SLA) policy administration, resolution matrix, 80% reminder and 100% breach alerts, and banking calendar management.
+          </Text>
         </div>
         <Alert
           type="info"

@@ -370,14 +370,6 @@ class ApiService {
     return this.put(`/api/sla/config/${id}`, data);
   }
 
-  async resetSlaConfigs() {
-    return this.post('/api/sla/config/reset', {});
-  }
-
-  async purgeSlaOperationalData() {
-    return this.post('/api/sla/config/purge', {});
-  }
-
   async getOperatingHours() {
     return this.get('/api/sla/config/operating-hours');
   }

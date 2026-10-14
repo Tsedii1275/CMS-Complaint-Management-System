@@ -2,12 +2,8 @@ package com.dashenbank.cms.service;
 
 import com.dashenbank.cms.model.HolidayCalendar;
 import com.dashenbank.cms.model.SlaConfig;
-import com.dashenbank.cms.repository.AuditLogRepository;
-import com.dashenbank.cms.repository.ComplaintSlaMetricsRepository;
 import com.dashenbank.cms.repository.HolidayCalendarRepository;
-import com.dashenbank.cms.repository.SlaBreachRecordRepository;
 import com.dashenbank.cms.repository.SlaConfigRepository;
-import com.dashenbank.cms.repository.StageSlaEventRepository;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,23 +41,11 @@ public class SlaConfigService {
 
     private final SlaConfigRepository slaConfigRepository;
     private final HolidayCalendarRepository holidayCalendarRepository;
-    private final ComplaintSlaMetricsRepository slaMetricsRepository;
-    private final AuditLogRepository auditLogRepository;
-    private final StageSlaEventRepository stageSlaEventRepository;
-    private final SlaBreachRecordRepository slaBreachRecordRepository;
 
     public SlaConfigService(SlaConfigRepository slaConfigRepository,
-                            HolidayCalendarRepository holidayCalendarRepository,
-                            ComplaintSlaMetricsRepository slaMetricsRepository,
-                            AuditLogRepository auditLogRepository,
-                            StageSlaEventRepository stageSlaEventRepository,
-                            SlaBreachRecordRepository slaBreachRecordRepository) {
+                            HolidayCalendarRepository holidayCalendarRepository) {
         this.slaConfigRepository = slaConfigRepository;
         this.holidayCalendarRepository = holidayCalendarRepository;
-        this.slaMetricsRepository = slaMetricsRepository;
-        this.auditLogRepository = auditLogRepository;
-        this.stageSlaEventRepository = stageSlaEventRepository;
-        this.slaBreachRecordRepository = slaBreachRecordRepository;
     }
 
     /**
@@ -181,12 +165,6 @@ public class SlaConfigService {
         return slaConfigRepository.findAll();
     }
 
-    @Transactional
-    public void resetSlaConfigs() {
-        slaConfigRepository.deleteAll();
-        seedDefaultSlaConfigs();
-    }
-
     /**
      * Reads an approved SLA Matrix duration. Missing keys are logged and return
      * empty so callers cannot silently invent minutes.
@@ -227,22 +205,6 @@ public class SlaConfigService {
                 .holidayType(type != null ? type : TYPE_PUBLIC_HOLIDAY)
                 .build();
         return holidayCalendarRepository.save(h);
-    }
-
-    @Transactional
-    public void purgeAllSlaData() {
-        if (stageSlaEventRepository != null) {
-            stageSlaEventRepository.deleteAll();
-        }
-        if (slaBreachRecordRepository != null) {
-            slaBreachRecordRepository.deleteAll();
-        }
-        if (slaMetricsRepository != null) {
-            slaMetricsRepository.deleteAll();
-        }
-        if (auditLogRepository != null) {
-            auditLogRepository.deleteAll();
-        }
     }
 
     @Transactional

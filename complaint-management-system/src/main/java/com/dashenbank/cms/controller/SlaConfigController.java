@@ -65,20 +65,6 @@ public class SlaConfigController {
         return ResponseEntity.ok(updated);
     }
 
-    @PostMapping("/reset")
-    public ResponseEntity<Map<String, String>> resetToDefaults() {
-        slaConfigService.resetSlaConfigs();
-        stageSlaLedgerService.evaluateOpenEvents();
-        return ResponseEntity.ok(Map.of(KEY_MESSAGE, "SLA configurations successfully reset to Dashen Bank defaults."));
-    }
-
-    @PostMapping("/purge")
-    public ResponseEntity<Map<String, String>> purgeAllData() {
-        slaConfigService.purgeAllSlaData();
-        return ResponseEntity.ok(Map.of(KEY_MESSAGE,
-                "SLA operational data reset: stage events, breach logs, metrics, and audit trail. Policy matrix retained."));
-    }
-
     @GetMapping("/holidays")
     public ResponseEntity<List<HolidayCalendar>> getAllHolidays() {
         return ResponseEntity.ok(slaConfigService.getAllHolidays());
