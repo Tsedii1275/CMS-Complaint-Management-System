@@ -17,6 +17,14 @@ const PRIMARY = BRAND_COLORS.primary;
 const EVIDENCE_FILE_ACCEPT = '.pdf,.jpg,.jpeg,.png,.docx,.xlsx';
 const VOICE_FILE_ACCEPT = '.mp3,.wav,.m4a';
 
+function registeredCaseText(value) {
+  const text = value == null ? '' : String(value).trim();
+  if (!text || text.toLowerCase() === 'null') {
+    return 'N/A';
+  }
+  return text;
+}
+
 const pageStackStyle = { width: '100%', maxWidth: '1400px', margin: '0 auto' };
 const headerRowStyle = {
   display: 'flex',
@@ -900,10 +908,21 @@ function BranchStaffDashboard() {
                 </Col>
                 <Col span={12}>
                   <Text type="secondary" style={mutedBlockLabelStyle}>Customer Name</Text>
-                  <strong style={strong14Style}>{selectedComplaint.customerName}</strong>
+                  <strong style={strong14Style}>{registeredCaseText(selectedComplaint.customerName)}</strong>
                 </Col>
 
-                {!(selectedComplaint.classification === 'OTHER' || selectedComplaint.status === 'OTHER') && (
+                {(selectedComplaint.classification === 'OTHER' || selectedComplaint.status === 'OTHER') ? (
+                  <>
+                    <Col span={12}>
+                      <Text type="secondary" style={mutedBlockLabelStyle}>Current Contact Phone</Text>
+                      <strong style={strong14Style}>{registeredCaseText(selectedComplaint.currentContactPhone)}</strong>
+                    </Col>
+                    <Col span={12}>
+                      <Text type="secondary" style={mutedBlockLabelStyle}>Account Number</Text>
+                      <strong style={strong14Style}>{registeredCaseText(selectedComplaint.accountNumber)}</strong>
+                    </Col>
+                  </>
+                ) : (
                   <>
                     <Col span={12}>
                       <Text type="secondary" style={mutedBlockLabelStyle}>Category</Text>
@@ -917,7 +936,14 @@ function BranchStaffDashboard() {
                 )}
               </Row>
 
-              {selectedComplaint.complaintDescription && (
+              {(selectedComplaint.classification === 'OTHER' || selectedComplaint.status === 'OTHER') ? (
+                <div style={sectionDividerStyle}>
+                  <Text type="secondary" style={voicePreviewLabelStyle}>Details of the Complaint</Text>
+                  <p style={descriptionTextStyle}>
+                    {registeredCaseText(selectedComplaint.complaintDescription)}
+                  </p>
+                </div>
+              ) : selectedComplaint.complaintDescription && (
                 <div style={sectionDividerStyle}>
                   <Text type="secondary" style={voicePreviewLabelStyle}>Description</Text>
                   <p style={descriptionTextStyle}>

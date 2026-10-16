@@ -1,5 +1,6 @@
 package com.dashenbank.cms.service;
 
+import com.dashenbank.cms.customer.CustomerContactPhones;
 import com.dashenbank.cms.model.*;
 import com.dashenbank.cms.repository.*;
 
@@ -1211,10 +1212,64 @@ public class SlaTrackingService {
         List<ComplaintSlaMetrics> others = new ArrayList<>();
         for (ComplaintSlaMetrics m : slaMetricsRepository.findAll()) {
             if (isOtherClassification(m)) {
+                attachRegisteredCaseDetails(m);
                 others.add(m);
             }
         }
         return others;
+    }
+
+    /**
+     * OTHER rows keep only the SLA snapshot. The registered name, phone, account,
+     * and complaint text stay on the workflow variables after screening ends.
+     */
+    private void attachRegisteredCaseDetails(ComplaintSlaMetrics metrics) {
+        Map<String, Object> vars = readCaseVariables(metrics.getProcessInstanceId());
+        Map<String, Object> customer = castToMap(vars.get("customer"));
+        Map<String, Object> complaint = castToMap(vars.get("complaint"));
+
+        String customerName = firstNonBlank(metrics.getCustomerName(), str(customer, "name"), str(vars, "customerName"));
+        if (!customerName.isBlank()) {
+            metrics.setCustomerName(customerName);
+        }
+        String phone = CustomerContactPhones.currentContact(customer);
+        metrics.setCurrentContactPhone(firstNonBlank(
+                phone,
+                str(customer, CustomerContactPhones.CURRENT_CONTACT_PHONE),
+                str(vars, CustomerContactPhones.CURRENT_CONTACT_PHONE),
+                str(customer, "phone"),
+                str(vars, "phone")));
+        metrics.setAccountNumber(firstNonBlank(
+                str(customer, "accountNumber"),
+                str(complaint, "accountNumber"),
+                str(vars, "accountNumber")));
+        metrics.setComplaintDescription(firstNonBlank(
+                str(complaint, "description"),
+                str(vars, "complaintDescription"),
+                str(vars, "description"),
+                str(complaint, "detailsOfComplaint")));
+    }
+
+    private Map<String, Object> readCaseVariables(String processInstanceId) {
+        Map<String, Object> runtime = readWorkflowVariables(processInstanceId);
+        if (runtime != null && !runtime.isEmpty()) {
+            return runtime;
+        }
+        if (processInstanceId == null || processInstanceId.isBlank() || historyService == null) {
+            return Map.of();
+        }
+        try {
+            var historic = historyService.createHistoricProcessInstanceQuery()
+                    .processInstanceId(processInstanceId)
+                    .includeProcessVariables()
+                    .singleResult();
+            if (historic != null && historic.getProcessVariables() != null) {
+                return historic.getProcessVariables();
+            }
+        } catch (Exception ignored) {
+            log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+        }
+        return Map.of();
     }
 
     /**

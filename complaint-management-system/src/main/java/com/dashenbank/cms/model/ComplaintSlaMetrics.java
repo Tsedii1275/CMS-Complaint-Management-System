@@ -190,6 +190,16 @@ public class ComplaintSlaMetrics {
     @Column(name = "dbc_ticket_id", length = 100)
     private String dbcTicketId;
 
+    /** Registered case fields for the Contact Center Other detail view. Not stored on the SLA row. */
+    @Transient
+    private String currentContactPhone;
+
+    @Transient
+    private String accountNumber;
+
+    @Transient
+    private String complaintDescription;
+
     public String getDbcTicketId() {
         if (this.dbcTicketId != null && this.dbcTicketId.startsWith("DBC-")) {
             return this.dbcTicketId;
