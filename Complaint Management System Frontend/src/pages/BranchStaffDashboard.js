@@ -25,6 +25,22 @@ function registeredCaseText(value) {
   return text;
 }
 
+function firstRegisteredValue(...values) {
+  for (const value of values) {
+    const text = value == null ? '' : String(value).trim();
+    if (text && text.toLowerCase() !== 'null') {
+      return text;
+    }
+  }
+  return '';
+}
+
+function isOtherCase(record) {
+  const classification = String(record?.classification || '').toUpperCase();
+  const status = String(record?.status || '').toUpperCase();
+  return classification === 'OTHER' || status === 'OTHER';
+}
+
 const pageStackStyle = { width: '100%', maxWidth: '1400px', margin: '0 auto' };
 const headerRowStyle = {
   display: 'flex',
@@ -162,6 +178,7 @@ function BranchStaffDashboard() {
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [detailFromOther, setDetailFromOther] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
@@ -434,6 +451,7 @@ function BranchStaffDashboard() {
             icon={<EyeOutlined style={eyeIconStyle} />}
             onClick={() => {
               setSelectedComplaint(r);
+              setDetailFromOther(false);
               setIsDetailModalOpen(true);
             }}
           />
@@ -466,6 +484,7 @@ function BranchStaffDashboard() {
             icon={<EyeOutlined style={eyeIconStyle} />}
             onClick={() => {
               setSelectedComplaint(r);
+              setDetailFromOther(true);
               setIsDetailModalOpen(true);
             }}
           />
@@ -881,14 +900,37 @@ function BranchStaffDashboard() {
         <Modal
           title={<span style={detailModalTitleStyle}>Task Details</span>}
           open={isDetailModalOpen}
-          onCancel={() => setIsDetailModalOpen(false)}
+          onCancel={() => {
+            setIsDetailModalOpen(false);
+            setDetailFromOther(false);
+          }}
           footer={null}
           width="100%"
           style={modalDetailStyle}
         >
-          {selectedComplaint && (
+          {selectedComplaint && (() => {
+            const customer = selectedComplaint.variables?.customer || {};
+            const complaint = selectedComplaint.variables?.complaint || {};
+            const showOtherCase = detailFromOther || isOtherCase(selectedComplaint);
+            const contactPhone = firstRegisteredValue(
+              selectedComplaint.currentContactPhone,
+              customer.currentContactPhone,
+              customer.phone,
+              selectedComplaint.phone
+            );
+            const accountNumber = firstRegisteredValue(
+              selectedComplaint.accountNumber,
+              customer.accountNumber,
+              complaint.accountNumber
+            );
+            const complaintDetails = firstRegisteredValue(
+              selectedComplaint.complaintDescription,
+              complaint.description,
+              selectedComplaint.description
+            );
+            return (
             <div style={detailBoxStyle}>
-              {!(selectedComplaint.classification === 'OTHER' || selectedComplaint.status === 'OTHER') && (
+              {!showOtherCase && (
                 <Title level={5} style={detailHeadingStyle}>
                   Complaint Information
                 </Title>
@@ -908,18 +950,18 @@ function BranchStaffDashboard() {
                 </Col>
                 <Col span={12}>
                   <Text type="secondary" style={mutedBlockLabelStyle}>Customer Name</Text>
-                  <strong style={strong14Style}>{registeredCaseText(selectedComplaint.customerName)}</strong>
+                  <strong style={strong14Style}>{registeredCaseText(selectedComplaint.customerName || customer.name)}</strong>
                 </Col>
 
-                {(selectedComplaint.classification === 'OTHER' || selectedComplaint.status === 'OTHER') ? (
+                {showOtherCase ? (
                   <>
                     <Col span={12}>
                       <Text type="secondary" style={mutedBlockLabelStyle}>Current Contact Phone</Text>
-                      <strong style={strong14Style}>{registeredCaseText(selectedComplaint.currentContactPhone)}</strong>
+                      <strong style={strong14Style}>{registeredCaseText(contactPhone)}</strong>
                     </Col>
                     <Col span={12}>
                       <Text type="secondary" style={mutedBlockLabelStyle}>Account Number</Text>
-                      <strong style={strong14Style}>{registeredCaseText(selectedComplaint.accountNumber)}</strong>
+                      <strong style={strong14Style}>{registeredCaseText(accountNumber)}</strong>
                     </Col>
                   </>
                 ) : (
@@ -936,11 +978,11 @@ function BranchStaffDashboard() {
                 )}
               </Row>
 
-              {(selectedComplaint.classification === 'OTHER' || selectedComplaint.status === 'OTHER') ? (
+              {showOtherCase ? (
                 <div style={sectionDividerStyle}>
                   <Text type="secondary" style={voicePreviewLabelStyle}>Details of the Complaint</Text>
                   <p style={descriptionTextStyle}>
-                    {registeredCaseText(selectedComplaint.complaintDescription)}
+                    {registeredCaseText(complaintDetails)}
                   </p>
                 </div>
               ) : selectedComplaint.complaintDescription && (
@@ -1038,7 +1080,8 @@ function BranchStaffDashboard() {
                 </div>
               )}
             </div>
-          )}
+            );
+          })()}
         </Modal>
 
       </Space>
