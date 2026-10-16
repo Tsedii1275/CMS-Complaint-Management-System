@@ -39,8 +39,6 @@ function SystemIntegrationsPage() {
         <Text type="secondary">AD, CBS, email, SMS, workflow, and notification queues</Text>
         {error && <Alert style={{ marginTop: 16 }} type="error" showIcon message={error} />}
         <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
-          <Col xs={12} md={6}><Card><Statistic title="Email waiting" value={queues.emailPending ?? '—'} /></Card></Col>
-          <Col xs={12} md={6}><Card><Statistic title="Email failed" value={queues.emailFailed ?? '—'} /></Card></Col>
           <Col xs={12} md={6}><Card><Statistic title="SMS waiting" value={queues.smsPending ?? '—'} /></Card></Col>
           <Col xs={12} md={6}><Card><Statistic title="SMS failed" value={queues.smsFailed ?? '—'} /></Card></Col>
         </Row>

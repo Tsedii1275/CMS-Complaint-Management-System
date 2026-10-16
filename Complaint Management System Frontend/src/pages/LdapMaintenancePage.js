@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Button, Card, Col, Descriptions, Row, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, Card, Col, Descriptions, Row, Space, Table, Tag, Typography, message } from 'antd';
 import { CloudServerOutlined, ReloadOutlined, SyncOutlined } from '@ant-design/icons';
 import DashboardLayout from '../components/DashboardLayout';
 import ApiService from '../services/api';
@@ -67,12 +67,6 @@ function LdapMaintenancePage() {
               Maintenance view for hybrid AD login. User &amp; Role Management is unchanged.
             </Text>
           </div>
-          <Alert
-            type="info"
-            showIcon
-            message="Active Directory Authentication & Approval Workflow"
-            description="Active Directory is strictly used for identity verification. Automatic role assignment based on Job Title, Group, or OU is disabled. All new AD users are initialized with PENDING_APPROVAL status until an administrator assigns a role in User Management."
-          />
           <Space>
             <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>Refresh</Button>
             <Button onClick={healthCheck}>Health check</Button>

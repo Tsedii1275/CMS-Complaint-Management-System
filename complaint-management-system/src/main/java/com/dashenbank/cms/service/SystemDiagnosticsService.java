@@ -189,9 +189,6 @@ public class SystemDiagnosticsService {
 
     private Map<String, Object> queues() {
         Map<String, Object> queues = new LinkedHashMap<>();
-        queues.put("emailPending", count(NotificationChannel.EMAIL, NotificationStatus.PENDING, NotificationStatus.RETRY,
-                NotificationStatus.SENDING));
-        queues.put("emailFailed", count(NotificationChannel.EMAIL, NotificationStatus.FAILED));
         queues.put("smsPending", count(NotificationChannel.SMS, NotificationStatus.PENDING, NotificationStatus.RETRY,
                 NotificationStatus.SENDING));
         queues.put("smsFailed", count(NotificationChannel.SMS, NotificationStatus.FAILED));
