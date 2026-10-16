@@ -60,6 +60,10 @@ services:
       dockerfile: Dockerfile
     container_name: cms-complaint-management-system
     restart: unless-stopped
+    # DNS for this name returns 10.0.20.68, which UAT cannot reach. DataPower rejects
+    # requests whose hostname is the mapped IP, so the container resolves the name to the NAT.
+    extra_hosts:
+      - "datapower-cp4iuat.dashenbanksc.com:10.40.30.114"
     depends_on:
       mysql:
         condition: service_healthy
@@ -79,7 +83,7 @@ services:
       - cms_uploads:/app/uploads
       # Optional DataPower truststore (public Sectigo intermediate only). Create ./certs on the
       # host and set SMS_DATAPOWER_TRUSTSTORE_PATH/PASSWORD in .env.prod.local (not in git).
-      - ./certs:/app/certs:ro
+      - ./certs:/app/certs:ro,z
     ports:
       - "8082:8080"
 

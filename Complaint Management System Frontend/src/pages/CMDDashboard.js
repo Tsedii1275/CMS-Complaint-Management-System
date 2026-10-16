@@ -13,6 +13,10 @@ import { customerHomeBranch, customerHomeDistrict, customerBranchCode, complaint
 const { Title, Text } = Typography;
 const { Option } = Select;
 
+function lettersOnlyPlaceName(value) {
+  return String(value || '').replace(/[^\p{L} ]/gu, '').slice(0, 100);
+}
+
 const CMD_LABEL_STYLE = { color: '#475569', fontSize: '14px', fontWeight: 500 };
 const CMD_LABEL_STRONG_STYLE = { color: '#475569', fontSize: '14px', fontWeight: 600 };
 const CMD_LABEL_SMALL_STRONG_STYLE = { color: '#475569', fontSize: '13px', fontWeight: 600 };
@@ -1162,24 +1166,6 @@ async function saveAllCmdChanges(ref) {
   }
 }
 
-function changeCmdBranch(ref, value) {
-  const s = sget(ref);
-  const distObj = s.districtsList.find(d => d.name === s.formData.district);
-  const branchObj = distObj?.branches.find(b => b.name === value);
-  const deptObj = branchObj?.departments.find(d => d.name === s.formData.department);
-  let manager = '';
-  if (deptObj) {
-    manager = `${deptObj.managerName} (${deptObj.name})`;
-  } else if (branchObj) {
-    manager = branchObj.managerName;
-  }
-  s.setFormData(prev => ({
-    ...prev,
-    branch: value,
-    manager
-  }));
-}
-
 async function saveCmdClassification(ref) {
   const s = sget(ref);
   try {
@@ -1367,8 +1353,6 @@ function bindCmdHandlers(stateRef) {
     handleTaskSelect: (task) => selectCmdTask(stateRef, task),
     handleSaveAllChanges: () => saveAllCmdChanges(stateRef),
     handleSelectChange: (name, value) => sget(stateRef).setFormData(prev => ({ ...prev, [name]: value })),
-    handleDistrictChange: (value) => sget(stateRef).setFormData(prev => ({ ...prev, district: value, branch: '', manager: '' })),
-    handleBranchChange: (value) => changeCmdBranch(stateRef, value),
     handleSaveClassification: () => saveCmdClassification(stateRef),
     handleSubmit: () => submitCmdScreening(stateRef),
     handleFcrVerification: (action) => verifyCmdFcr(stateRef, action),
@@ -1384,7 +1368,6 @@ function useCmdDashboardState() {
   const [selectedTask, setSelectedTask] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [districtsList, setDistrictsList] = useState([]);
   const [slaMetrics, setSlaMetrics] = useState([]);
   const [activeTab, setActiveTab] = useState(
     isCmdOfficerWorkspace(user?.role || '') ? 'my_tasks' : 'all_tasks'
@@ -1433,8 +1416,6 @@ function useCmdDashboardState() {
     setLoading,
     error,
     setError,
-    districtsList,
-    setDistrictsList,
     slaMetrics,
     setSlaMetrics,
     activeTab,
@@ -1998,8 +1979,7 @@ function CmdWorkUnitResolutionBanner({ selectedTask, formData, setFormData, isSu
 
 function CmdComplaintDetailsCard({
   selectedTask, activeTab, formData, setFormData, editingFields, setEditingFields,
-  handleSaveAllChanges, isSubmitting, user, handleOpenAssignModal, handleBranchChange,
-  handleDistrictChange, districtsList
+  handleSaveAllChanges, isSubmitting, user, handleOpenAssignModal
 }) {
   return (
     <div style={{
@@ -2093,17 +2073,14 @@ function CmdComplaintDetailsCard({
           <Text style={{ color: '#64748b', fontSize: '14px' }}>Complaint Branch</Text>
           {activeTab === 'my_tasks' && editingFields.branch ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Select
-                placeholder="Select Branch"
-                value={formData.branch || undefined}
-                onChange={handleBranchChange}
+              <Input
+                placeholder="Enter Complaint Branch"
+                value={formData.branch || ''}
+                maxLength={100}
+                onChange={(e) => setFormData(prev => ({ ...prev, branch: lettersOnlyPlaceName(e.target.value) }))}
                 style={{ minWidth: '180px' }}
                 size="small"
-              >
-                {districtsList.flatMap(d => d.branches).map(br => (
-                  <Option key={br.id || br.name} value={br.name}>{br.name}</Option>
-                ))}
-              </Select>
+              />
               <Button
                 type="text"
                 size="small"
@@ -2133,17 +2110,14 @@ function CmdComplaintDetailsCard({
           <Text style={{ color: '#64748b', fontSize: '14px' }}>Complaint District</Text>
           {activeTab === 'my_tasks' && editingFields.district ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Select
-                placeholder="Select District"
-                value={formData.district || undefined}
-                onChange={handleDistrictChange}
+              <Input
+                placeholder="Enter Complaint District"
+                value={formData.district || ''}
+                maxLength={100}
+                onChange={(e) => setFormData(prev => ({ ...prev, district: lettersOnlyPlaceName(e.target.value) }))}
                 style={{ minWidth: '180px' }}
                 size="small"
-              >
-                {districtsList.map(dist => (
-                  <Option key={dist.id || dist.name} value={dist.name}>{dist.name}</Option>
-                ))}
-              </Select>
+              />
               <Button
                 type="text"
                 size="small"
@@ -3023,8 +2997,7 @@ function CmdComplaintInfoColumn(props) {
   const {
     selectedTask, activeTab, formData, setFormData, editingFields, setEditingFields,
     handleSaveAllChanges, isSubmitting, handleFcrVerification, handleCloseCommitteeDecisionCase,
-    handleCloseAfterWorkUnit, user, handleOpenAssignModal, handleBranchChange, handleDistrictChange,
-    districtsList
+    handleCloseAfterWorkUnit, user, handleOpenAssignModal
   } = props;
   const wideColumn = activeTab === 'my_tasks' || activeTab === 'all_tasks' || activeTab === 'fcr_tasks';
   return (
@@ -3055,9 +3028,6 @@ function CmdComplaintInfoColumn(props) {
         isSubmitting={isSubmitting}
         user={user}
         handleOpenAssignModal={handleOpenAssignModal}
-        handleBranchChange={handleBranchChange}
-        handleDistrictChange={handleDistrictChange}
-        districtsList={districtsList}
       />
       <CmdAuditInvestigationCard selectedTask={selectedTask} />
     </Col>
