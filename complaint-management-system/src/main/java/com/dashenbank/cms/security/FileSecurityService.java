@@ -43,6 +43,8 @@ public class FileSecurityService {
     public static final Set<String> AUDIO_EXTENSIONS = Set.of("mp3", "wav", "m4a");
     public static final Set<String> ALLOWED_EXTENSIONS = Set.of(
             "pdf", "jpg", "jpeg", "png", "docx", "xlsx", "mp3", "wav", "m4a");
+    public static final String UNSUPPORTED_FILE_MESSAGE =
+            "This file is unsupported. Please upload one of these file types: PDF, JPG, JPEG, PNG, DOCX, XLSX, MP3, WAV, or M4A.";
 
     // Explicitly Blacklisted dangerous extensions for audit logging
     private static final Set<String> DANGEROUS_EXTENSIONS = Set.of(
@@ -175,18 +177,18 @@ public class FileSecurityService {
 
         if (!ALLOWED_EXTENSIONS.contains(extension)) {
             log.warn("SECURITY REJECTION: Extension '.{}' not allowed for file '{}'", extension, originalName);
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The uploaded file type is not permitted.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, UNSUPPORTED_FILE_MESSAGE);
         }
     }
 
     private void validateMimeTypeRules(String extension, String contentType) {
-        if (contentType.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing file Content-Type header");
+        if (contentType.isBlank() || "application/octet-stream".equals(contentType)) {
+            return;
         }
 
         if (!ALLOWED_MIME_TYPES.contains(contentType)) {
             log.warn("SECURITY REJECTION: Non-whitelisted MIME type '{}' for extension '.{}'", contentType, extension);
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The uploaded file type is not permitted.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, UNSUPPORTED_FILE_MESSAGE);
         }
 
         boolean matched = switch (extension) {
@@ -207,7 +209,7 @@ public class FileSecurityService {
         if (!matched) {
             log.warn("SECURITY ALERT: Extension/MIME spoofing detected! Extension='.{}', Content-Type='{}'", extension,
                     contentType);
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The uploaded file type is not permitted.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, UNSUPPORTED_FILE_MESSAGE);
         }
     }
 
@@ -245,7 +247,7 @@ public class FileSecurityService {
 
             if (!validSignature) {
                 log.warn("SECURITY ALERT: Magic byte validation failed for extension '.{}'", extension);
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The uploaded file type is not permitted.");
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, UNSUPPORTED_FILE_MESSAGE);
             }
 
         } catch (ResponseStatusException e) {

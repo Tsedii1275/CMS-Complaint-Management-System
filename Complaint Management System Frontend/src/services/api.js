@@ -505,7 +505,14 @@ class ApiService {
     });
 
     if (!response.ok) {
-      throw new Error(`Upload failed! status: ${response.status}`);
+      let message = `Upload failed! status: ${response.status}`;
+      try {
+        const data = await response.json();
+        message = data.message || data.error || message;
+      } catch (parseError) {
+        // The response body is not JSON.
+      }
+      throw new Error(message);
     }
 
     return response.json();

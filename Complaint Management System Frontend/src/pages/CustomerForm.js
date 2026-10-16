@@ -428,9 +428,43 @@ async function checkPublicComplaintStatus({ ticketSearch, language, t, setSearch
   }
 }
 
-async function onPublicEvidenceSelected(e, { setIsUploadingEvidence, setEvidenceUrl, setEvidenceName, setMessageType, setMessageText }) {
+const SUPPORTED_EVIDENCE_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'docx', 'xlsx', 'mp3', 'wav', 'm4a'];
+
+function evidenceFileExtension(fileName) {
+  const parts = String(fileName || '').toLowerCase().split('.');
+  return parts.length > 1 ? parts.pop() : '';
+}
+
+function unsupportedEvidenceMessage(language) {
+  if (language === 'amharic') {
+    return 'ይህ ፋይል አይደገፍም። እባክዎ ከሚከተሉት ፋይሎች አንዱን ይስቀሉ፦ PDF, JPG, JPEG, PNG, DOCX, XLSX, MP3, WAV, ወይም M4A።';
+  }
+  return 'This file is unsupported. Please upload one of these file types: PDF, JPG, JPEG, PNG, DOCX, XLSX, MP3, WAV, or M4A.';
+}
+
+function evidenceUploadErrorMessage(err, language) {
+  const serverMessage = err?.message || '';
+  if (/unsupported|not permitted/i.test(serverMessage)) {
+    return unsupportedEvidenceMessage(language);
+  }
+  if (serverMessage && !serverMessage.startsWith('Upload failed!')) {
+    return serverMessage;
+  }
+  return language === 'amharic'
+    ? 'ማስረጃውን መስቀል አልተቻለም። እባክዎ እንደገና ይሞክሩ።'
+    : 'Failed to upload evidence file. Please try again.';
+}
+
+async function onPublicEvidenceSelected(e, { language, setIsUploadingEvidence, setEvidenceUrl, setEvidenceName, setMessageType, setMessageText }) {
   const file = e.target.files[0];
   if (!file) {
+    return;
+  }
+  const extension = evidenceFileExtension(file.name);
+  if (!SUPPORTED_EVIDENCE_EXTENSIONS.includes(extension)) {
+    e.target.value = '';
+    setMessageType('error');
+    setMessageText(unsupportedEvidenceMessage(language));
     return;
   }
   setIsUploadingEvidence(true);
@@ -438,10 +472,13 @@ async function onPublicEvidenceSelected(e, { setIsUploadingEvidence, setEvidence
     const result = await ApiService.uploadEvidence(file);
     setEvidenceUrl(result.url);
     setEvidenceName(result.fileName);
+    setMessageType('');
+    setMessageText('');
   } catch (err) {
     console.error('Evidence upload failed:', err);
+    e.target.value = '';
     setMessageType('error');
-    setMessageText('Failed to upload evidence file. Please try again.');
+    setMessageText(evidenceUploadErrorMessage(err, language));
   } finally {
     setIsUploadingEvidence(false);
   }
@@ -627,7 +664,7 @@ function CustomerForm() {
       consentText: 'I confirm that the information provided is accurate and complete to the best of my knowledge. I consent to the use of this information for the purpose of investigating and resolving my complaint.',
       consentError: 'You must agree before submitting your complaint.',
       evidenceLabel: 'Evidence Attachment',
-      evidenceHelper: 'Upload any relevant documents, screenshots, or files to support your complaint (PDF, images, etc.).',
+      evidenceHelper: 'Supported files: PDF, JPG, JPEG, PNG, DOCX, XLSX, MP3, WAV, and M4A. Documents and images up to 10 MB. Audio up to 25 MB.',
       evidenceUploading: 'Uploading...',
       evidenceUploaded: 'File uploaded successfully',
       evidenceRemove: 'Remove',
@@ -673,7 +710,7 @@ function CustomerForm() {
       consentText: 'እኔ የቀረበው መረጃ ለእኔ እውቀት ትክክለኛ እና የተሟላ መሆኑን አረጋግጣለሁ። ይህ መረጃ ቅሬታዬን ለመመርመር እና ለመፍታት ጥቅም ላይ እንዲውል እስማማለሁ።',
       consentError: 'ቅሬታዎን ከማስገባትዎ በፊት መስማማት አለብዎት።',
       evidenceLabel: 'ማስረጃ ማያያዣ (አማራጭ)',
-      evidenceHelper: 'ቅሬታዎን የሚደግፉ ማናቸውንም ሰነዶች፣ ምስሎች ወይም ፋይሎች ያያይዙ።',
+      evidenceHelper: 'የሚደገፉ ፋይሎች፦ PDF, JPG, JPEG, PNG, DOCX, XLSX, MP3, WAV, እና M4A። ሰነድ እና ምስል እስከ 10 MB። ድምጽ እስከ 25 MB።',
       evidenceUploading: 'በመስቀል ላይ...',
       evidenceUploaded: 'ፋይል በተሳካ ሁኔታ ተሰቅሏል',
       evidenceRemove: 'አስወግድ',
@@ -1195,7 +1232,7 @@ function CustomerForm() {
                   accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.mp3,.wav,.m4a"
                   style={{ display: 'none' }}
                   onChange={(e) => onPublicEvidenceSelected(e, {
-                    setIsUploadingEvidence, setEvidenceUrl, setEvidenceName, setMessageType, setMessageText
+                    language, setIsUploadingEvidence, setEvidenceUrl, setEvidenceName, setMessageType, setMessageText
                   })}
                 />
                 <button
