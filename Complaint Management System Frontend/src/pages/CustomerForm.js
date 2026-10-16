@@ -437,9 +437,17 @@ function evidenceFileExtension(fileName) {
 
 function unsupportedEvidenceMessage(language) {
   if (language === 'amharic') {
-    return 'ይህ ፋይል አይደገፍም። እባክዎ ከሚከተሉት ፋይሎች አንዱን ይስቀሉ፦ PDF, JPG, JPEG, PNG, DOCX, XLSX, MP3, WAV, ወይም M4A።';
+    return 'የሚደገፉ ፋይሎች፦ PDF, JPG, JPEG, PNG, DOCX, XLSX, MP3, WAV, እና M4A። ሰነድ እና ምስል እስከ 10 MB። ድምጽ እስከ 25 MB።';
   }
-  return 'This file is unsupported. Please upload one of these file types: PDF, JPG, JPEG, PNG, DOCX, XLSX, MP3, WAV, or M4A.';
+  return 'Supported files: PDF, JPG, JPEG, PNG, DOCX, XLSX, MP3, WAV, and M4A. Documents and images up to 10 MB. Audio up to 25 MB.';
+}
+
+function showUnsupportedEvidencePopup(language) {
+  Modal.error({
+    title: language === 'amharic' ? 'ይህ ፋይል አይደገፍም' : 'This file is unsupported',
+    content: unsupportedEvidenceMessage(language),
+    okText: language === 'amharic' ? 'እሺ' : 'OK'
+  });
 }
 
 function evidenceUploadErrorMessage(err, language) {
@@ -465,6 +473,7 @@ async function onPublicEvidenceSelected(e, { language, setIsUploadingEvidence, s
     e.target.value = '';
     setMessageType('error');
     setMessageText(unsupportedEvidenceMessage(language));
+    showUnsupportedEvidencePopup(language);
     return;
   }
   setIsUploadingEvidence(true);
@@ -477,8 +486,12 @@ async function onPublicEvidenceSelected(e, { language, setIsUploadingEvidence, s
   } catch (err) {
     console.error('Evidence upload failed:', err);
     e.target.value = '';
+    const message = evidenceUploadErrorMessage(err, language);
     setMessageType('error');
-    setMessageText(evidenceUploadErrorMessage(err, language));
+    setMessageText(message);
+    if (message === unsupportedEvidenceMessage(language)) {
+      showUnsupportedEvidencePopup(language);
+    }
   } finally {
     setIsUploadingEvidence(false);
   }
