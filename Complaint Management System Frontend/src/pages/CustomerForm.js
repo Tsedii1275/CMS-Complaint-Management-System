@@ -471,8 +471,8 @@ async function onPublicEvidenceSelected(e, { language, setIsUploadingEvidence, s
   const extension = evidenceFileExtension(file.name);
   if (!SUPPORTED_EVIDENCE_EXTENSIONS.includes(extension)) {
     e.target.value = '';
-    setMessageType('error');
-    setMessageText(unsupportedEvidenceMessage(language));
+    setMessageType('');
+    setMessageText('');
     showUnsupportedEvidencePopup(language);
     return;
   }
@@ -487,10 +487,13 @@ async function onPublicEvidenceSelected(e, { language, setIsUploadingEvidence, s
     console.error('Evidence upload failed:', err);
     e.target.value = '';
     const message = evidenceUploadErrorMessage(err, language);
-    setMessageType('error');
-    setMessageText(message);
     if (message === unsupportedEvidenceMessage(language)) {
+      setMessageType('');
+      setMessageText('');
       showUnsupportedEvidencePopup(language);
+    } else {
+      setMessageType('error');
+      setMessageText(message);
     }
   } finally {
     setIsUploadingEvidence(false);
@@ -677,7 +680,6 @@ function CustomerForm() {
       consentText: 'I confirm that the information provided is accurate and complete to the best of my knowledge. I consent to the use of this information for the purpose of investigating and resolving my complaint.',
       consentError: 'You must agree before submitting your complaint.',
       evidenceLabel: 'Evidence Attachment',
-      evidenceHelper: 'Supported files: PDF, JPG, JPEG, PNG, DOCX, XLSX, MP3, WAV, and M4A. Documents and images up to 10 MB. Audio up to 25 MB.',
       evidenceUploading: 'Uploading...',
       evidenceUploaded: 'File uploaded successfully',
       evidenceRemove: 'Remove',
@@ -723,7 +725,6 @@ function CustomerForm() {
       consentText: 'እኔ የቀረበው መረጃ ለእኔ እውቀት ትክክለኛ እና የተሟላ መሆኑን አረጋግጣለሁ። ይህ መረጃ ቅሬታዬን ለመመርመር እና ለመፍታት ጥቅም ላይ እንዲውል እስማማለሁ።',
       consentError: 'ቅሬታዎን ከማስገባትዎ በፊት መስማማት አለብዎት።',
       evidenceLabel: 'ማስረጃ ማያያዣ (አማራጭ)',
-      evidenceHelper: 'የሚደገፉ ፋይሎች፦ PDF, JPG, JPEG, PNG, DOCX, XLSX, MP3, WAV, እና M4A። ሰነድ እና ምስል እስከ 10 MB። ድምጽ እስከ 25 MB።',
       evidenceUploading: 'በመስቀል ላይ...',
       evidenceUploaded: 'ፋይል በተሳካ ሁኔታ ተሰቅሏል',
       evidenceRemove: 'አስወግድ',
@@ -1235,9 +1236,6 @@ function CustomerForm() {
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#444', fontSize: '14px' }}>
                 {t.evidenceLabel}
               </label>
-              <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#888' }}>
-                {t.evidenceHelper}
-              </p>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <input
                   id="evidence-file-input"
