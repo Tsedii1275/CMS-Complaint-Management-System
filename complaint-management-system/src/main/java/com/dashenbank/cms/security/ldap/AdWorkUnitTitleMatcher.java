@@ -22,8 +22,12 @@ public final class AdWorkUnitTitleMatcher {
             "bbrm",
             "branch business manager",
             "branch business relationship manager",
+            "branch business relationship officer",
+            "junior branch business officer",
             "customer service manager",
             "customer services manager",
+            "customer service officer",
+            "cso",
             "senior customer service manager",
             "senior customer services manager",
             "acting customer service manager",
@@ -179,11 +183,15 @@ public final class AdWorkUnitTitleMatcher {
         return containsPhrase(normalized, "branch manager")
                 || containsPhrase(normalized, "branch business manager")
                 || containsPhrase(normalized, "branch business relationship manager")
+                || containsPhrase(normalized, "branch business relationship officer")
+                || containsPhrase(normalized, "junior branch business officer")
                 || containsPhrase(normalized, "bbmgr")
                 || containsPhrase(normalized, "bb mgr")
                 || containsPhrase(normalized, "bbrm")
                 || containsPhrase(normalized, "customer service manager")
                 || containsPhrase(normalized, "customer services manager")
+                || containsPhrase(normalized, "customer service officer")
+                || containsPhrase(normalized, "cso")
                 || containsPhrase(normalized, "csm")
                 || containsPhrase(normalized, "branch head")
                 || containsPhrase(normalized, "branch leader")

@@ -38,7 +38,15 @@ class AdWorkUnitTitleMatcherTest {
                 AdAssignmentScope.BRANCH));
         assertTrue(AdWorkUnitTitleMatcher.matchesTitle("Branch Business Relationship Manager - RMSME",
                 AdAssignmentScope.BRANCH));
-        assertFalse(AdWorkUnitTitleMatcher.matchesTitle("CSO", AdAssignmentScope.BRANCH));
+        assertTrue(AdWorkUnitTitleMatcher.matchesTitle("Branch Business Relationship Officer",
+                AdAssignmentScope.BRANCH));
+        assertTrue(AdWorkUnitTitleMatcher.matchesTitle("Junior Branch Business Officer",
+                AdAssignmentScope.BRANCH));
+        assertTrue(AdWorkUnitTitleMatcher.matchesTitle("Customer Service Officer", AdAssignmentScope.BRANCH));
+        assertFalse(AdWorkUnitTitleMatcher.matchesTitle("Customer Service Officer",
+                AdAssignmentScope.HEAD_OFFICE_DEPARTMENT));
+        assertFalse(AdWorkUnitTitleMatcher.matchesTitle("CSO", AdAssignmentScope.HEAD_OFFICE_DEPARTMENT));
+        assertTrue(AdWorkUnitTitleMatcher.matchesTitle("CSO", AdAssignmentScope.BRANCH));
         assertFalse(AdWorkUnitTitleMatcher.matchesTitle("BBMgr", AdAssignmentScope.HEAD_OFFICE_DEPARTMENT));
         assertTrue(AdWorkUnitTitleMatcher.matchesTitle("Service Manager", AdAssignmentScope.BRANCH, "Bole Branch",
                 List.of()));

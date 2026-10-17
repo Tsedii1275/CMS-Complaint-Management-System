@@ -60,13 +60,13 @@ class AdOrganizationServiceTest {
         String unitId = AdOrganizationService.idFor("Dashen Bole Branch");
         List<AdOrgOfficer> officers = service.officersFrom(
                 List.of(reliefCsm, bbMgr, ifbRm, hidaseCsm, kotebeRm, cso), AdAssignmentScope.BRANCH, unitId);
-        assertEquals(3, officers.size());
+        assertEquals(4, officers.size());
         assertTrue(officers.stream().anyMatch(o -> "Relief CSM".equals(o.title())));
         assertTrue(officers.stream().anyMatch(o -> "BBMgr".equals(o.title())));
         assertTrue(officers.stream().anyMatch(o -> "Branch Business Relationship Manager - IFB".equals(o.title())));
+        assertTrue(officers.stream().anyMatch(o -> "CSO".equals(o.title())));
         assertFalse(officers.stream().anyMatch(o -> "Mikerm".equals(o.username())));
         assertFalse(officers.stream().anyMatch(o -> "TesfayeKe".equals(o.username())));
-        assertFalse(officers.stream().anyMatch(o -> "CSO".equals(o.title())));
     }
 
     @Test
@@ -156,16 +156,25 @@ class AdOrganizationServiceTest {
                 true, List.of(), null, null, "Bole Branch");
         AdUserProfile serviceMgr = new AdUserProfile("csm3", "4", "Miki", "m@d.com", "Service Manager", true, List.of(),
                 null, null, "Bole Branch");
+        AdUserProfile bbro = new AdUserProfile("bbro1", "6", "Abel", "a@d.com", "Branch Business Relationship Officer",
+                true, List.of(), null, null, "Bole Branch");
+        AdUserProfile junior = new AdUserProfile("jbbo1", "7", "Helen", "he@d.com", "Junior Branch Business Officer",
+                true, List.of(), null, null, "Bole Branch");
+        AdUserProfile cso = new AdUserProfile("cso1", "8", "Yonas", "y@d.com", "Customer Service Officer", true,
+                List.of(), null, null, "Bole Branch");
         AdUserProfile teller = new AdUserProfile("t1", "5", "Teller", "t@d.com", "Teller", true, List.of(),
                 null, null, "Bole Branch");
-        List<AdUserProfile> people = List.of(bm, csm, seniorCsm, serviceMgr, teller);
+        List<AdUserProfile> people = List.of(bm, csm, seniorCsm, serviceMgr, bbro, junior, cso, teller);
         String boleId = AdOrganizationService.idFor("Bole Branch");
         List<AdOrgOfficer> officers = service.officersFrom(people, AdAssignmentScope.BRANCH, boleId);
-        assertEquals(4, officers.size());
+        assertEquals(7, officers.size());
         assertTrue(officers.stream().anyMatch(o -> "Acting Branch Manager".equals(o.title())));
         assertTrue(officers.stream().anyMatch(o -> "Customer Service Manager".equals(o.title())));
         assertTrue(officers.stream().anyMatch(o -> "Senior Customer Service Manager".equals(o.title())));
         assertTrue(officers.stream().anyMatch(o -> "Service Manager".equals(o.title())));
+        assertTrue(officers.stream().anyMatch(o -> "Branch Business Relationship Officer".equals(o.title())));
+        assertTrue(officers.stream().anyMatch(o -> "Junior Branch Business Officer".equals(o.title())));
+        assertTrue(officers.stream().anyMatch(o -> "Customer Service Officer".equals(o.title())));
         assertFalse(officers.stream().anyMatch(o -> "Teller".equals(o.title())));
     }
 

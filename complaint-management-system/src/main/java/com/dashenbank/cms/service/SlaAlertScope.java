@@ -200,10 +200,10 @@ public final class SlaAlertScope {
             case "ROLE_DEPARTMENT_WORKUNIT" -> Set.of(TASK_WORK_UNIT);
             case "ROLE_CHIEF_COMMITTEE", "ROLE_COMMITTEE_SECRETARY" -> Set.of(TASK_COMMITTEE);
             case "ROLE_CHIEF_EXPERIENCE_OFFICER" -> Set.of(TASK_CXO);
-            case "ROLE_BRANCH_MANAGER" ->
+            case "ROLE_BRANCH_MANAGER", "ROLE_CUSTOMER_SERVICE_MANAGER" ->
                 Set.of(TASK_BRANCH_CAPTURE, TASK_BRANCH_REVIEW, TASK_BRANCH_FOLLOWUP, TASK_BRANCH_REGISTER_8,
                         TASK_BRANCH_REGISTER_10, TASK_BRANCH_REGISTER_72, TASK_WORK_UNIT);
-            case "ROLE_CUSTOMER_SERVICE_MANAGER", "ROLE_CUSTOMER_EXPERIENCE_PARTNERSHIP" ->
+            case "ROLE_CUSTOMER_EXPERIENCE_PARTNERSHIP" ->
                 Set.of(TASK_BRANCH_CAPTURE, TASK_BRANCH_REVIEW, TASK_BRANCH_FOLLOWUP, TASK_BRANCH_REGISTER_8,
                         TASK_BRANCH_REGISTER_10, TASK_BRANCH_REGISTER_72);
             case "ROLE_CONTACT_CENTER_AGENT", "ROLE_CONTACT_CENTER_SENIOR_MANAGER",
@@ -245,7 +245,8 @@ public final class SlaAlertScope {
         }
         String n = normalizeRole(role);
         boolean workUnitActor = Role.ROLE_DEPARTMENT_WORKUNIT.name().equals(n)
-                || Role.ROLE_BRANCH_MANAGER.name().equals(n);
+                || Role.ROLE_BRANCH_MANAGER.name().equals(n)
+                || Role.ROLE_CUSTOMER_SERVICE_MANAGER.name().equals(n);
         return workUnitActor
                 && (taskDefinitionKey == null || "SecondaryResolutionReview".equals(taskDefinitionKey));
     }

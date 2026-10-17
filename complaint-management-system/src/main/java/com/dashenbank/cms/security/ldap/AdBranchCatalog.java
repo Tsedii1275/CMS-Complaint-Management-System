@@ -34,8 +34,10 @@ public final class AdBranchCatalog {
             return false;
         }
         String dn = distinguishedName.toLowerCase(Locale.ROOT);
-        return (dn.contains("ou=") && (dn.contains("district") || dn.contains("region")))
-                && !lower.contains("district") && !lower.contains("region");
+        boolean underLocationParent = dn.contains("ou=")
+                && (dn.contains("district") || dn.contains("region") || dn.contains("ou=branches")
+                        || dn.contains("ou=branch,") || dn.contains("ou=branch "));
+        return underLocationParent && !lower.contains("district") && !lower.contains("region");
     }
 
     public static boolean isPlausibleBranchLocation(String name) {

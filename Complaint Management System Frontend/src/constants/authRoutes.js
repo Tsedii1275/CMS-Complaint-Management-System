@@ -80,7 +80,8 @@ export function canAccessPath(pathname, role) {
     return r.includes('COMMITTEE');
   }
   if (pathname === '/work-unit') {
-    return r === 'ROLE_DEPARTMENT_WORKUNIT' || r.startsWith('ROLE_BRANCH_MANAGER');
+    return r === 'ROLE_DEPARTMENT_WORKUNIT' || r.startsWith('ROLE_BRANCH_MANAGER')
+      || r === 'ROLE_CUSTOMER_SERVICE_MANAGER';
   }
   if (pathname === '/cmd') {
     return r === 'ROLE_CUSTOMER_CARE_OFFICER'

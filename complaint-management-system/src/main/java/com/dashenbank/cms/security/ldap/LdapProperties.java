@@ -355,7 +355,7 @@ public class LdapProperties {
         private boolean discovery = false;
         private int maxResults = 500;
         private int pageSize = 500;
-        private int assignmentMaxResults = 10_000;
+        private int assignmentMaxResults = 50_000;
 
         public boolean isEnabled() {
             return enabled;
@@ -398,7 +398,7 @@ public class LdapProperties {
         }
 
         public int getAssignmentMaxResults() {
-            return assignmentMaxResults <= 0 ? 10_000 : assignmentMaxResults;
+            return assignmentMaxResults <= 0 ? 50_000 : assignmentMaxResults;
         }
 
         public void setAssignmentMaxResults(int assignmentMaxResults) {

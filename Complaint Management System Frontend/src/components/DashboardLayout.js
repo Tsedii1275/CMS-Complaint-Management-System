@@ -123,7 +123,7 @@ function SidebarMenu({ collapsed, userRole, user, onNavigate }) {
       icon: <HomeOutlined />,
       label: 'Work Unit Resolution',
     });
-  } else if (role.startsWith('ROLE_BRANCH_MANAGER')) {
+  } else if (role.startsWith('ROLE_BRANCH_MANAGER') || role === 'ROLE_CUSTOMER_SERVICE_MANAGER') {
     menuItems.push(
       {
         key: '/branch-staff',

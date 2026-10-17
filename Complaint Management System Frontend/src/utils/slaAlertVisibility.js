@@ -76,7 +76,7 @@ export function isSlaAlertForUser(alert, user) {
     }
     return matchesAssignee(alert, user) || matchesDepartment(alert, user) || matchesBranch(alert, user);
   }
-  if (role.startsWith('ROLE_BRANCH_MANAGER')) {
+  if (role.startsWith('ROLE_BRANCH_MANAGER') || role === 'ROLE_CUSTOMER_SERVICE_MANAGER') {
     const workUnit = stage.includes('WORK_UNIT');
     const branchIntake = stage.includes('BRANCH') && !stage.includes('WORK_UNIT');
     if (!workUnit && !branchIntake) {

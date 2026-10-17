@@ -74,7 +74,7 @@ function branchMatches(user, task) {
 function unitFallbackMatches(user, task) {
   const role = String(user?.role || '').toUpperCase();
   const scope = assignmentScope(task);
-  if (role.startsWith('ROLE_BRANCH_MANAGER')) {
+  if (role.startsWith('ROLE_BRANCH_MANAGER') || role === 'ROLE_CUSTOMER_SERVICE_MANAGER') {
     const userBranch = normalizeKey(user?.branch);
     const taskBranch = normalizeKey(complaintBranch(task?.variables));
     return Boolean(userBranch && taskBranch && userBranch === taskBranch
@@ -111,7 +111,7 @@ export function isVisibleOnWorkUnitInbox(task, user) {
       return false;
     }
     const role = String(user?.role || '').toUpperCase();
-    if (role.startsWith('ROLE_BRANCH_MANAGER')) {
+    if (role.startsWith('ROLE_BRANCH_MANAGER') || role === 'ROLE_CUSTOMER_SERVICE_MANAGER') {
       const scope = assignmentScope(task);
       if (scope && scope !== 'BRANCH') {
         return false;

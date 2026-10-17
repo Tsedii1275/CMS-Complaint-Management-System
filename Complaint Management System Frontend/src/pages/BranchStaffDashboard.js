@@ -203,16 +203,19 @@ function BranchStaffDashboard() {
     userRole === 'ROLE_CUSTOMER_EXPERIENCE_PARTNERSHIP' ||
     userRole === 'ROLE_CUSTOMER_SERVICE_MANAGER' || userRole === 'ROLE_CHIEF_EXPERIENCE_OFFICER';
 
-  const isBranchManager = userRole.startsWith('ROLE_BRANCH_MANAGER');
-  const isContactCenterUser = !isBranchManager && (
+  const isBranchManager = userRole.startsWith('ROLE_BRANCH_MANAGER')
+    || userRole === 'ROLE_CUSTOMER_SERVICE_MANAGER';
+  const hideOtherTab = isBranchManager
+    || userRole === 'ROLE_CUSTOMER_EXPERIENCE_PARTNERSHIP'
+    || userRole.startsWith('ROLE_DIGITAL_MARKETING');
+  const isContactCenterUser = !hideOtherTab && (
     userRole.includes('CONTACT_CENTER') ||
     userRole.includes('BRANCH') ||
     userRole.includes('STAFF') ||
     userRole.includes('ADMIN') ||
     userRole === 'ROLE_CONTACT_CENTER_AGENT' ||
     userRole === 'ROLE_CONTACT_CENTER_TEAM_LEADER' ||
-    userRole === 'ROLE_CONTACT_CENTER_SENIOR_MANAGER' ||
-    userRole === 'ROLE_CUSTOMER_EXPERIENCE_PARTNERSHIP');
+    userRole === 'ROLE_CONTACT_CENTER_SENIOR_MANAGER');
 
   useEffect(() => {
     loadComplaintsData();

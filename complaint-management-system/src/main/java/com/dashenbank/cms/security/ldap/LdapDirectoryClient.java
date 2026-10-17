@@ -186,6 +186,47 @@ public class LdapDirectoryClient implements DirectoryOperations {
         int cap = Math.max(1, maxResults);
         DirContext ctx = serviceContext();
         try {
+            if (ctx instanceof LdapContext ldapContext) {
+                return pagedOrganizationalUnitSearch(ldapContext, 500, cap);
+            }
+            log.warn("LDAP context does not support paging; using a single-page OU search");
+            return singlePageOrganizationalUnits(ctx, cap);
+        } catch (NamingException | IOException e) {
+            log.warn("LDAP paged OU search failed, using a single-page search: {}", safeDetail(e));
+            return singlePageOrganizationalUnits(ctx, cap);
+        } finally {
+            closeQuietly(ctx);
+        }
+    }
+
+    private List<String> pagedOrganizationalUnitSearch(LdapContext ctx, int pageSize, int maxTotal)
+            throws NamingException, IOException {
+        SearchControls controls = new SearchControls();
+        controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
+        controls.setReturningAttributes(OU_ATTRS);
+        byte[] cookie = null;
+        Map<String, String> unique = new LinkedHashMap<>();
+        do {
+            ctx.setRequestControls(new Control[] { new PagedResultsControl(pageSize, cookie, Control.CRITICAL) });
+            NamingEnumeration<SearchResult> results = ctx.search(properties.organizationSearchBase(), OU_FILTER,
+                    controls);
+            try {
+                while (results.hasMore() && unique.size() < maxTotal) {
+                    rememberAssignableBranch(unique, results.next());
+                }
+            } catch (javax.naming.SizeLimitExceededException | javax.naming.PartialResultException e) {
+                log.warn("LDAP OU page stopped after {} units: {}", unique.size(), safeDetail(e));
+            } finally {
+                results.close();
+            }
+            cookie = pagedCookie(ctx.getResponseControls());
+        } while (cookie != null && cookie.length > 0 && unique.size() < maxTotal);
+        ctx.setRequestControls(null);
+        return new ArrayList<>(unique.values());
+    }
+
+    private List<String> singlePageOrganizationalUnits(DirContext ctx, int cap) {
+        try {
             SearchControls controls = new SearchControls();
             controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
             controls.setReturningAttributes(OU_ATTRS);
@@ -196,8 +237,17 @@ public class LdapDirectoryClient implements DirectoryOperations {
         } catch (NamingException e) {
             log.warn("LDAP organizational unit search failed: {}", safeDetail(e));
             throw new DirectoryUnavailableException("Directory OU search failed: " + safeDetail(e), e);
-        } finally {
-            closeQuietly(ctx);
+        }
+    }
+
+    private static void rememberAssignableBranch(Map<String, String> unique, SearchResult result) throws NamingException {
+        String name = organizationalUnitName(result);
+        String dn = result.getNameInNamespace();
+        if (!StringUtils.hasText(dn)) {
+            dn = first(result.getAttributes(), "distinguishedName");
+        }
+        if (StringUtils.hasText(name) && AdBranchCatalog.isAssignableBranch(name, dn)) {
+            unique.putIfAbsent(name.trim().toLowerCase(Locale.ROOT), name.trim());
         }
     }
 
@@ -206,15 +256,7 @@ public class LdapDirectoryClient implements DirectoryOperations {
         Map<String, String> unique = new LinkedHashMap<>();
         try {
             while (results.hasMore() && unique.size() < maxResults) {
-                SearchResult result = results.next();
-                String name = organizationalUnitName(result);
-                String dn = result.getNameInNamespace();
-                if (!StringUtils.hasText(dn)) {
-                    dn = first(result.getAttributes(), "distinguishedName");
-                }
-                if (AdBranchCatalog.isAssignableBranch(name, dn)) {
-                    unique.putIfAbsent(name.trim().toLowerCase(Locale.ROOT), name.trim());
-                }
+                rememberAssignableBranch(unique, results.next());
             }
         } catch (javax.naming.SizeLimitExceededException | javax.naming.PartialResultException e) {
             log.warn("LDAP OU search stopped after {} units: {}", unique.size(), safeDetail(e));

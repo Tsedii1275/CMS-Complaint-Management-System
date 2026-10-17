@@ -2927,7 +2927,7 @@ function CmdScreeningFormCard(props) {
                         optionFilterProp="children"
                         placeholder={formData.adUnitId
                           ? (normalizeAssignmentScope(formData.assignmentType) === 'BRANCH'
-                            ? 'Search Branch Manager, CSM, and Service Manager'
+                            ? 'Search Branch Manager, CSM, Branch Business Relationship Officer, Junior Branch Business Officer, and Customer Service Officer'
                             : normalizeAssignmentScope(formData.assignmentType) === 'HQ_DEPARTMENT'
                               ? 'Search Director, Senior Manager, and department heads'
                               : 'Loaded from Active Directory')

@@ -31,4 +31,10 @@ class AdBranchCatalogTest {
         assertTrue(AdBranchCatalog.isAssignableBranch("Bole", dn));
         assertFalse(AdBranchCatalog.isDistrictChildBranch("Addis Ababa District", dn));
     }
+
+    @Test
+    void ouUnderBranchesFolderIsStillABranch() {
+        String dn = "OU=Kotebe,OU=Branches,OU=Dashen Bank,DC=dashenbank,DC=local";
+        assertTrue(AdBranchCatalog.isAssignableBranch("Kotebe", dn));
+    }
 }
