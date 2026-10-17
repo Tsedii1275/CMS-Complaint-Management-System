@@ -271,20 +271,19 @@ public class AdOrganizationService {
         if (accountIsInBranchOu(profile, expectedName)) {
             return true;
         }
-        String workLocation = orgUnitName(profile, AdAssignmentScope.BRANCH);
-        if (AdOrgUnitMatcher.sameUnit(workLocation, expectedName)) {
-            return true;
-        }
-        if (StringUtils.hasText(workLocation) && AdBranchCatalog.looksLikeBranchUnit(workLocation)) {
+        return officeOrDepartmentMatchesBranch(profile, expectedName);
+    }
+
+    /**
+     * People filed under another folder still belong to this branch when their
+     * office or department is this branch. Title is not used.
+     */
+    static boolean officeOrDepartmentMatchesBranch(AdUserProfile profile, String expectedName) {
+        if (profile == null || !StringUtils.hasText(expectedName)) {
             return false;
         }
-        for (String candidate : locationCandidates(profile)) {
-            if (AdBranchCatalog.isPlausibleBranchLocation(candidate)
-                    && AdOrgUnitMatcher.sameUnit(candidate, expectedName)) {
-                return true;
-            }
-        }
-        return false;
+        return AdOrgUnitMatcher.sameBranchPlace(profile.office(), expectedName)
+                || AdOrgUnitMatcher.sameBranchPlace(profile.department(), expectedName);
     }
 
     static boolean accountIsInBranchOu(AdUserProfile profile, String expectedName) {

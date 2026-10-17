@@ -75,14 +75,47 @@ class AdOrganizationServiceTest {
                 List.of(), "Zenebework Branch", ayerDn, "Zenebework Branch-720");
         String neighbourDn = "CN=Other,OU=Users,OU=Dashen Ayer Tena 04 Branch,OU=Dashen Bank,DC=dashenbank,DC=local";
         AdUserProfile neighbour = new AdUserProfile("four", "3", "Four", "f@d.com", "CSO", true, List.of(),
-                "Ayer Tena Branch", neighbourDn, "Ayer Tena Branch-075");
+                "Ayer Tena 04 Branch", neighbourDn, "Ayer Tena 04 Branch-694");
+        String boleDn = "CN=Filed,OU=Users,OU=Dashen Bole Branch,OU=Dashen Bank,DC=dashenbank,DC=local";
+        AdUserProfile filedElsewhere = new AdUserProfile("yaredmih", "4", "Yared", "y@d.com", "Teller", true,
+                List.of(), "Ayer Tena Branch", boleDn, "Ayer Tena Branch-075");
         String unitId = AdOrganizationService.idFor("Dashen Ayer Tena Branch");
-        List<AdOrgOfficer> officers = service.officersFrom(List.of(atBranch, otherOffice, neighbour),
-                AdAssignmentScope.BRANCH, unitId);
-        assertEquals(2, officers.size());
+        List<AdOrgOfficer> officers = service.officersFrom(
+                List.of(atBranch, otherOffice, neighbour, filedElsewhere), AdAssignmentScope.BRANCH, unitId);
+        assertEquals(3, officers.size());
         assertTrue(officers.stream().anyMatch(o -> "Tsionha".equals(o.username())));
         assertTrue(officers.stream().anyMatch(o -> "mulugetaget".equals(o.username())));
+        assertTrue(officers.stream().anyMatch(o -> "yaredmih".equals(o.username())));
         assertFalse(officers.stream().anyMatch(o -> "four".equals(o.username())));
+
+        String neighbourId = AdOrganizationService.idFor("Dashen Ayer Tena 04 Branch");
+        List<AdOrgOfficer> neighbourOfficers = service.officersFrom(
+                List.of(atBranch, otherOffice, neighbour, filedElsewhere), AdAssignmentScope.BRANCH, neighbourId);
+        assertEquals(1, neighbourOfficers.size());
+        assertEquals("four", neighbourOfficers.get(0).username());
+    }
+
+    @Test
+    void dashenIfbBranchListsEveryFolderAccountAndMatchingIfbOffice() {
+        AdOrganizationService service = service();
+        String ifbDn = "CN=Hawa,OU=Users,OU=Dashen IFB - Ayer tena Ansuar Branch,OU=Dashen Bank,DC=dashenbank,DC=local";
+        AdUserProfile inFolder = new AdUserProfile("hawah", "1", "Hawa", "h@d.com", "CSO", true, List.of(),
+                "Zenebework Branch", ifbDn, "Zenebework Branch-720");
+        AdUserProfile ifbOffice = new AdUserProfile("nur1", "2", "Nur", "n@d.com", "Teller", true, List.of(),
+                "IFB Ayer tena Ansuar Branch", 
+                "CN=Nur,OU=Users,OU=Dashen Bole Branch,OU=Dashen Bank,DC=dashenbank,DC=local",
+                "FIFB Ayer tena Ansuar Branch-F25");
+        AdUserProfile conventional = new AdUserProfile("Tsionha", "3", "Tsion", "t@d.com", "CSO", true, List.of(),
+                "Ayer Tena Branch",
+                "CN=Tsion,OU=Users,OU=Dashen Ayer Tena Branch,OU=Dashen Bank,DC=dashenbank,DC=local",
+                "Ayer Tena Branch-075");
+        String unitId = AdOrganizationService.idFor("Dashen IFB - Ayer tena Ansuar Branch");
+        List<AdOrgOfficer> officers = service.officersFrom(List.of(inFolder, ifbOffice, conventional),
+                AdAssignmentScope.BRANCH, unitId);
+        assertEquals(2, officers.size());
+        assertTrue(officers.stream().anyMatch(o -> "hawah".equals(o.username())));
+        assertTrue(officers.stream().anyMatch(o -> "nur1".equals(o.username())));
+        assertFalse(officers.stream().anyMatch(o -> "Tsionha".equals(o.username())));
     }
 
     @Test

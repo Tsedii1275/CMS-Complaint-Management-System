@@ -25,4 +25,20 @@ class AdOrgUnitMatcherTest {
         assertFalse(AdOrgUnitMatcher.sameUnit("Hidase Sefer Branch-616", "Dashen Bole Branch"));
         assertFalse(AdOrgUnitMatcher.sameUnit("Kotebe Branch-107", "Dashen Bole Branch"));
     }
+
+    @Test
+    void branchPlaceKeepsNumberedAndIfbNeighboursSeparate() {
+        assertTrue(AdOrgUnitMatcher.sameBranchPlace("Kotebe Branch-107", "Dashen Kotebe Branch"));
+        assertTrue(AdOrgUnitMatcher.sameBranchPlace("Ayer Tena Branch", "Dashen Ayer Tena Branch"));
+        assertTrue(AdOrgUnitMatcher.sameBranchPlace("Bahir Dar Branch-020", "Dashen Bahirdar Branch"));
+        assertTrue(AdOrgUnitMatcher.sameBranchPlace("IFB Ayer tena Ansuar Branch-F25",
+                "Dashen IFB - Ayer tena Ansuar Branch"));
+        assertTrue(AdOrgUnitMatcher.sameBranchPlace("FIFB NUR BRANCH-J04", "Dashen IFB - Nur Branch"));
+        assertTrue(AdOrgUnitMatcher.sameBranchPlace("IFB-Mecca Branch-I49", "Dashen IFB - Mecca Branch"));
+        assertFalse(AdOrgUnitMatcher.sameBranchPlace("Kotebe Messalemia Branch-713", "Dashen Kotebe Branch"));
+        assertFalse(AdOrgUnitMatcher.sameBranchPlace("Ayer Tena 04 Branch-694", "Dashen Ayer Tena Branch"));
+        assertFalse(AdOrgUnitMatcher.sameBranchPlace("Ayer Tena Branch-075", "Dashen Ayer Tena 04 Branch"));
+        assertFalse(AdOrgUnitMatcher.sameBranchPlace("IFB Ayer tena Ansuar Branch-F25", "Dashen Ayer Tena Branch"));
+        assertFalse(AdOrgUnitMatcher.sameBranchPlace("Corporate Banking Department", "Dashen Bole Branch"));
+    }
 }
