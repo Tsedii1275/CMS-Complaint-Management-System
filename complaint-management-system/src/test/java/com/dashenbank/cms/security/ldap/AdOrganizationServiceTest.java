@@ -35,10 +35,10 @@ class AdOrganizationServiceTest {
                 null, null, "Bole Branch");
         String unitId = AdOrganizationService.idFor("Dashen Bole Branch");
         List<AdOrgOfficer> officers = service.officersFrom(List.of(bm, csm, teller), AdAssignmentScope.BRANCH, unitId);
-        assertEquals(2, officers.size());
+        assertEquals(3, officers.size());
         assertTrue(officers.stream().anyMatch(o -> "Branch Manager".equals(o.title())));
         assertTrue(officers.stream().anyMatch(o -> "CSM".equals(o.title())));
-        assertFalse(officers.stream().anyMatch(o -> "Teller".equals(o.title())));
+        assertTrue(officers.stream().anyMatch(o -> "Teller".equals(o.title())));
     }
 
     @Test
@@ -77,7 +77,7 @@ class AdOrganizationServiceTest {
         List<AdOrgUnit> branches = service.unitsFrom(List.of(teller), AdAssignmentScope.BRANCH);
         assertEquals(1, branches.size());
         assertEquals("Bole", branches.get(0).name());
-        assertTrue(service.officersFrom(List.of(teller), AdAssignmentScope.BRANCH, branches.get(0).id()).isEmpty());
+        assertEquals(1, service.officersFrom(List.of(teller), AdAssignmentScope.BRANCH, branches.get(0).id()).size());
     }
 
     @Test
@@ -167,7 +167,7 @@ class AdOrganizationServiceTest {
         List<AdUserProfile> people = List.of(bm, csm, seniorCsm, serviceMgr, bbro, junior, cso, teller);
         String boleId = AdOrganizationService.idFor("Bole Branch");
         List<AdOrgOfficer> officers = service.officersFrom(people, AdAssignmentScope.BRANCH, boleId);
-        assertEquals(7, officers.size());
+        assertEquals(8, officers.size());
         assertTrue(officers.stream().anyMatch(o -> "Acting Branch Manager".equals(o.title())));
         assertTrue(officers.stream().anyMatch(o -> "Customer Service Manager".equals(o.title())));
         assertTrue(officers.stream().anyMatch(o -> "Senior Customer Service Manager".equals(o.title())));
@@ -175,7 +175,7 @@ class AdOrganizationServiceTest {
         assertTrue(officers.stream().anyMatch(o -> "Branch Business Relationship Officer".equals(o.title())));
         assertTrue(officers.stream().anyMatch(o -> "Junior Branch Business Officer".equals(o.title())));
         assertTrue(officers.stream().anyMatch(o -> "Customer Service Officer".equals(o.title())));
-        assertFalse(officers.stream().anyMatch(o -> "Teller".equals(o.title())));
+        assertTrue(officers.stream().anyMatch(o -> "Teller".equals(o.title())));
     }
 
     @Test

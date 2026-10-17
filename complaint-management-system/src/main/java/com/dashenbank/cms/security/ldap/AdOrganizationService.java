@@ -272,15 +272,20 @@ public class AdOrganizationService {
         if (AdWorkUnitTitleMatcher.isDistrictTitle(normalizedTitle)) {
             return false;
         }
-        List<String> extras = extras(AdAssignmentScope.BRANCH);
-        boolean leadership = AdWorkUnitTitleMatcher.matchesTitle(profile.title(), AdAssignmentScope.BRANCH,
-                expectedName, extras)
-                || AdWorkUnitTitleMatcher.matchesGroup(profile.memberOf(), AdAssignmentScope.BRANCH, extras);
-        if (!leadership) {
+        String workLocation = orgUnitName(profile, AdAssignmentScope.BRANCH);
+        if (AdOrgUnitMatcher.sameUnit(workLocation, expectedName)) {
+            return true;
+        }
+        if (StringUtils.hasText(workLocation) && AdBranchCatalog.looksLikeBranchUnit(workLocation)) {
             return false;
         }
-        String workLocation = orgUnitName(profile, AdAssignmentScope.BRANCH);
-        return AdOrgUnitMatcher.sameUnit(workLocation, expectedName);
+        for (String candidate : locationCandidates(profile)) {
+            if (AdBranchCatalog.isPlausibleBranchLocation(candidate)
+                    && AdOrgUnitMatcher.sameUnit(candidate, expectedName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private List<String> extras(AdAssignmentScope scope) {

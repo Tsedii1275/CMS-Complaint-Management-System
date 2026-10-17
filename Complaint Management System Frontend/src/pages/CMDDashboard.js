@@ -2927,7 +2927,7 @@ function CmdScreeningFormCard(props) {
                         optionFilterProp="children"
                         placeholder={formData.adUnitId
                           ? (normalizeAssignmentScope(formData.assignmentType) === 'BRANCH'
-                            ? 'Search Branch Manager, CSM, Branch Business Relationship Officer, Junior Branch Business Officer, and Customer Service Officer'
+                            ? 'Search all employees in this branch'
                             : normalizeAssignmentScope(formData.assignmentType) === 'HQ_DEPARTMENT'
                               ? 'Search Director, Senior Manager, and department heads'
                               : 'Loaded from Active Directory')
@@ -2947,7 +2947,7 @@ function CmdScreeningFormCard(props) {
                               : username
                           }));
                         }}
-                        notFoundContent={adOfficerLoading ? 'Loading…' : 'No matching officers in Active Directory'}
+                        notFoundContent={adOfficerLoading ? 'Loading…' : 'No employees found for this branch in Active Directory'}
                         filterOption={(input, option) =>
                           (option?.children ?? '').toString().toLowerCase().includes(input.toLowerCase())
                         }
