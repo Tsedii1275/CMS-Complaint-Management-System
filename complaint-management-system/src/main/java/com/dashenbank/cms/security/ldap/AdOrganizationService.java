@@ -268,9 +268,8 @@ public class AdOrganizationService {
     }
 
     private boolean isBranchOfficerFor(AdUserProfile profile, String expectedName) {
-        String normalizedTitle = AdWorkUnitTitleMatcher.normalize(profile.title());
-        if (AdWorkUnitTitleMatcher.isDistrictTitle(normalizedTitle)) {
-            return false;
+        if (accountIsInBranchOu(profile, expectedName)) {
+            return true;
         }
         String workLocation = orgUnitName(profile, AdAssignmentScope.BRANCH);
         if (AdOrgUnitMatcher.sameUnit(workLocation, expectedName)) {
@@ -282,6 +281,19 @@ public class AdOrganizationService {
         for (String candidate : locationCandidates(profile)) {
             if (AdBranchCatalog.isPlausibleBranchLocation(candidate)
                     && AdOrgUnitMatcher.sameUnit(candidate, expectedName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static boolean accountIsInBranchOu(AdUserProfile profile, String expectedName) {
+        if (profile == null || !StringUtils.hasText(expectedName)) {
+            return false;
+        }
+        String expected = expectedName.trim();
+        for (String ou : ousFromDn(profile.distinguishedName())) {
+            if (ou.equalsIgnoreCase(expected)) {
                 return true;
             }
         }
