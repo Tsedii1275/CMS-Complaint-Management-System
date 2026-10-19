@@ -223,7 +223,7 @@ function AuditDashboard() {
 
       if (selectedFile) {
         try {
-          const uploadResult = await ApiService.uploadEvidence(selectedFile, ApiService.ticketFromTask(selectedTask));
+          const uploadResult = await ApiService.uploadAttachment(selectedFile, ApiService.ticketFromTask(selectedTask));
           uploadedUrl = uploadResult.url;
           uploadedName = uploadResult.fileName;
         } catch (uploadError) {
@@ -423,7 +423,7 @@ function AuditDashboard() {
                         <Space>
                           <input
                             type="file"
-                            accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx"
+                            accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.mp3,.wav,.m4a"
                             onChange={handleFileChange}
                             style={hiddenFileInputStyle}
                             id="audit-document-upload"

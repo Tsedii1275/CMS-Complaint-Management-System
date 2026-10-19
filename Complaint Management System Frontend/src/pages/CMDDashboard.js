@@ -2883,21 +2883,24 @@ function CmdScreeningFormCard(props) {
                   </Text>
                   <Upload
                     multiple
+                    accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.mp3,.wav,.m4a"
                     beforeUpload={(file) => {
-                      const reader = new FileReader();
-                      reader.onload = () => {
-                        const fileObj = {
-                          uid: file.uid || `${Date.now()}-${file.name}`,
-                          name: file.name,
-                          size: file.size,
-                          type: file.type,
-                          url: reader.result,
-                          status: 'done'
-                        };
-                        setInvestigationFileList(prev => [...prev, fileObj]);
-                      };
-                      reader.readAsDataURL(file);
-                      return false; // Prevent auto HTTP upload
+                      const ticketId = ApiService.ticketFromTask(selectedTask);
+                      ApiService.uploadAttachment(file, ticketId)
+                        .then((result) => {
+                          setInvestigationFileList(prev => [...prev, {
+                            uid: file.uid || `${Date.now()}-${file.name}`,
+                            name: result.fileName || file.name,
+                            size: file.size,
+                            type: file.type,
+                            url: result.url,
+                            status: 'done'
+                          }]);
+                        })
+                        .catch((error) => {
+                          antMessage.error(error.message || 'Failed to upload supporting document.');
+                        });
+                      return Upload.LIST_IGNORE;
                     }}
                     onRemove={(file) => {
                       setInvestigationFileList(prev => prev.filter(f => f.uid !== file.uid && f.name !== file.name));

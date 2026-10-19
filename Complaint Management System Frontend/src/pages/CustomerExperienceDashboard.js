@@ -142,13 +142,10 @@ function CustomerExperienceDashboard() {
   const handleEscalateToAudit = async (task) => {
     setIsEscalating(true);
     try {
-      const serializableCxFiles = cxFileList.map(f => ({
-        uid: f.uid || f.name,
-        name: f.name,
-        size: f.size,
-        type: f.type,
-        url: f.thumbUrl || f.url || null
-      }));
+      const serializableCxFiles = await ApiService.uploadAttachmentList(
+        cxFileList,
+        ApiService.ticketFromTask(task)
+      );
 
       const existingFiles = task.variables?.investigationFiles || [];
       const updatedFiles = [...existingFiles, ...serializableCxFiles];
@@ -758,6 +755,7 @@ function CustomerExperienceDashboard() {
                         fileList={cxFileList}
                         onChange={({ fileList }) => setCxFileList(fileList)}
                         beforeUpload={() => false}
+                        accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.mp3,.wav,.m4a"
                         multiple
                       >
                         <Button icon={<UploadOutlined />} style={UPLOAD_BUTTON_STYLE}>

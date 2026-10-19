@@ -270,7 +270,7 @@ function BranchStaffDashboard() {
       antMessage.success('Supporting document uploaded successfully!');
     } catch (error) {
       console.error('Evidence upload failed:', error);
-      antMessage.error('Failed to upload supporting document.');
+      antMessage.error(error.message || 'Failed to upload supporting document.');
     } finally {
       setIsUploadingEvidence(false);
     }
@@ -282,13 +282,13 @@ function BranchStaffDashboard() {
 
     setIsUploadingVoice(true);
     try {
-      const response = await ApiService.uploadEvidence(file);
+      const response = await ApiService.uploadAudio(file);
       setVoiceUrl(response.url);
       setVoiceName(response.fileName);
       antMessage.success('Voice attachment uploaded successfully!');
     } catch (error) {
       console.error('Voice upload failed:', error);
-      antMessage.error('Failed to upload voice attachment file.');
+      antMessage.error(error.message || 'Failed to upload voice attachment file.');
     } finally {
       setIsUploadingVoice(false);
     }
@@ -877,7 +877,7 @@ function BranchStaffDashboard() {
                     Voice Recording Preview:
                   </Text>
                   {/* eslint-disable-next-line jsx-a11y/media-has-caption -- call recording has no caption track */}
-                  <audio controls src={voiceUrl} style={audioPreviewStyle} aria-label="Voice recording preview" />
+                  <audio controls src={ApiService.getAttachmentUrl(voiceUrl)} style={audioPreviewStyle} aria-label="Voice recording preview" />
                 </div>
               )}
             </div>

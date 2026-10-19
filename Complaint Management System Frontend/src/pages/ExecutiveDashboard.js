@@ -147,6 +147,7 @@ function InvestigationInspectionBody({ selectedTask, cxRemarks, setCxRemarks, cx
         <Upload
           fileList={cxFileList}
           beforeUpload={() => false}
+          accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.mp3,.wav,.m4a"
           onChange={({ fileList }) => setCxFileList(fileList)}
           multiple
         >
@@ -192,13 +193,10 @@ function ExecutiveDashboard() {
     if (!task) return;
     setIsEscalating(true);
     try {
-      const serializableCxFiles = cxFileList.map(f => ({
-        uid: f.uid || f.name,
-        name: f.name,
-        size: f.size,
-        type: f.type,
-        url: f.thumbUrl || f.url || null
-      }));
+      const serializableCxFiles = await ApiService.uploadAttachmentList(
+        cxFileList,
+        ApiService.ticketFromTask(task)
+      );
 
       const existingFiles = recordVars(task).investigationFiles || [];
       const updatedFiles = [...existingFiles, ...serializableCxFiles];

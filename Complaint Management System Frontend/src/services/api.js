@@ -446,10 +446,50 @@ class ApiService {
     return headers;
   }
 
+  isAudioAttachment(file) {
+    const name = String(file?.name || '').toLowerCase();
+    return name.endsWith('.mp3') || name.endsWith('.wav') || name.endsWith('.m4a');
+  }
+
+  async uploadAttachment(file, complaintId) {
+    const raw = file?.originFileObj || file;
+    if (this.isAudioAttachment(raw)) {
+      return this.uploadAudio(raw, complaintId);
+    }
+    return this.uploadEvidence(raw, complaintId);
+  }
+
+  async uploadAttachmentList(files, complaintId) {
+    const stored = [];
+    for (const file of files || []) {
+      if (file?.url && typeof file.url === 'string' && file.url.startsWith('/api/')) {
+        stored.push({
+          uid: file.uid || file.name,
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          url: file.url
+        });
+        continue;
+      }
+      const result = await this.uploadAttachment(file, complaintId);
+      const raw = file.originFileObj || file;
+      stored.push({
+        uid: file.uid || raw.name,
+        name: result.fileName || raw.name || file.name,
+        size: raw.size || file.size,
+        type: raw.type || file.type,
+        url: result.url
+      });
+    }
+    return stored;
+  }
+
   // Upload audio file/blob
-  async uploadAudio(file, complaintId, fileName = 'recording.wav') {
+  async uploadAudio(file, complaintId, fileName) {
     const formData = new FormData();
-    formData.append('file', file, fileName);
+    const name = fileName || file?.name || 'recording.wav';
+    formData.append('file', file, name);
     if (complaintId) {
       formData.append('complaintId', complaintId);
     }
@@ -461,7 +501,14 @@ class ApiService {
     });
 
     if (!response.ok) {
-      throw new Error(`Upload failed! status: ${response.status}`);
+      let message = `Upload failed! status: ${response.status}`;
+      try {
+        const data = await response.json();
+        message = data.message || data.error || message;
+      } catch (parseError) {
+        // The response body is not JSON.
+      }
+      throw new Error(message);
     }
 
     return response.json();

@@ -163,6 +163,13 @@ public class FileSecurityService {
         validateUpload(file, audioAllowed, "SYSTEM", "UNKNOWN", null);
     }
 
+    private static boolean isGenericContainerMime(String contentType) {
+        return "application/zip".equals(contentType)
+                || "application/x-zip-compressed".equals(contentType)
+                || "application/vnd.ms-office".equals(contentType)
+                || "video/mp4".equals(contentType);
+    }
+
     private void validateExtensionRules(String originalName, String extension) {
         String[] parts = originalName.toLowerCase(Locale.ROOT).split("\\.");
         if (parts.length > 2) {
@@ -182,7 +189,8 @@ public class FileSecurityService {
     }
 
     private void validateMimeTypeRules(String extension, String contentType) {
-        if (contentType.isBlank() || "application/octet-stream".equals(contentType)) {
+        if (contentType.isBlank() || "application/octet-stream".equals(contentType)
+                || isGenericContainerMime(contentType)) {
             return;
         }
 

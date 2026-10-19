@@ -478,7 +478,7 @@ async function onPublicEvidenceSelected(e, { language, setIsUploadingEvidence, s
   }
   setIsUploadingEvidence(true);
   try {
-    const result = await ApiService.uploadEvidence(file);
+    const result = await ApiService.uploadAttachment(file);
     setEvidenceUrl(result.url);
     setEvidenceName(result.fileName);
     setMessageType('');

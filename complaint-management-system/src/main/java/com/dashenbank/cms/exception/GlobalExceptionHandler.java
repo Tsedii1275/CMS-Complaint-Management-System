@@ -138,8 +138,8 @@ public class GlobalExceptionHandler {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put(KEY_SUCCESS, false);
         body.put("code", "MAX_FILE_SIZE_EXCEEDED");
-        body.put(KEY_MESSAGE, "Uploaded file exceeds the maximum allowed size of 10 MB.");
-        body.put("error", "Uploaded file exceeds the maximum allowed size of 10 MB.");
+        body.put(KEY_MESSAGE, "Uploaded audio file exceeds the maximum allowed size of 25 MB.");
+        body.put("error", "Uploaded audio file exceeds the maximum allowed size of 25 MB.");
         body.put(KEY_TIMESTAMP, currentTimestamp());
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
     }

@@ -117,7 +117,7 @@ public class WebSecurityConfig {
                         .requestMatchers("/api/complaints/start").permitAll()
                         .requestMatchers("/api/complaints/status", "/api/complaints/status/**").permitAll()
                         .requestMatchers("/api/complaints/attachments/**").permitAll()
-                        .requestMatchers("/api/complaints/upload-evidence").permitAll()
+                        .requestMatchers("/api/complaints/upload-evidence", "/api/complaints/upload-audio").permitAll()
                         .requestMatchers("/api/customer-feedback").permitAll()
                         .requestMatchers("/api/customer-feedback/validate").permitAll()
                         .requestMatchers("/api/hierarchy").permitAll()
