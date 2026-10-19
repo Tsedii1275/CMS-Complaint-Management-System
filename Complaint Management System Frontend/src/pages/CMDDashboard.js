@@ -141,6 +141,7 @@ function resolveFinalClassification(formData) {
 }
 
 function normalizeAssignmentScope(type) {
+  if (type === 'ALL_EMPLOYEES') return 'ALL_EMPLOYEES';
   if (type === 'DISTRICT_DEPARTMENT' || type === 'DISTRICT') return 'DISTRICT';
   if (type === 'HQ_DEPARTMENT') return 'HQ_DEPARTMENT';
   if (type === 'BRANCH' || type === 'DISTRICT_BRANCH') return 'BRANCH';
@@ -159,6 +160,9 @@ function cmdSubmitValidationError(formData, isDeclined, finalClassification) {
 
 function assignmentAdScopeError(formData) {
   const mode = normalizeAssignmentScope(formData.assignmentType);
+  if (mode === 'ALL_EMPLOYEES') {
+    return formData.assigneeUsername?.trim() ? null : 'Select an employee from Active Directory.';
+  }
   if (!formData.adUnitId?.trim()) {
     if (mode === 'DISTRICT') return 'District is required.';
     if (mode === 'BRANCH') return 'Branch is required.';
@@ -170,6 +174,23 @@ function assignmentAdScopeError(formData) {
   return null;
 }
 
+function adPersonHover(person) {
+  if (!person) {
+    return null;
+  }
+  const name = person.displayName || person.username;
+  if (!name) {
+    return null;
+  }
+  return (
+    <div style={{ lineHeight: 1.55 }}>
+      <div>Full name: {name}</div>
+      <div>Job title: {person.title || 'Not set'}</div>
+      <div>Email: {person.email || 'Not set'}</div>
+    </div>
+  );
+}
+
 function formatAdAssigneeLabel(displayName, title) {
   if (!displayName) {
     return '';
@@ -178,6 +199,26 @@ function formatAdAssigneeLabel(displayName, title) {
     return displayName;
   }
   return `${displayName} (${title})`;
+}
+
+function officerOptionLabel(officer) {
+  if (!officer) {
+    return '';
+  }
+  return officer.title ? `${officer.displayName} — ${officer.title}` : (officer.displayName || officer.username || '');
+}
+
+function employeeChoices(hits, formData) {
+  const rows = Array.isArray(hits) ? hits : [];
+  if (!formData?.assigneeUsername || rows.some(row => row.username === formData.assigneeUsername)) {
+    return rows;
+  }
+  return [{
+    username: formData.assigneeUsername,
+    displayName: formData.assigneeDisplayName || formData.assigneeUsername,
+    title: formData.assigneeTitle || '',
+    email: formData.assigneeEmail || ''
+  }, ...rows];
 }
 
 function inferAssignmentTypeFromTask(task) {
@@ -240,9 +281,13 @@ function applyWorkUnitAssignmentVars(variables, formData) {
   variables.assignedOfficerUsername = formData.assigneeUsername || '';
   variables.assigneeUsername = formData.assigneeUsername || '';
   variables.assignedOfficerTitle = formData.assigneeTitle || '';
+  variables.assignedOfficerEmail = formData.assigneeEmail || '';
   variables.manager = formatAdAssigneeLabel(formData.assigneeDisplayName, formData.assigneeTitle)
     || formData.manager
     || '';
+  if (mode === 'ALL_EMPLOYEES') {
+    return;
+  }
   if (mode === 'HQ_DEPARTMENT') {
     variables.complaintDistrict = 'Head Office';
     variables.complaintBranch = '';
@@ -442,6 +487,7 @@ function initialCmdFormFromTask(task) {
     assigneeUsername: task.variables?.assignedOfficerUsername || '',
     assigneeDisplayName: '',
     assigneeTitle: task.variables?.assignedOfficerTitle || '',
+    assigneeEmail: task.variables?.assignedOfficerEmail || '',
     accountNumber: task.variables?.customer?.accountNumber || task.variables?.accountNumber || '',
     complaintDescription: task.variables?.complaint?.description || task.variables?.description || '',
     ccoActionChoice: 'close_complaint'
@@ -1386,7 +1432,8 @@ function useCmdDashboardState() {
     adUnitName: '',
     assigneeUsername: '',
     assigneeDisplayName: '',
-    assigneeTitle: ''
+    assigneeTitle: '',
+    assigneeEmail: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
@@ -1471,6 +1518,12 @@ function useCmdDashboardState() {
 
   useEffect(() => {
     const scope = normalizeAssignmentScope(formData.assignmentType);
+    if (scope === 'ALL_EMPLOYEES') {
+      setAdOrgUnits([]);
+      setAdOfficers([]);
+      setAdOrgLoading(false);
+      return undefined;
+    }
     let cancelled = false;
     setAdOfficers([]);
     (async () => {
@@ -1488,11 +1541,13 @@ function useCmdDashboardState() {
   }, [formData.assignmentType]);
 
   useEffect(() => {
-    if (!formData.adUnitId) {
-      setAdOfficers([]);
+    const scope = normalizeAssignmentScope(formData.assignmentType);
+    if (scope === 'ALL_EMPLOYEES' || !formData.adUnitId) {
+      if (scope !== 'ALL_EMPLOYEES') {
+        setAdOfficers([]);
+      }
       return undefined;
     }
-    const scope = normalizeAssignmentScope(formData.assignmentType);
     let cancelled = false;
     (async () => {
       setAdOfficerLoading(true);
@@ -2611,6 +2666,39 @@ function CmdScreeningFormCard(props) {
     handleSaveClassification, handleSubmit,
     adOrgUnits, adOfficers, adOrgLoading, adOfficerLoading
   } = props;
+  const allEmployees = normalizeAssignmentScope(formData.assignmentType) === 'ALL_EMPLOYEES';
+  const [employeeQuery, setEmployeeQuery] = useState('');
+  const [employeeHits, setEmployeeHits] = useState([]);
+  const [employeeLoading, setEmployeeLoading] = useState(false);
+
+  useEffect(() => {
+    if (!allEmployees) {
+      setEmployeeHits([]);
+      return undefined;
+    }
+    const query = employeeQuery.trim();
+    if (query.length < 2) {
+      setEmployeeHits([]);
+      return undefined;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setEmployeeLoading(true);
+      try {
+        const rows = await ApiService.searchAdEmployees(query);
+        if (!cancelled) setEmployeeHits(Array.isArray(rows) ? rows : []);
+      } catch {
+        if (!cancelled) setEmployeeHits([]);
+      } finally {
+        if (!cancelled) setEmployeeLoading(false);
+      }
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [allEmployees, employeeQuery]);
+
   if (!shouldShowCmdScreening(activeTab, formData, selectedTask)) {
     return null;
   }
@@ -2856,7 +2944,8 @@ function CmdScreeningFormCard(props) {
                             adUnitName: '',
                             assigneeUsername: '',
                             assigneeDisplayName: '',
-                            assigneeTitle: ''
+                            assigneeTitle: '',
+                            assigneeEmail: ''
                           }));
                         }}
                         style={{ width: '100%' }}
@@ -2871,10 +2960,14 @@ function CmdScreeningFormCard(props) {
                           <Radio value="HQ_DEPARTMENT" style={{ fontSize: '14px', color: '#1e293b', fontWeight: 500 }}>
                             Head Office Department
                           </Radio>
+                          <Radio value="ALL_EMPLOYEES" style={{ fontSize: '14px', color: '#1e293b', fontWeight: 500 }}>
+                            All employees
+                          </Radio>
                         </Space>
                       </Radio.Group>
                     </Form.Item>
 
+                    {normalizeAssignmentScope(formData.assignmentType) !== 'ALL_EMPLOYEES' && (
                     <Form.Item
                       label={(
                         <CmdFormLabel required>
@@ -2906,6 +2999,7 @@ function CmdScreeningFormCard(props) {
                             assigneeUsername: '',
                             assigneeDisplayName: '',
                             assigneeTitle: '',
+                            assigneeEmail: '',
                             manager: ''
                           }));
                         }}
@@ -2920,8 +3014,76 @@ function CmdScreeningFormCard(props) {
                         ))}
                       </Select>
                     </Form.Item>
+                    )}
 
+                    {allEmployees ? (
                     <Form.Item label={<CmdFormLabel required>Assignee</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
+                      <Tooltip
+                        title={formData.assigneeUsername ? adPersonHover({
+                          username: formData.assigneeUsername,
+                          displayName: formData.assigneeDisplayName,
+                          title: formData.assigneeTitle,
+                          email: formData.assigneeEmail
+                        }) : null}
+                        placement="topLeft"
+                      >
+                        <div>
+                          <Select
+                            showSearch
+                            filterOption={false}
+                            placeholder="Search by name or job title"
+                            loading={employeeLoading}
+                            value={formData.assigneeUsername || undefined}
+                            onSearch={setEmployeeQuery}
+                            optionLabelProp="label"
+                            onChange={(username) => {
+                              const people = employeeChoices(employeeHits, formData);
+                              const officer = people.find(o => o.username === username);
+                              setFormData(prev => ({
+                                ...prev,
+                                assigneeUsername: username,
+                                assigneeDisplayName: officer?.displayName || username,
+                                assigneeTitle: officer?.title || '',
+                                assigneeEmail: officer?.email || '',
+                                manager: officer
+                                  ? formatAdAssigneeLabel(officer.displayName, officer.title)
+                                  : username
+                              }));
+                            }}
+                            notFoundContent={employeeLoading
+                              ? 'Loading…'
+                              : (employeeQuery.trim().length < 2
+                                ? 'Type at least 2 letters'
+                                : 'No employees found in Active Directory')}
+                            style={{ width: '100%' }}
+                          >
+                            {employeeChoices(employeeHits, formData).map(officer => (
+                              <Option
+                                key={officer.username}
+                                value={officer.username}
+                                label={officerOptionLabel(officer)}
+                              >
+                                <Tooltip title={adPersonHover(officer)} placement="right" mouseEnterDelay={0.2}>
+                                  <span>{officerOptionLabel(officer)}</span>
+                                </Tooltip>
+                              </Option>
+                            ))}
+                          </Select>
+                        </div>
+                      </Tooltip>
+                    </Form.Item>
+                    ) : (
+                    <Form.Item label={<CmdFormLabel required>Assignee</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
+                      <Tooltip
+                        title={formData.assigneeUsername ? adPersonHover({
+                          username: formData.assigneeUsername,
+                          displayName: formData.assigneeDisplayName,
+                          title: formData.assigneeTitle,
+                          email: formData.assigneeEmail
+                        }) : null}
+                        placement="topLeft"
+                      >
+                        <div>
                       <Select
                         showSearch
                         optionFilterProp="children"
@@ -2934,6 +3096,7 @@ function CmdScreeningFormCard(props) {
                           : 'Select a unit first'}
                         loading={adOfficerLoading}
                         disabled={!formData.adUnitId}
+                        optionLabelProp="label"
                         value={formData.assigneeUsername || undefined}
                         onChange={(username) => {
                           const officer = (adOfficers || []).find(o => o.username === username);
@@ -2942,6 +3105,7 @@ function CmdScreeningFormCard(props) {
                             assigneeUsername: username,
                             assigneeDisplayName: officer?.displayName || username,
                             assigneeTitle: officer?.title || '',
+                            assigneeEmail: officer?.email || '',
                             manager: officer
                               ? formatAdAssigneeLabel(officer.displayName, officer.title)
                               : username
@@ -2949,17 +3113,22 @@ function CmdScreeningFormCard(props) {
                         }}
                         notFoundContent={adOfficerLoading ? 'Loading…' : 'No employees found for this branch in Active Directory'}
                         filterOption={(input, option) =>
-                          (option?.children ?? '').toString().toLowerCase().includes(input.toLowerCase())
+                          String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
                         }
                         style={{ width: '100%' }}
                       >
                         {(adOfficers || []).map(officer => (
-                          <Option key={officer.username} value={officer.username}>
-                            {officer.displayName}{officer.title ? ` — ${officer.title}` : ''}
+                          <Option key={officer.username} value={officer.username} label={officerOptionLabel(officer)}>
+                            <Tooltip title={adPersonHover(officer)} placement="right" mouseEnterDelay={0.2}>
+                              <span>{officerOptionLabel(officer)}</span>
+                            </Tooltip>
                           </Option>
                         ))}
                       </Select>
+                        </div>
+                      </Tooltip>
                     </Form.Item>
+                    )}
                   </>
                 )}
 

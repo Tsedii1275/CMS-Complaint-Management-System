@@ -53,6 +53,55 @@ public class AdOrganizationService {
         return officersFor(AdAssignmentScope.HEAD_OFFICE_DEPARTMENT, departmentId);
     }
 
+    /**
+     * Enabled accounts matching a name, username, email, or title. Used when the
+     * person is not in the district, branch, or head-office list.
+     */
+    public List<AdOrgOfficer> searchEmployees(String query) {
+        String needle = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
+        if (needle.length() < 2) {
+            return List.of();
+        }
+        List<AdOrgOfficer> matches = new ArrayList<>();
+        for (AdUserProfile profile : directoryPeople()) {
+            if (profile == null || !profile.enabled() || !StringUtils.hasText(profile.samAccountName())) {
+                continue;
+            }
+            if (!employeeMatches(profile, needle)) {
+                continue;
+            }
+            String display = StringUtils.hasText(profile.displayName()) ? profile.displayName().trim()
+                    : profile.samAccountName();
+            matches.add(toOfficer(profile, display));
+        }
+        matches.sort(Comparator.comparing(o -> o.displayName() != null ? o.displayName() : "",
+                String.CASE_INSENSITIVE_ORDER));
+        if (matches.size() > 30) {
+            return List.copyOf(matches.subList(0, 30));
+        }
+        return matches;
+    }
+
+    private static AdOrgOfficer toOfficer(AdUserProfile profile, String display) {
+        return new AdOrgOfficer(
+                profile.samAccountName(),
+                display,
+                profile.title() == null ? "" : profile.title().trim(),
+                profile.email() == null ? "" : profile.email().trim());
+    }
+
+    private static boolean employeeMatches(AdUserProfile profile, String needle) {
+        return containsFolded(profile.displayName(), needle)
+                || containsFolded(profile.samAccountName(), needle)
+                || containsFolded(profile.email(), needle)
+                || containsFolded(profile.title(), needle)
+                || containsFolded(profile.office(), needle);
+    }
+
+    private static boolean containsFolded(String value, String needle) {
+        return StringUtils.hasText(value) && value.toLowerCase(Locale.ROOT).contains(needle);
+    }
+
     List<AdOrgUnit> unitsFrom(List<AdUserProfile> profiles, AdAssignmentScope scope) {
         Map<String, String> byId = new LinkedHashMap<>();
         for (AdUserProfile profile : profiles) {
@@ -82,8 +131,7 @@ public class AdOrganizationService {
             if (isOfficerInUnit(profile, scope, expectedName)) {
                 String display = StringUtils.hasText(profile.displayName()) ? profile.displayName()
                         : profile.samAccountName();
-                officers.add(new AdOrgOfficer(profile.samAccountName(), display,
-                        profile.title() == null ? "" : profile.title().trim()));
+                officers.add(toOfficer(profile, display));
             }
         }
         officers.sort(Comparator.comparing(o -> o.displayName() != null ? o.displayName() : "",

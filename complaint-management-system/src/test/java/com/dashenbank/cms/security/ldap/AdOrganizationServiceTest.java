@@ -380,6 +380,21 @@ class AdOrganizationServiceTest {
         assertFalse(AdOrganizationService.matchesScope(profile, AdAssignmentScope.HEAD_OFFICE_DEPARTMENT));
     }
 
+    @Test
+    void employeeSearchReturnsEnabledPeopleByNameTitleOrMail() {
+        AdOrganizationService service = service();
+        assertTrue(service.searchEmployees("s").isEmpty());
+        List<AdOrgOfficer> found = service.searchEmployees("sara");
+        assertEquals(1, found.size());
+        assertEquals("Sara Tadesse", found.get(0).displayName());
+        assertEquals("Branch Manager", found.get(0).title());
+        assertEquals("s@d.com", found.get(0).email());
+        List<AdOrgOfficer> byTitle = service.searchEmployees("branch manager");
+        assertEquals(1, byTitle.size());
+        assertEquals("bm99", byTitle.get(0).username());
+        assertTrue(service.searchEmployees("disabled-person").isEmpty());
+    }
+
     private static AdOrganizationService service() {
         return new AdOrganizationService(new DirectoryOperations() {
             @Override
@@ -427,6 +442,8 @@ class AdOrganizationServiceTest {
                 new AdUserProfile("dir1", "5", "Daniel Haile", "d@d.com", "Director", true, List.of(),
                         "Customer Experience Department", null, null),
                 new AdUserProfile("cco", "6", "Officer", "o@d.com", "Customer Care Officer", true, List.of(),
-                        "CMD", null, null));
+                        "CMD", null, null),
+                new AdUserProfile("disabled-person", "7", "Closed Account", "c@d.com", "Teller", false, List.of(),
+                        "Bole Branch", null, null));
     }
 }

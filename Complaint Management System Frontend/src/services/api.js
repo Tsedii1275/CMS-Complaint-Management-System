@@ -406,8 +406,12 @@ class ApiService {
     return this.get('/api/ad/departments');
   }
 
-  async getAdDepartmentLeaders(departmentId) {
+    async getAdDepartmentLeaders(departmentId) {
     return this.get(`/api/ad/departments/${encodeURIComponent(departmentId)}/leaders`);
+  }
+
+  async searchAdEmployees(query) {
+    return this.get(`/api/ad/employees?q=${encodeURIComponent(query || '')}`);
   }
 
   ticketFromTask(task) {

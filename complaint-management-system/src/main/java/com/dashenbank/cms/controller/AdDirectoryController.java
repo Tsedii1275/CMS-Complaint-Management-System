@@ -8,6 +8,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -52,6 +53,11 @@ public class AdDirectoryController {
     @GetMapping("/departments/{departmentId}/leaders")
     public ResponseEntity<?> departmentLeaders(@PathVariable String departmentId) {
         return wrap(() -> organizationService.departmentLeaders(departmentId));
+    }
+
+    @GetMapping("/employees")
+    public ResponseEntity<?> employees(@RequestParam(name = "q", defaultValue = "") String query) {
+        return wrap(() -> organizationService.searchEmployees(query));
     }
 
     private static ResponseEntity<?> wrap(SupplierList supplier) {
