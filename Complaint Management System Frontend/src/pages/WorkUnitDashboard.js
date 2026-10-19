@@ -11,6 +11,56 @@ import { isVisibleOnWorkUnitInbox } from '../utils/workUnitInbox';
 
 const { Title, Text, Paragraph } = Typography;
 
+function firstAttachmentText(...values) {
+  for (const value of values) {
+    const text = value == null ? '' : String(value).trim();
+    if (text && text.toLowerCase() !== 'null') {
+      return text;
+    }
+  }
+  return '';
+}
+
+function workUnitVoice(task) {
+  const complaint = task?.variables?.complaint || {};
+  const url = firstAttachmentText(
+    complaint.voiceAttachmentUrl,
+    complaint.voiceUrl,
+    task?.variables?.voiceAttachmentUrl,
+    task?.variables?.voiceUrl
+  );
+  if (!url) {
+    return null;
+  }
+  const name = firstAttachmentText(
+    complaint.voiceAttachmentName,
+    complaint.voiceName,
+    task?.variables?.voiceAttachmentName,
+    task?.variables?.voiceName
+  ) || 'Voice recording';
+  return { url, name };
+}
+
+function workUnitDocument(task, voiceUrl) {
+  const complaint = task?.variables?.complaint || {};
+  const url = firstAttachmentText(
+    complaint.evidenceUrl,
+    complaint.attachmentUrl,
+    task?.variables?.evidenceUrl,
+    task?.variables?.attachmentUrl
+  );
+  if (!url || url === voiceUrl) {
+    return null;
+  }
+  const name = firstAttachmentText(
+    complaint.evidenceName,
+    complaint.attachmentName,
+    task?.variables?.evidenceName,
+    task?.variables?.attachmentName
+  ) || 'Supporting document';
+  return { url, name };
+}
+
 function WorkUnitDashboard() {
   const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
@@ -317,20 +367,25 @@ function WorkUnitDashboard() {
                         </div>
                       )}
 
-                      {selectedTask.variables?.complaint?.voiceAttachmentUrl && (
+                      {(() => {
+                        const voice = workUnitVoice(selectedTask);
+                        const document = workUnitDocument(selectedTask, voice?.url);
+                        return (
+                          <>
+                      {voice && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', paddingTop: '8px' }}>
                           <Text style={{ color: '#64748b', fontSize: '14px' }}>Voice Call Recording</Text>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <audio
-                              src={ApiService.getAttachmentUrl(selectedTask.variables.complaint.voiceAttachmentUrl)}
+                              src={ApiService.getAttachmentUrl(voice.url)}
                               controls
                               style={{ height: '32px', maxWidth: '200px' }}
                             >
                               <track kind="captions" />
                             </audio>
                             <Button
-                              href={ApiService.getAttachmentUrl(selectedTask.variables.complaint.voiceAttachmentUrl)}
-                              download={selectedTask.variables.complaint.voiceAttachmentName || 'voice_recording.mp3'}
+                              href={ApiService.getAttachmentUrl(voice.url)}
+                              download={voice.name}
                               target="_blank"
                               rel="noopener noreferrer"
                               size="small"
@@ -341,20 +396,23 @@ function WorkUnitDashboard() {
                         </div>
                       )}
 
-                      {selectedTask.variables?.complaint?.evidenceUrl && (
+                      {document && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px' }}>
-                          <Text style={{ color: '#64748b', fontSize: '14px' }}>Evidence Attachment</Text>
+                          <Text style={{ color: '#64748b', fontSize: '14px' }}>Supporting Document</Text>
                           <a
-                            href={ApiService.getAttachmentUrl(selectedTask.variables.complaint.evidenceUrl)}
-                            download={selectedTask.variables.complaint.evidenceName || 'evidence_attachment'}
+                            href={ApiService.getAttachmentUrl(document.url)}
+                            download={document.name}
                             target="_blank"
                             rel="noopener noreferrer"
                             style={{ fontSize: '14px', fontWeight: 600, color: BRAND_COLORS.primary }}
                           >
-                            {selectedTask.variables.complaint.evidenceName || 'Download Evidence'}
+                            {document.name}
                           </a>
                         </div>
                       )}
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
 

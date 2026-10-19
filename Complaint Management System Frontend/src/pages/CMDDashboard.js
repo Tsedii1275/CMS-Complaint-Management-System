@@ -1808,7 +1808,8 @@ function CmdCommitteeDecisionCard({ selectedTask, formData, setFormData, isSubmi
           </div>
         </Space>
       </div>
-      {(selectedTask.variables?.committeeExplanation || selectedTask.variables?.decisionSummary) && (
+      {(selectedTask.variables?.committeeExplanation || selectedTask.variables?.decisionSummary
+        || selectedTask.variables?.committeeAttachment || selectedTask.variables?.committeeAttachmentName) && (
         <div style={{
           background: isAccepted ? '#f0fdf4' : '#fff5f5',
           padding: '14px 16px',
@@ -1816,9 +1817,32 @@ function CmdCommitteeDecisionCard({ selectedTask, formData, setFormData, isSubmi
           border: isAccepted ? '1px solid #bbf7d0' : '1px solid #fecaca',
           marginBottom: '16px'
         }}>
-          <Text style={{ fontSize: '12px', display: 'block', fontWeight: 600, color: isAccepted ? '#166534' : '#991b1b', marginBottom: '4px' }}>
-            {isAccepted ? 'Committee Resolution Directions:' : 'Reason for Committee Rejection:'}
-          </Text>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', marginBottom: '4px' }}>
+            <Text style={{ fontSize: '12px', fontWeight: 600, color: isAccepted ? '#166534' : '#991b1b' }}>
+              {isAccepted ? 'Committee Resolution Directions:' : 'Reason for Committee Rejection:'}
+            </Text>
+            {(selectedTask.variables?.committeeAttachment || selectedTask.variables?.committeeAttachmentName) && (
+              <a
+                href={ApiService.getAttachmentUrl(
+                  selectedTask.variables.committeeAttachment ||
+                  `/api/complaints/attachments/${selectedTask.variables.committeeAttachmentName}`
+                )}
+                download={selectedTask.variables.committeeAttachmentName || 'committee_decision_document'}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: BRAND_COLORS.primary,
+                  textAlign: 'right',
+                  flexShrink: 0
+                }}
+              >
+                <PaperClipOutlined style={{ marginRight: '6px' }} />
+                {selectedTask.variables.committeeAttachmentName || 'Committee Decision Document'}
+              </a>
+            )}
+          </div>
           <Text style={{ fontSize: '14px', color: isAccepted ? '#14532d' : '#7f1d1d', fontWeight: 500, lineHeight: '1.5', display: 'block' }}>
             {selectedTask.variables?.committeeExplanation || selectedTask.variables?.decisionSummary}
           </Text>
