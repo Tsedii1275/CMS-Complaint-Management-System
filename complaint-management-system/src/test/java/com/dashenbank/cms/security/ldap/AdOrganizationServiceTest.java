@@ -395,6 +395,56 @@ class AdOrganizationServiceTest {
         assertTrue(service.searchEmployees("disabled-person").isEmpty());
     }
 
+    @Test
+    void employeeSearchReturnsEveryMatchIncludingASplitName() {
+        java.util.ArrayList<AdUserProfile> people = new java.util.ArrayList<>();
+        for (int i = 0; i < 40; i++) {
+            people.add(new AdUserProfile("u" + i, String.valueOf(i), "Person " + i, "p" + i + "@d.com", "Teller",
+                    true, List.of()));
+        }
+        people.add(new AdUserProfile("tseday", "x", "Tseday Teka Betela", "t@d.com", "Officer", true, List.of()));
+        AdOrganizationService service = new AdOrganizationService(new DirectoryOperations() {
+            @Override
+            public boolean configured() {
+                return true;
+            }
+
+            @Override
+            public DirectoryHealth health() {
+                return new DirectoryHealth(true, "ldaps://example", "ok");
+            }
+
+            @Override
+            public AdUserProfile authenticate(String username, String password) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public java.util.Optional<AdUserProfile> findBySamAccountName(String username) {
+                return java.util.Optional.empty();
+            }
+
+            @Override
+            public List<AdUserProfile> searchDirectoryUsers(int maxResults) {
+                return people;
+            }
+
+            @Override
+            public List<AdUserProfile> searchDirectoryUsersPaged(int pageSize, int maxTotal) {
+                return people;
+            }
+
+            @Override
+            public List<AdUserProfile> searchPeople(String query) {
+                return people;
+            }
+        }, new LdapProperties());
+        assertEquals(40, service.searchEmployees("teller").size());
+        List<AdOrgOfficer> named = service.searchEmployees("Tseday Teka");
+        assertEquals(1, named.size());
+        assertEquals("Tseday Teka Betela", named.get(0).displayName());
+    }
+
     private static AdOrganizationService service() {
         return new AdOrganizationService(new DirectoryOperations() {
             @Override

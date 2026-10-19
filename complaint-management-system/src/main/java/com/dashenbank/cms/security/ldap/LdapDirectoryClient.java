@@ -179,6 +179,29 @@ public class LdapDirectoryClient implements DirectoryOperations {
     }
 
     @Override
+    public List<AdUserProfile> searchPeople(String query) {
+        if (!configured() || !StringUtils.hasText(query)) {
+            return List.of();
+        }
+        String filter = personSearchFilter(query);
+        if (!StringUtils.hasText(filter)) {
+            return List.of();
+        }
+        DirContext raw = serviceContext();
+        try {
+            if (raw instanceof LdapContext ldapContext) {
+                return pagedUserSearch(ldapContext, 500, filter);
+            }
+            return searchDirectoryUsers(50_000);
+        } catch (NamingException | IOException e) {
+            log.warn("LDAP employee search failed: {}", safeDetail(e));
+            throw new DirectoryUnavailableException("Directory search failed: " + safeDetail(e), e);
+        } finally {
+            closeQuietly(raw);
+        }
+    }
+
+    @Override
     public List<String> searchOrganizationalUnitNames(int maxResults) {
         if (!configured()) {
             return List.of();
@@ -311,6 +334,80 @@ public class LdapDirectoryClient implements DirectoryOperations {
         } while (cookie != null && cookie.length > 0 && profiles.size() < maxTotal);
         ctx.setRequestControls(null);
         return profiles;
+    }
+
+    private List<AdUserProfile> pagedUserSearch(LdapContext ctx, int pageSize, String filter)
+            throws NamingException, IOException {
+        SearchControls controls = new SearchControls();
+        controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
+        controls.setReturningAttributes(USER_ATTRS);
+        byte[] cookie = null;
+        List<AdUserProfile> profiles = new ArrayList<>();
+        do {
+            ctx.setRequestControls(new Control[] { new PagedResultsControl(pageSize, cookie, Control.CRITICAL) });
+            NamingEnumeration<SearchResult> results = ctx.search(properties.searchBase(), filter, controls);
+            try {
+                while (results.hasMore()) {
+                    SearchResult result = results.next();
+                    AdUserProfile profile = toProfile(result.getAttributes());
+                    if (profile != null && StringUtils.hasText(profile.samAccountName())) {
+                        profiles.add(profile);
+                    }
+                }
+            } catch (javax.naming.SizeLimitExceededException | javax.naming.PartialResultException e) {
+                log.warn("LDAP employee page stopped after {} users: {}", profiles.size(), safeDetail(e));
+            } finally {
+                results.close();
+            }
+            cookie = pagedCookie(ctx.getResponseControls());
+        } while (cookie != null && cookie.length > 0);
+        ctx.setRequestControls(null);
+        return profiles;
+    }
+
+    static String personSearchFilter(String query) {
+        if (!StringUtils.hasText(query)) {
+            return "";
+        }
+        StringBuilder filter = new StringBuilder();
+        filter.append("(&(objectClass=user)(objectCategory=person)");
+        filter.append("(!(userAccountControl:1.2.840.113556.1.4.803:=2))");
+        int tokens = 0;
+        for (String token : query.trim().split("\\s+")) {
+            if (!StringUtils.hasText(token)) {
+                continue;
+            }
+            String escaped = escapeLdap(token);
+            filter.append("(|");
+            for (String attribute : List.of(
+                    "displayName", "cn", "givenName", "sn", "sAMAccountName", "mail",
+                    "userPrincipalName", "title", "department", "physicalDeliveryOfficeName")) {
+                filter.append('(').append(attribute).append("=*").append(escaped).append("*)");
+            }
+            filter.append(')');
+            tokens++;
+        }
+        if (tokens == 0) {
+            return "";
+        }
+        filter.append(')');
+        return filter.toString();
+    }
+
+    static String escapeLdap(String value) {
+        StringBuilder escaped = new StringBuilder();
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            switch (c) {
+                case '\\' -> escaped.append("\\5c");
+                case '*' -> escaped.append("\\2a");
+                case '(' -> escaped.append("\\28");
+                case ')' -> escaped.append("\\29");
+                case '\0' -> escaped.append("\\00");
+                default -> escaped.append(c);
+            }
+        }
+        return escaped.toString();
     }
 
     private static byte[] pagedCookie(Control[] responseControls) {

@@ -24,6 +24,14 @@ public interface DirectoryOperations {
     List<AdUserProfile> searchDirectoryUsersPaged(int pageSize, int maxTotal);
 
     /**
+     * Enabled people matching a typed name, username, email, or job title.
+     * Default loads the assignment directory so tests can filter in memory.
+     */
+    default List<AdUserProfile> searchPeople(String query) {
+        return searchDirectoryUsersPaged(500, 50_000);
+    }
+
+    /**
      * Organizational unit names under the Dashen Bank search base. Default empty
      * so test doubles need not implement LDAP OU search.
      */

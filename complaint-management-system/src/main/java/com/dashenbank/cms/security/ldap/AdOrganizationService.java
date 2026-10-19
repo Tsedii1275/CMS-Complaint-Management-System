@@ -54,8 +54,8 @@ public class AdOrganizationService {
     }
 
     /**
-     * Enabled accounts matching a name, username, email, or title. Used when the
-     * person is not in the district, branch, or head-office list.
+     * Every enabled account whose name, username, email, or job title matches
+     * the typed words. There is no result cap.
      */
     public List<AdOrgOfficer> searchEmployees(String query) {
         String needle = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
@@ -63,7 +63,7 @@ public class AdOrganizationService {
             return List.of();
         }
         List<AdOrgOfficer> matches = new ArrayList<>();
-        for (AdUserProfile profile : directoryPeople()) {
+        for (AdUserProfile profile : directory.searchPeople(query.trim())) {
             if (profile == null || !profile.enabled() || !StringUtils.hasText(profile.samAccountName())) {
                 continue;
             }
@@ -76,9 +76,6 @@ public class AdOrganizationService {
         }
         matches.sort(Comparator.comparing(o -> o.displayName() != null ? o.displayName() : "",
                 String.CASE_INSENSITIVE_ORDER));
-        if (matches.size() > 30) {
-            return List.copyOf(matches.subList(0, 30));
-        }
         return matches;
     }
 
@@ -91,11 +88,22 @@ public class AdOrganizationService {
     }
 
     private static boolean employeeMatches(AdUserProfile profile, String needle) {
-        return containsFolded(profile.displayName(), needle)
-                || containsFolded(profile.samAccountName(), needle)
-                || containsFolded(profile.email(), needle)
-                || containsFolded(profile.title(), needle)
-                || containsFolded(profile.office(), needle);
+        String[] tokens = needle.split("\\s+");
+        for (String token : tokens) {
+            if (token.isEmpty()) {
+                continue;
+            }
+            if (!containsFolded(profile.displayName(), token)
+                    && !containsFolded(profile.samAccountName(), token)
+                    && !containsFolded(profile.email(), token)
+                    && !containsFolded(profile.title(), token)
+                    && !containsFolded(profile.office(), token)
+                    && !containsFolded(profile.department(), token)
+                    && !containsFolded(profile.distinguishedName(), token)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static boolean containsFolded(String value, String needle) {
