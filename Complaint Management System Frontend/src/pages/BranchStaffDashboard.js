@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Typography, Button, Form, Input, Select, Alert, Row, Col, Space, Checkbox, Table, Tag, Modal, Tooltip, Tabs, DatePicker, message as antMessage } from 'antd';
 import { PlusCircleOutlined, PaperClipOutlined, EyeOutlined, AudioOutlined, SearchOutlined } from '@ant-design/icons';
 import DashboardLayout from '../components/DashboardLayout';
-import { formatUniqueId, formatIntakeId, UniqueIdDisplay, compareTicketNumbersAsc } from '../components/TaskTable';
+import { formatUniqueId, formatIntakeId, UniqueIdDisplay, compareTicketNumbersAsc, matchesTicketSearch } from '../components/TaskTable';
 import Pagination from '../components/Pagination';
 import ApiService from '../services/api';
 import { BRAND_COLORS } from '../constants/theme';
@@ -12,6 +12,7 @@ import { isResolvedAtFcr, classifyComplaintFilter } from '../utils/slaMetrics';
 import moment from 'moment';
 
 const { Title, Text } = Typography;
+const { RangePicker } = DatePicker;
 
 const PRIMARY = BRAND_COLORS.primary;
 const EVIDENCE_FILE_ACCEPT = '.pdf,.jpg,.jpeg,.png,.docx,.xlsx';
@@ -35,6 +36,34 @@ function firstRegisteredValue(...values) {
   return '';
 }
 
+function complaintRecordDate(record) {
+  return record?.createdAt || record?.complaintMadeOn || record?.date || record?.variables?.createdAt || null;
+}
+
+function matchesIntakeSearch(record, query, range) {
+  const text = String(query || '').trim().toLowerCase();
+  if (text) {
+    const name = String(record?.customerName || record?.variables?.customerName || '').toLowerCase();
+    if (!name.includes(text) && !matchesTicketSearch(record, text)) {
+      return false;
+    }
+  }
+  if (!range || range.length !== 2 || !range[0] || !range[1]) {
+    return true;
+  }
+  const raw = complaintRecordDate(record);
+  if (!raw) {
+    return false;
+  }
+  const created = moment(raw);
+  if (!created.isValid()) {
+    return false;
+  }
+  const start = moment(range[0].toDate ? range[0].toDate() : range[0]).startOf('day');
+  const end = moment(range[1].toDate ? range[1].toDate() : range[1]).endOf('day');
+  return !created.isBefore(start) && !created.isAfter(end);
+}
+
 function isOtherCase(record) {
   const classification = String(record?.classification || '').toUpperCase();
   const status = String(record?.status || '').toUpperCase();
@@ -52,6 +81,8 @@ const headerRowStyle = {
 const pageTitleStyle = { margin: 0, color: PRIMARY, fontWeight: 700 };
 const primaryButtonStyle = { backgroundColor: PRIMARY, borderColor: PRIMARY };
 const overviewLabelStyle = { fontSize: '14px', color: PRIMARY, display: 'block', marginBottom: '12px' };
+const searchBarStyle = { display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', marginTop: '16px' };
+const searchInputStyle = { width: 360, maxWidth: '100%' };
 const metricTitleStyle = { margin: '4px 0 0 0', color: PRIMARY };
 const fcrMetricTitleStyle = { margin: '4px 0 0 0', color: '#16a34a' };
 const cardRoundStyle = { borderRadius: '8px' };
@@ -175,6 +206,8 @@ function BranchStaffDashboard() {
   const [trackingPageSize, setTrackingPageSize] = useState(10);
   const [otherPage, setOtherPage] = useState(1);
   const [otherPageSize, setOtherPageSize] = useState(10);
+  const [searchText, setSearchText] = useState('');
+  const [dateRange, setDateRange] = useState(null);
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -246,17 +279,31 @@ function BranchStaffDashboard() {
     }
   };
 
-  // Metric Calculations
+  // Metric Calculations stay on the full list. Search filters the tables below.
   const totalRegistered = scopedComplaints.length;
   const fcrResolvedCount = scopedComplaints.filter(isResolvedAtFcr).length;
-  const trackingSlice = scopedComplaints.slice(
+  const filteredTracking = scopedComplaints.filter((record) => matchesIntakeSearch(record, searchText, dateRange));
+  const filteredOther = otherComplaints.filter((record) => matchesIntakeSearch(record, searchText, dateRange));
+  const trackingSlice = filteredTracking.slice(
     (trackingPage - 1) * trackingPageSize,
     trackingPage * trackingPageSize
   );
-  const otherSlice = otherComplaints.slice(
+  const otherSlice = filteredOther.slice(
     (otherPage - 1) * otherPageSize,
     otherPage * otherPageSize
   );
+
+  const applySearchText = (value) => {
+    setSearchText(value);
+    setTrackingPage(1);
+    setOtherPage(1);
+  };
+
+  const applyDateRange = (value) => {
+    setDateRange(value);
+    setTrackingPage(1);
+    setOtherPage(1);
+  };
 
   const handleEvidenceUpload = async (e) => {
     const file = e.target.files[0];
@@ -543,6 +590,23 @@ function BranchStaffDashboard() {
               </Card>
             </Col>
           </Row>
+          <div style={searchBarStyle}>
+            <Input
+              allowClear
+              prefix={<SearchOutlined style={{ color: '#475569' }} />}
+              placeholder="Search by customer name or DBC ticket"
+              value={searchText}
+              onChange={(e) => applySearchText(e.target.value)}
+              style={searchInputStyle}
+            />
+            <RangePicker
+              value={dateRange}
+              format="DD/MM/YYYY"
+              placeholder={['Start date', 'End date']}
+              disabledDate={(current) => current && current.isAfter(moment().endOf('day'))}
+              onChange={applyDateRange}
+            />
+          </div>
         </div>
 
         <Card bodyStyle={tabsCardBodyStyle} style={cardRoundStyle}>
@@ -569,7 +633,7 @@ function BranchStaffDashboard() {
                       <Pagination
                         currentPage={trackingPage}
                         pageSize={trackingPageSize}
-                        totalRecords={scopedComplaints.length}
+                        totalRecords={filteredTracking.length}
                         onPageChange={setTrackingPage}
                         onPageSizeChange={(size) => { setTrackingPageSize(size); setTrackingPage(1); }}
                         itemUnit="complaints"
@@ -598,7 +662,7 @@ function BranchStaffDashboard() {
                       <Pagination
                         currentPage={otherPage}
                         pageSize={otherPageSize}
-                        totalRecords={otherComplaints.length}
+                        totalRecords={filteredOther.length}
                         onPageChange={setOtherPage}
                         onPageSizeChange={(size) => { setOtherPageSize(size); setOtherPage(1); }}
                         itemUnit="items"
