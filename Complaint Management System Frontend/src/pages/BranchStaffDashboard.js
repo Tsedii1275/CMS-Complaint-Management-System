@@ -64,6 +64,32 @@ function matchesIntakeSearch(record, query, range) {
   return !created.isBefore(start) && !created.isAfter(end);
 }
 
+function registeredCaseKey(record) {
+  return firstRegisteredValue(
+    record?.processInstanceId,
+    record?.complaintId,
+    record?.dbcTicketId,
+    record?.generalTicketId,
+    record?.uniqueIdNo
+  );
+}
+
+function mergeRegisteredCases(primaryRows, extraRows) {
+  const seen = new Set();
+  const merged = [];
+  for (const row of [...primaryRows, ...extraRows]) {
+    const key = registeredCaseKey(row);
+    if (key) {
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+    }
+    merged.push(row);
+  }
+  return merged;
+}
+
 function isOtherCase(record) {
   const classification = String(record?.classification || '').toUpperCase();
   const status = String(record?.status || '').toUpperCase();
@@ -200,8 +226,11 @@ function BranchStaffDashboard() {
 
   const [otherComplaints, setOtherComplaints] = useState([]);
   const [scopedComplaints, setScopedComplaints] = useState([]);
+  const [allRegisteredComplaints, setAllRegisteredComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('tracking');
+  const [activeTab, setActiveTab] = useState('all');
+  const [allPage, setAllPage] = useState(1);
+  const [allPageSize, setAllPageSize] = useState(10);
   const [trackingPage, setTrackingPage] = useState(1);
   const [trackingPageSize, setTrackingPageSize] = useState(10);
   const [otherPage, setOtherPage] = useState(1);
@@ -267,11 +296,13 @@ function BranchStaffDashboard() {
       const byUniqueIdAsc = (rows) => [...rows].sort((a, b) =>
         compareTicketNumbersAsc(formatUniqueId(a), formatUniqueId(b)));
 
-      setOtherComplaints(byUniqueIdAsc(Array.isArray(otherData) ? otherData : []));
+      const otherList = Array.isArray(otherData) ? otherData : [];
+      setOtherComplaints(byUniqueIdAsc(otherList));
 
       const list = Array.isArray(slaData) ? slaData : [];
       const filtered = list.filter(classifyComplaintFilter);
       setScopedComplaints(byUniqueIdAsc(filtered));
+      setAllRegisteredComplaints(byUniqueIdAsc(mergeRegisteredCases(list, otherList)));
     } catch (err) {
       console.error('Failed to load complaints data:', err);
     } finally {
@@ -284,6 +315,11 @@ function BranchStaffDashboard() {
   const fcrResolvedCount = scopedComplaints.filter(isResolvedAtFcr).length;
   const filteredTracking = scopedComplaints.filter((record) => matchesIntakeSearch(record, searchText, dateRange));
   const filteredOther = otherComplaints.filter((record) => matchesIntakeSearch(record, searchText, dateRange));
+  const filteredAll = allRegisteredComplaints.filter((record) => matchesIntakeSearch(record, searchText, dateRange));
+  const allSlice = filteredAll.slice(
+    (allPage - 1) * allPageSize,
+    allPage * allPageSize
+  );
   const trackingSlice = filteredTracking.slice(
     (trackingPage - 1) * trackingPageSize,
     trackingPage * trackingPageSize
@@ -295,12 +331,14 @@ function BranchStaffDashboard() {
 
   const applySearchText = (value) => {
     setSearchText(value);
+    setAllPage(1);
     setTrackingPage(1);
     setOtherPage(1);
   };
 
   const applyDateRange = (value) => {
     setDateRange(value);
+    setAllPage(1);
     setTrackingPage(1);
     setOtherPage(1);
   };
@@ -503,7 +541,7 @@ function BranchStaffDashboard() {
             icon={<EyeOutlined style={eyeIconStyle} />}
             onClick={() => {
               setSelectedComplaint(r);
-              setDetailFromOther(false);
+              setDetailFromOther(isOtherCase(r));
               setIsDetailModalOpen(true);
             }}
           />
@@ -615,6 +653,33 @@ function BranchStaffDashboard() {
             onChange={setActiveTab}
             items={(() => {
               const tabItems = [
+                {
+                  key: 'all',
+                  label: 'All Registered',
+                  children: (
+                    <div className="cms-table-shell" style={{ background: '#fff', padding: '12px 8px 4px', borderRadius: '8px' }}>
+                      <Table
+                        dataSource={allSlice}
+                        columns={trackingColumns}
+                        rowKey={(r, index) => registeredCaseKey(r) || index}
+                        loading={loading}
+                        pagination={false}
+                        size="middle"
+                        bordered={false}
+                        locale={{ emptyText: 'No registered cases.' }}
+                        scroll={{ x: 'max-content' }}
+                      />
+                      <Pagination
+                        currentPage={allPage}
+                        pageSize={allPageSize}
+                        totalRecords={filteredAll.length}
+                        onPageChange={setAllPage}
+                        onPageSizeChange={(size) => { setAllPageSize(size); setAllPage(1); }}
+                        itemUnit="cases"
+                      />
+                    </div>
+                  )
+                },
                 {
                   key: 'tracking',
                   label: 'Total Complaints',
