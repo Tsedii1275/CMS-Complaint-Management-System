@@ -90,6 +90,20 @@ function mergeRegisteredCases(primaryRows, extraRows) {
   return merged;
 }
 
+function taskAsRegisteredCase(task) {
+  const vars = task?.variables || {};
+  const complaint = vars.complaint || {};
+  const customer = vars.customer || {};
+  return {
+    ...task,
+    customerName: task?.customerName || customer.name || '',
+    complaintCategory: task?.complaintCategory || complaint.category || vars.complaintCategory || '',
+    status: task?.status || task?.overallStatus || 'RECORDED',
+    classification: task?.classification || vars.classification || 'INTAKE',
+    createdAt: task?.createdAt || null
+  };
+}
+
 function isOtherCase(record) {
   const classification = String(record?.classification || '').toUpperCase();
   const status = String(record?.status || '').toUpperCase();
@@ -288,9 +302,11 @@ function BranchStaffDashboard() {
   const loadComplaintsData = async () => {
     try {
       setLoading(true);
-      const [slaData, otherData] = await Promise.all([
+      const [slaData, otherData, registeredData, taskData] = await Promise.all([
         ApiService.getAllSlaMetrics().catch(() => []),
-        ApiService.getOtherSlaMetrics().catch(() => [])
+        ApiService.getOtherSlaMetrics().catch(() => []),
+        ApiService.getRegisteredSlaMetrics().catch(() => null),
+        ApiService.getEnrichedTasks().catch(() => [])
       ]);
 
       const byUniqueIdAsc = (rows) => [...rows].sort((a, b) =>
@@ -302,7 +318,9 @@ function BranchStaffDashboard() {
       const list = Array.isArray(slaData) ? slaData : [];
       const filtered = list.filter(classifyComplaintFilter);
       setScopedComplaints(byUniqueIdAsc(filtered));
-      setAllRegisteredComplaints(byUniqueIdAsc(mergeRegisteredCases(list, otherList)));
+      const registeredList = Array.isArray(registeredData) ? registeredData : mergeRegisteredCases(list, otherList);
+      const openTasks = (Array.isArray(taskData) ? taskData : []).map(taskAsRegisteredCase);
+      setAllRegisteredComplaints(byUniqueIdAsc(mergeRegisteredCases(registeredList, openTasks)));
     } catch (err) {
       console.error('Failed to load complaints data:', err);
     } finally {
@@ -316,17 +334,20 @@ function BranchStaffDashboard() {
   const filteredTracking = scopedComplaints.filter((record) => matchesIntakeSearch(record, searchText, dateRange));
   const filteredOther = otherComplaints.filter((record) => matchesIntakeSearch(record, searchText, dateRange));
   const filteredAll = allRegisteredComplaints.filter((record) => matchesIntakeSearch(record, searchText, dateRange));
+  const safeAllPage = Math.min(allPage, Math.max(1, Math.ceil(filteredAll.length / allPageSize) || 1));
+  const safeTrackingPage = Math.min(trackingPage, Math.max(1, Math.ceil(filteredTracking.length / trackingPageSize) || 1));
+  const safeOtherPage = Math.min(otherPage, Math.max(1, Math.ceil(filteredOther.length / otherPageSize) || 1));
   const allSlice = filteredAll.slice(
-    (allPage - 1) * allPageSize,
-    allPage * allPageSize
+    (safeAllPage - 1) * allPageSize,
+    safeAllPage * allPageSize
   );
   const trackingSlice = filteredTracking.slice(
-    (trackingPage - 1) * trackingPageSize,
-    trackingPage * trackingPageSize
+    (safeTrackingPage - 1) * trackingPageSize,
+    safeTrackingPage * trackingPageSize
   );
   const otherSlice = filteredOther.slice(
-    (otherPage - 1) * otherPageSize,
-    otherPage * otherPageSize
+    (safeOtherPage - 1) * otherPageSize,
+    safeOtherPage * otherPageSize
   );
 
   const applySearchText = (value) => {
@@ -632,7 +653,7 @@ function BranchStaffDashboard() {
             <Input
               allowClear
               prefix={<SearchOutlined style={{ color: '#475569' }} />}
-              placeholder="Search by customer name or DBC ticket"
+              placeholder="Search by name or ticket"
               value={searchText}
               onChange={(e) => applySearchText(e.target.value)}
               style={searchInputStyle}

@@ -5,6 +5,7 @@ import DashboardLayout from '../components/DashboardLayout';
 import ApiService from '../services/api';
 import { BRAND_COLORS } from '../constants/theme';
 import TaskTable, { formatUniqueId, formatIntakeId, matchesTicketSearch, compareTicketNumbersAsc } from '../components/TaskTable';
+import Pagination from '../components/Pagination';
 import { useAuth } from '../contexts/AuthContext';
 import { renderComplaintStatusTag } from '../utils/statusUtils';
 import { resolveCurrentContactPhone, resolveCoreBankingPhone } from '../utils/customerContact';
@@ -827,6 +828,11 @@ function UnresolvedFollowupsPanel({
   handleStartFollowup,
   handleCloseFollowup
 }) {
+  const [followupPage, setFollowupPage] = useState(1);
+  const [followupPageSize, setFollowupPageSize] = useState(10);
+  useEffect(() => {
+    setFollowupPage(1);
+  }, [searchQuery]);
   const unresolvedColumns = [
     {
       title: 'Unique ID No',
@@ -912,6 +918,12 @@ function UnresolvedFollowupsPanel({
     const comm = (f.additionalComments || '').toLowerCase();
     return !query || matchesTicketSearch(f, query) || comm.includes(query);
   });
+  const followupPages = Math.max(1, Math.ceil(filteredUnresolved.length / followupPageSize) || 1);
+  const safeFollowupPage = Math.min(followupPage, followupPages);
+  const followupSlice = filteredUnresolved.slice(
+    (safeFollowupPage - 1) * followupPageSize,
+    safeFollowupPage * followupPageSize
+  );
   if (filteredUnresolved.length === 0) {
     return (
       <Empty
@@ -922,14 +934,24 @@ function UnresolvedFollowupsPanel({
     );
   }
   return (
-    <Table
-      dataSource={filteredUnresolved}
-      columns={unresolvedColumns}
-      rowKey="id"
-      pagination={{ pageSize: 10 }}
-      style={{ background: '#fff', borderRadius: '8px' }}
-      scroll={{ x: 'max-content' }}
-    />
+    <div className="cms-table-shell" style={{ background: '#fff', padding: '12px 8px 4px', borderRadius: '8px' }}>
+      <Table
+        dataSource={followupSlice}
+        columns={unresolvedColumns}
+        rowKey="id"
+        pagination={false}
+        style={{ background: '#fff', borderRadius: '8px' }}
+        scroll={{ x: 'max-content' }}
+      />
+      <Pagination
+        currentPage={followupPage}
+        pageSize={followupPageSize}
+        totalRecords={filteredUnresolved.length}
+        onPageChange={setFollowupPage}
+        onPageSizeChange={(size) => { setFollowupPageSize(size); setFollowupPage(1); }}
+        itemUnit="follow-ups"
+      />
+    </div>
   );
 }
 
@@ -1004,6 +1026,7 @@ function CmdTaskQueue({
   return (
     <TaskTable
       tasks={filtered}
+      listKey={`${activeTab}|${searchQuery}`}
       onSelectTask={handleTaskSelect}
       onAssignTask={isSeniorManager && !isDeclinedTab ? handleOpenAssignModal : null}
       showPriority={false}

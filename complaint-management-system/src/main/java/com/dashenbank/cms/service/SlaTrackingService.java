@@ -1195,6 +1195,33 @@ public class SlaTrackingService {
     }
 
     /**
+     * Every registered case, including CM-only intake still waiting in Customer Care.
+     * {@link #getAllMetrics()} keeps those rows out of complaint reporting.
+     */
+    public List<ComplaintSlaMetrics> getRegisteredMetrics() {
+        if (entityManager != null) {
+            try {
+                entityManager.clear();
+            } catch (Exception ignored) {
+                log.debug(LOG_OPTIONAL_SKIPPED, ignored.getMessage());
+            }
+        }
+        syncMissingSlaMetricsFromFlowableHistory();
+        List<ComplaintSlaMetrics> all = slaMetricsRepository.findAll();
+        for (ComplaintSlaMetrics metrics : all) {
+            reconcileIntakeRowFromWorkflow(metrics);
+            attachRegisteredCaseDetails(metrics);
+            if (!isOtherClassification(metrics)
+                    && !STATUS_CLOSED.equalsIgnoreCase(metrics.getStatus())
+                    && !STATUS_RESOLVED.equalsIgnoreCase(metrics.getStatus())
+                    && !STATUS_DECLINED.equalsIgnoreCase(metrics.getStatus())) {
+                applyOverallStatus(metrics);
+            }
+        }
+        return all;
+    }
+
+    /**
      * Non-complaint items screened as OTHER. Kept out of getAllMetrics so they
      * never
      * enter complaint analytics, but they must still be listed on the Contact
@@ -1231,6 +1258,14 @@ public class SlaTrackingService {
         String customerName = firstNonBlank(metrics.getCustomerName(), str(customer, "name"), str(vars, "customerName"));
         if (!customerName.isBlank()) {
             metrics.setCustomerName(customerName);
+        }
+        String category = firstNonBlank(
+                metrics.getComplaintCategory(),
+                str(complaint, "category"),
+                str(vars, "complaintCategory"),
+                str(complaint, "complaintCategory"));
+        if (!category.isBlank()) {
+            metrics.setComplaintCategory(category);
         }
         String phone = CustomerContactPhones.currentContact(customer);
         metrics.setCurrentContactPhone(firstNonBlank(

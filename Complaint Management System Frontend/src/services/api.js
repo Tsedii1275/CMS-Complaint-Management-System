@@ -318,6 +318,10 @@ class ApiService {
     return this.get('/api/audit/sla/all');
   }
 
+  async getRegisteredSlaMetrics() {
+    return this.get('/api/audit/sla/registered');
+  }
+
   async getOtherSlaMetrics() {
     return this.get('/api/audit/sla/other');
   }

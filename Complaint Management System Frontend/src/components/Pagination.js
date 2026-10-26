@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 
 /**
  * System-Wide Reusable Pagination Component
@@ -17,12 +17,18 @@ const Pagination = ({
     showSizeChanger = true,
     itemUnit = 'records'
 }) => {
+    const totalPages = Math.max(1, Math.ceil((totalRecords || 0) / pageSize));
+    const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+    useEffect(() => {
+        if (totalRecords > 0 && currentPage > totalPages && onPageChange) {
+            onPageChange(totalPages);
+        }
+    }, [currentPage, totalPages, totalRecords, onPageChange]);
+
     if (!totalRecords || totalRecords <= 0) {
         return null;
     }
-
-    const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
-    const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
 
     const startRecord = (validCurrentPage - 1) * pageSize + 1;
     const endRecord = Math.min(validCurrentPage * pageSize, totalRecords);

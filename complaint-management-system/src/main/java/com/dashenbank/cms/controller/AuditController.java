@@ -112,6 +112,11 @@ public class AuditController {
         return ResponseEntity.ok(metrics);
     }
 
+    @GetMapping("/sla/registered")
+    public ResponseEntity<List<ComplaintSlaMetrics>> getRegisteredSlaMetrics() {
+        return ResponseEntity.ok(slaTrackingService.getRegisteredMetrics());
+    }
+
     @GetMapping("/sla/other")
     public ResponseEntity<List<ComplaintSlaMetrics>> getOtherSlaMetrics() {
         List<ComplaintSlaMetrics> metrics = slaTrackingService.getOtherMetrics();

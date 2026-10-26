@@ -193,13 +193,13 @@ export const UniqueIdDisplay = ({ record, showIntake = true }) => {
  * Neat, modern, high-density Table View for staff task queues.
  * Displays standard task card information in a clean, space-efficient single-row table format.
  */
-function TaskTable({ tasks = [], onSelectTask, onAssignTask, showPriority = false, showAssignedOfficer = true, showAssignedDate = true, showOverallStatus = true }) {
+function TaskTable({ tasks = [], onSelectTask, onAssignTask, showPriority = false, showAssignedOfficer = true, showAssignedDate = true, showOverallStatus = true, listKey = '' }) {
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [tasks.length]);
+  }, [listKey]);
 
   const columns = [
     {
@@ -372,7 +372,9 @@ function TaskTable({ tasks = [], onSelectTask, onAssignTask, showPriority = fals
     }
   ];
 
-  const paginatedTasks = tasks.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = Math.max(1, Math.ceil(tasks.length / pageSize) || 1);
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+  const paginatedTasks = tasks.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const exportColumns = [
     { header: 'Unique ID No', accessor: (r) => formatUniqueId(r) },
