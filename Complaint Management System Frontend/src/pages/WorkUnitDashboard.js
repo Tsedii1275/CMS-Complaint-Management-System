@@ -7,6 +7,7 @@ import { BRAND_COLORS } from '../constants/theme';
 import TaskTable, { formatUniqueId, formatIntakeId, matchesTicketSearch } from '../components/TaskTable';
 import { useAuth } from '../contexts/AuthContext';
 import { collectAttachments } from '../utils/attachments';
+import { complaintBranch } from '../utils/locationKeys';
 import { isVisibleOnWorkUnitInbox } from '../utils/workUnitInbox';
 
 const { Title, Text, Paragraph } = Typography;

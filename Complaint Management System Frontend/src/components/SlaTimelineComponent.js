@@ -72,6 +72,16 @@ const slaStyles = {
 
 const formatStageName = (rawName, defKey) => {
   const key = ((rawName || '') + ' ' + (defKey || '')).toUpperCase().trim();
+  // Audit Investigation workflow steps must be matched before the generic INVESTIGATION rule.
+  if (key.includes('FORMTASK_SM_CLOSURE') || key.includes('SENIOR MANAGER CLOSURE') || key.includes('SENIOR_MANAGER_CLOSURE')) {
+    return 'Senior Manager Closure';
+  }
+  if (key.includes('FORMTASK_SM_REVIEW') || key.includes('SENIOR MANAGER INVESTIGATION REVIEW') || key.includes('SENIOR_MANAGER_REVIEW')) {
+    return 'Senior Manager Investigation Review';
+  }
+  if (key.includes('FORMTASK_SQ_REVIEW') || key.includes('SERVICE QUALITY INVESTIGATION REVIEW')) {
+    return 'Service Quality Review';
+  }
   if (key.includes('FORMTASK_57') || key.includes('TASK_57') || key.includes('WORK_UNIT')) {
     return 'Department / Work Unit Resolution';
   }

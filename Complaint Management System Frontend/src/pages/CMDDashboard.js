@@ -10,6 +10,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { renderComplaintStatusTag } from '../utils/statusUtils';
 import { resolveCurrentContactPhone, resolveCoreBankingPhone } from '../utils/customerContact';
 import { collectAttachments } from '../utils/attachments';
+import { customerHomeBranch, customerHomeDistrict, customerBranchCode, complaintBranch, complaintDistrict } from '../utils/locationKeys';
+import InvestigationReviewPanel from '../components/InvestigationReviewPanel';
+import { hasInvestigationTab, investigationTabLabel, investigationTasksForRole } from '../utils/investigationWorkflow';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -352,10 +355,12 @@ function buildCmdCompleteVariables(formData, finalClassification, selectedTask, 
     variables.additionalRemarks = summaryText;
   } else if (formData.requiresInvestigation) {
     variables.requiresInvestigation = true;
-    variables.currentStage = 'CHIEF_EXPERIENCE_REVIEW';
-    variables.stage = 'CHIEF_EXPERIENCE';
-    variables.assignedToRole = 'ROLE_CHIEF_EXPERIENCE_OFFICER';
-    variables.nextStage = 'CHIEF_OPERATION_AUDIT';
+    // Audit Investigation workflow: the case goes to the Customer Care Senior Manager first,
+    // then Service Quality, then the Chief Experience Officer. The server decides the stage.
+    variables.currentStage = 'SENIOR_MANAGER_REVIEW';
+    variables.stage = 'SENIOR_MANAGER_REVIEW';
+    variables.assignedToRole = 'ROLE_CUSTOMER_CARE_SENIOR_MANAGER';
+    variables.nextStage = 'SERVICE_QUALITY_REVIEW';
     variables.investigationFiles = investigationFileList.map(f => ({
       name: f.name,
       url: f.url,
@@ -384,7 +389,7 @@ function cmdSubmitSuccessText(finalClassification, isClosingAfterRes, isReassign
     return `Complaint successfully reassigned to ${targetUnit} for additional resolution.`;
   }
   if (requiresInvestigation) {
-    return 'Complaint marked for Investigation and escalated to Chief Experience Officer for review.';
+    return 'Complaint marked as Requires Investigation and forwarded to the Customer Care Senior Manager for review.';
   }
   return 'Task completed! Complaint classified and case routed successfully.';
 }
@@ -560,6 +565,13 @@ function isCmdOfficerWorkspace(role) {
   return role === 'ROLE_CUSTOMER_CARE_OFFICER' || role === 'ROLE_CUSTOMER_CARE_TEAM_LEADER';
 }
 
+function defaultCmdTab(role) {
+  if (isCmdOfficerWorkspace(role)) return 'my_tasks';
+  // Service Quality only works the investigation review queue in this workspace.
+  if (role === 'ROLE_SERVICE_QUALITY_DIRECTOR') return 'investigation_review';
+  return 'all_tasks';
+}
+
 function isUnassignedAssignee(assignee) {
   return !assignee || assignee === 'Unassigned' || assignee === 'null';
 }
@@ -723,6 +735,7 @@ function CmdCategoryAnalytics({ tasks, slaMetrics, unresolvedFollowups, loading 
 function CmdQueueToolbar({
   user,
   tasks,
+  investigationTasks = [],
   unresolvedFollowups,
   searchQuery,
   setSearchQuery,
@@ -793,6 +806,19 @@ function CmdQueueToolbar({
         style={{ marginBottom: '16px' }}
       >
         <Tabs.TabPane tab="All Tasks" key="all_tasks" />
+        {hasInvestigationTab(userRole) && (
+          <Tabs.TabPane
+            tab={(
+              <span>
+                {investigationTabLabel(userRole)}
+                {investigationTasks.length > 0 && (
+                  <Badge count={investigationTasks.length} overflowCount={99} style={{ marginLeft: 6, backgroundColor: '#2563eb' }} />
+                )}
+              </span>
+            )}
+            key="investigation_review"
+          />
+        )}
         {isSeniorManager && (
           <Tabs.TabPane tab="Assigned" key="assigned_tasks" />
         )}
@@ -1079,6 +1105,7 @@ async function loadCmdTasks(ref, showLoading = false) {
     s.setSlaMetrics(metricsData || []);
     const filtered = buildCmdTaskList(tasksData, metricsData, s.user);
     s.setTasks(filtered);
+    s.setInvestigationTasks(investigationTasksForRole(tasksData, s.user?.role || ''));
     s.setError('');
     if (s.selectedTask) {
       const updatedSelected = filtered.find(t => t.id === s.selectedTask.id);
@@ -1417,6 +1444,10 @@ function bindCmdHandlers(stateRef) {
   return {
     handleStartFollowup: (id) => startCmdFollowup(stateRef, id),
     handleCloseFollowup: (id) => closeCmdFollowup(stateRef, id),
+    handleInvestigationCompleted: async () => {
+      await loadCmdTasks(stateRef, false);
+      await fetchSlaMetricsCmd(stateRef);
+    },
     handleOpenAssignModal: (task) => openCmdAssignModal(stateRef, task),
     confirmTaskAssignment: () => confirmCmdTaskAssignment(stateRef),
     handleTaskSelect: (task) => selectCmdTask(stateRef, task),
@@ -1438,9 +1469,8 @@ function useCmdDashboardState() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [slaMetrics, setSlaMetrics] = useState([]);
-  const [activeTab, setActiveTab] = useState(
-    isCmdOfficerWorkspace(user?.role || '') ? 'my_tasks' : 'all_tasks'
-  );
+  const [investigationTasks, setInvestigationTasks] = useState([]);
+  const [activeTab, setActiveTab] = useState(defaultCmdTab(user?.role || ''));
   const [formData, setFormData] = useState({
     classification: 'COMPLAINT',
     complaintClassification: 'General',
@@ -1480,6 +1510,8 @@ function useCmdDashboardState() {
     user,
     tasks,
     setTasks,
+    investigationTasks,
+    setInvestigationTasks,
     selectedTask,
     setSelectedTask,
     loading,
@@ -2924,7 +2956,7 @@ function CmdScreeningFormCard(props) {
                     Upload Investigation Evidence &amp; Documents (Multiple Files)
                   </Text>
                   <Text style={{ color: '#64748b', fontSize: '12px', display: 'block', marginBottom: '12px' }}>
-                    Attach multiple evidence files, documents, screenshots, or receipts for the Chief Experience Officer review.
+                    Attach multiple evidence files, documents, screenshots, or receipts for the Senior Manager, Service Quality and Chief Experience Officer reviews.
                   </Text>
                   <Upload
                     multiple
@@ -3281,6 +3313,7 @@ function CmdDashboardView(props) {
   const {
     user,
     tasks,
+    investigationTasks,
     selectedTask,
     setSelectedTask,
     loading,
@@ -3288,6 +3321,7 @@ function CmdDashboardView(props) {
     slaMetrics,
     activeTab,
     setActiveTab,
+    handleInvestigationCompleted,
     message,
     setMessage,
     searchQuery,
@@ -3369,6 +3403,7 @@ function CmdDashboardView(props) {
             <CmdQueueToolbar
               user={user}
               tasks={tasks}
+              investigationTasks={investigationTasks}
               unresolvedFollowups={unresolvedFollowups}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
@@ -3384,6 +3419,12 @@ function CmdDashboardView(props) {
                 setIsFollowupModalOpen={setIsFollowupModalOpen}
                 handleStartFollowup={handleStartFollowup}
                 handleCloseFollowup={handleCloseFollowup}
+              />
+            ) : activeTab === 'investigation_review' ? (
+              <InvestigationReviewPanel
+                tasks={investigationTasks}
+                searchQuery={searchQuery}
+                onCompleted={handleInvestigationCompleted}
               />
             ) : (
               <CmdTaskQueue

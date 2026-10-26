@@ -94,7 +94,9 @@ class SystemDiagnosticsServiceTest {
         when(notificationRepository.findFirstByChannelAndStatusOrderByIdDesc(any(), eq(NotificationStatus.FAILED)))
                 .thenReturn(Optional.empty());
         when(notificationRepository.countByChannelAndStatusIn(eq(NotificationChannel.SMS), any())).thenReturn(2L);
-        when(notificationRepository.countByChannelAndStatusIn(eq(NotificationChannel.EMAIL), any())).thenReturn(0L);
+        org.mockito.Mockito.lenient()
+                .when(notificationRepository.countByChannelAndStatusIn(eq(NotificationChannel.EMAIL), any()))
+                .thenReturn(0L);
 
         Map<String, Object> body = service.integrations();
         String rendered = body.toString();

@@ -63,6 +63,9 @@ export function isSlaAlertForUser(alert, user) {
   if (role === 'ROLE_SERVICE_QUALITY_DIRECTOR' || role.includes('SERVICE_QUALITY_DIRECTOR')) {
     return stage.includes('SERVICE_QUALITY');
   }
+  if (role === 'ROLE_CUSTOMER_CARE_SENIOR_MANAGER' && stage.includes('SENIOR_MANAGER')) {
+    return true;
+  }
   if (role === 'ROLE_CUSTOMER_CARE_OFFICER'
       || role === 'ROLE_CUSTOMER_CARE_TEAM_LEADER'
       || role === 'ROLE_CUSTOMER_CARE_SENIOR_MANAGER'

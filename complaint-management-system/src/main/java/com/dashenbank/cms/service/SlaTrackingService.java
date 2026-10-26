@@ -146,6 +146,8 @@ public class SlaTrackingService {
                 slaConfigService.resolveAllowedMinutes("CMD_FORWARDING").orElse(null);
             case SlaAlertScope.STAGE_SERVICE_QUALITY_REVIEW ->
                 slaConfigService.resolveAllowedMinutes("SERVICE_QUALITY_REVIEW").orElse(null);
+            case SlaAlertScope.STAGE_SENIOR_MANAGER_REVIEW, SlaAlertScope.STAGE_SENIOR_MANAGER_CLOSURE ->
+                slaConfigService.resolveAllowedMinutes("SENIOR_MANAGER_INVESTIGATION_REVIEW").orElse(null);
             case SlaAlertScope.STAGE_CHIEF_EXPERIENCE_REVIEW, "CXO_REVIEW", "CEO_DIRECTION" ->
                 slaConfigService.resolveAllowedMinutes(
                         "CEO_DIRECTION".equals(stage) ? "CEO_DIRECTION" : "CXO_REVIEW").orElse(null);
@@ -601,7 +603,7 @@ public class SlaTrackingService {
             switch (laneName) {
                 case LANE_BRANCH_STAFF, "CONTACT_CENTER" ->
                     metrics.setBranchStaffDuration(metrics.getBranchStaffDuration() + additionalMinutes);
-                case "CMD_OFFICER" -> metrics.setCmdDuration(metrics.getCmdDuration() + additionalMinutes);
+                case "CMD_OFFICER", "CUSTOMER_CARE_SENIOR_MANAGER" -> metrics.setCmdDuration(metrics.getCmdDuration() + additionalMinutes);
                 case "AUDIT_TEAM" -> metrics.setAuditDuration(metrics.getAuditDuration() + additionalMinutes);
                 case LANE_DEPARTMENT_WORKUNIT ->
                     metrics.setDepartmentDuration(metrics.getDepartmentDuration() + additionalMinutes);

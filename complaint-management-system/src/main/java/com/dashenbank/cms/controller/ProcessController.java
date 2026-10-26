@@ -7,6 +7,7 @@ import com.dashenbank.cms.integration.corebanking.CoreBankingProfile;
 import com.dashenbank.cms.model.AuditLog;
 import com.dashenbank.cms.model.ComplaintSlaMetrics;
 import com.dashenbank.cms.model.OverallComplaintStatus;
+import com.dashenbank.cms.model.Role;
 import com.dashenbank.cms.model.User;
 import com.dashenbank.cms.repository.ComplaintSlaMetricsRepository;
 import com.dashenbank.cms.repository.UserRepository;
@@ -14,6 +15,7 @@ import com.dashenbank.cms.delegate.NotificationDelegate;
 import com.dashenbank.cms.service.AttachmentService;
 import com.dashenbank.cms.service.AuditService;
 import com.dashenbank.cms.service.ComplainantRelatedInformationService;
+import com.dashenbank.cms.service.InvestigationWorkflow;
 import com.dashenbank.cms.notification.CustomerNotifications;
 import com.dashenbank.cms.notification.NotificationEventType;
 import com.dashenbank.cms.notification.NotificationQueueResult;
@@ -28,6 +30,7 @@ import com.dashenbank.cms.exception.InputValidationException;
 import com.dashenbank.cms.security.ClientIp;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.flowable.engine.HistoryService;
+import org.flowable.engine.RepositoryService;
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
 import org.flowable.task.api.Task;
@@ -182,6 +185,8 @@ public class ProcessController {
     private final UserRepository userRepository;
     private final JdbcTemplate jdbcTemplate;
     private final ComplaintSlaMetricsRepository slaMetricsRepository;
+    @Autowired(required = false)
+    private RepositoryService repositoryService;
     @Autowired
     private AttachmentService attachmentService;
     @Autowired
@@ -1174,6 +1179,12 @@ public class ProcessController {
             Task task = slaAlertAuthorizationService.requireAuthorizedTask(taskId,
                     SlaAlertAuthorizationService.TaskAction.COMPLETE);
 
+            String investigationError = validateInvestigationDecision(task, variables);
+            if (investigationError != null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of(KEY_ERROR, investigationError, "code", "VALIDATION_ERROR"));
+            }
+
             Map<String, Object> vars = taskService.getVariables(taskId);
             Map<String, Object> complaint = castToMap(vars.get(KEY_COMPLAINT));
             Map<String, Object> customer = castToMap(vars.get(KEY_CUSTOMER));
@@ -1206,6 +1217,26 @@ public class ProcessController {
         logCompleteTaskAudit(task, ticketId, cName, cEmail, cat, desc, variables, vars, customer);
         tryRecordTaskCompletion(task.getId());
         Map<String, Object> processVars = cleanLargeProcessVars(variables);
+
+        if (SlaAlertScope.TASK_CXO.equals(task.getTaskDefinitionKey())) {
+            processVars.put(InvestigationWorkflow.KEY_CXO_DECISION,
+                    InvestigationWorkflow.normalizeCxoDecision(processVars.get(InvestigationWorkflow.KEY_CXO_DECISION)));
+            if (!InvestigationWorkflow.isHandledByChain(task.getTaskDefinitionKey(), processVars)
+                    && processDefinitionHasReviewChain(task)) {
+                processVars.put(InvestigationWorkflow.KEY_TRAIL, InvestigationWorkflow.appendTrail(
+                        vars.get(InvestigationWorkflow.KEY_TRAIL),
+                        InvestigationWorkflow.trailEntry(SlaAlertScope.STAGE_CHIEF_EXPERIENCE_REVIEW,
+                                "SENT_TO_AUDIT_INVESTIGATION", getCurrentUsername(), getCurrentUserRole(),
+                                firstNonBlankString(processVars.get("cxRemarks")),
+                                InvestigationWorkflow.countFiles(processVars.get("cxFiles")))));
+                tryInvestigationAudit(task, ticketId, vars, "CXO_SENT_TO_AUDIT", "chief-experience-officer",
+                        "Chief Experience Officer sent the case to the Audit Investigation Team.");
+            }
+        }
+        if (InvestigationWorkflow.isHandledByChain(task.getTaskDefinitionKey(), processVars)) {
+            completeInvestigationReviewTask(task, ticketId, processVars, vars, customer);
+            return;
+        }
 
         if (!processVars.containsKey(KEY_STATUS) || processVars.get(KEY_STATUS) == null) {
             processVars.put(KEY_STATUS, VAL_RECORDED);
@@ -1458,15 +1489,37 @@ public class ProcessController {
             boolean isCexOrAuditAction = isAuditEscalationPayload
                     || KEY_FORM_TASK_CHIEF_COMMITTEE.equals(task.getTaskDefinitionKey());
             if (!isCexOrAuditAction) {
-                processVars.put(KEY_CURRENT_STAGE, STAGE_CHIEF_EXPERIENCE_REVIEW);
-                processVars.put(KEY_STAGE, STAGE_CHIEF_EXPERIENCE_REVIEW);
+                // Audit Investigation workflow: the CCO hands the case to the Customer Care Senior
+                // Manager first. Process versions deployed before this workflow keep the old route
+                // (straight to the Chief Experience Officer) so in-flight cases are unaffected.
+                boolean viaSeniorManager = KEY_FORM_TASK_43.equals(task.getTaskDefinitionKey())
+                        && processDefinitionHasReviewChain(task);
+                String reviewStage = viaSeniorManager
+                        ? SlaAlertScope.STAGE_SENIOR_MANAGER_REVIEW
+                        : STAGE_CHIEF_EXPERIENCE_REVIEW;
+                processVars.put(KEY_CURRENT_STAGE, reviewStage);
+                processVars.put(KEY_STAGE, reviewStage);
+                if (viaSeniorManager) {
+                    processVars.put("assignedToRole", Role.ROLE_CUSTOMER_CARE_SENIOR_MANAGER.name());
+                    processVars.put("nextStage", SlaAlertScope.STAGE_SERVICE_QUALITY_REVIEW);
+                    processVars.put(InvestigationWorkflow.KEY_TRAIL, InvestigationWorkflow.appendTrail(
+                            vars.get(InvestigationWorkflow.KEY_TRAIL),
+                            InvestigationWorkflow.trailEntry(SlaAlertScope.STAGE_SENIOR_MANAGER_REVIEW,
+                                    "REQUIRES_INVESTIGATION_SELECTED", getCurrentUsername(), getCurrentUserRole(),
+                                    firstNonBlankString(processVars.get(KEY_NOTES),
+                                            processVars.get("additionalRemarks")),
+                                    InvestigationWorkflow.countFiles(
+                                            processVars.get(InvestigationWorkflow.KEY_INVESTIGATION_FILES)))));
+                    tryInvestigationAudit(task, ticketId, vars, "INVESTIGATION_REQUIRED", ACTOR_CMD_OFFICER,
+                            "Customer care officer marked the complaint as requiring investigation and forwarded it to the Customer Care Senior Manager.");
+                }
                 try {
                     jdbcTemplate.update(
-                            "UPDATE complaint_sla_metrics SET current_stage = 'CHIEF_EXPERIENCE_REVIEW', requires_investigation = true WHERE process_instance_id = ? OR complaint_id = ?",
-                            task.getProcessInstanceId(), ticketId);
-                    overlaySlaStage(task.getProcessInstanceId(), STAGE_CHIEF_EXPERIENCE_REVIEW, true, VAL_ESCALATED);
+                            "UPDATE complaint_sla_metrics SET current_stage = ?, requires_investigation = true WHERE process_instance_id = ? OR complaint_id = ?",
+                            reviewStage, task.getProcessInstanceId(), ticketId);
+                    overlaySlaStage(task.getProcessInstanceId(), reviewStage, true, VAL_ESCALATED);
                 } catch (Exception e) {
-                    log.info("Could not update SLA metrics for CEX review stage: {}", e.getMessage());
+                    log.info("Could not update SLA metrics for investigation review stage: {}", e.getMessage());
                 }
             }
         }
@@ -1945,6 +1998,169 @@ public class ProcessController {
         } catch (Exception e) {
             log.error("SLA new task tracking failed: {}", e.getMessage());
         }
+    }
+
+    private String validateInvestigationDecision(Task task, Map<String, Object> variables) {
+        String error = InvestigationWorkflow.validate(task.getTaskDefinitionKey(), variables);
+        if (error != null) {
+            return error;
+        }
+        if (InvestigationWorkflow.isHandledByChain(task.getTaskDefinitionKey(), variables)
+                && SlaAlertScope.TASK_CXO.equals(task.getTaskDefinitionKey())
+                && !processDefinitionHasReviewChain(task)) {
+            return "This case was registered before the Return to Customer Care Senior Manager route existed. "
+                    + "Please send it to Audit Investigation.";
+        }
+        return null;
+    }
+
+    /**
+     * Process versions deployed before the Audit Investigation workflow do not contain the
+     * Senior Manager closure task. Their in-flight cases keep the legacy route.
+     */
+    private boolean processDefinitionHasReviewChain(Task task) {
+        if (repositoryService == null || task == null || task.getProcessDefinitionId() == null) {
+            return false;
+        }
+        try {
+            org.flowable.bpmn.model.BpmnModel model = repositoryService.getBpmnModel(task.getProcessDefinitionId());
+            return model != null && model.getFlowElement(InvestigationWorkflow.CLOSURE_TASK_ELEMENT) != null;
+        } catch (Exception e) {
+            log.info("Could not inspect process definition {}: {}", task.getProcessDefinitionId(), e.getMessage());
+            return false;
+        }
+    }
+
+    private void tryInvestigationAudit(Task task, String ticketId, Map<String, Object> vars, String action,
+            String actor, String details) {
+        try {
+            auditService.log(firstNonBlankString(vars.get(KEY_DBC_TICKET_ID), vars.get(KEY_COMPLAINT_ID), ticketId),
+                    task.getProcessInstanceId(), task.getId(), action, actor, getCurrentUsername(), details, "", "",
+                    "");
+        } catch (Exception e) {
+            log.error("Investigation audit logging failed (non-fatal): {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Completes a step of the Audit Investigation workflow. Only whitelisted fields are accepted
+     * from the client; stage, decision and closure flags are decided here.
+     */
+    @SuppressWarnings("java:S3776")
+    private void completeInvestigationReviewTask(Task task, String ticketId, Map<String, Object> submitted,
+            Map<String, Object> vars, Map<String, Object> customer) {
+        String defKey = task.getTaskDefinitionKey();
+        String processInstanceId = task.getProcessInstanceId();
+        String username = getCurrentUsername();
+        String role = getCurrentUserRole();
+        String remarks = InvestigationWorkflow.text(submitted.get(InvestigationWorkflow.KEY_REVIEW_REMARKS));
+        Object newFiles = submitted.get(InvestigationWorkflow.KEY_REVIEW_FILES);
+
+        Map<String, Object> out = new HashMap<>();
+        out.put(KEY_REQUIRES_INVESTIGATION, true);
+
+        String step;
+        String action;
+        String nextStage;
+        String nextRole;
+        String auditActor;
+        String auditText;
+        boolean closing = false;
+
+        if (SlaAlertScope.TASK_SM_REVIEW.equals(defKey)) {
+            step = SlaAlertScope.STAGE_SENIOR_MANAGER_REVIEW;
+            action = "FORWARDED_TO_SERVICE_QUALITY";
+            nextStage = SlaAlertScope.STAGE_SERVICE_QUALITY_REVIEW;
+            nextRole = Role.ROLE_SERVICE_QUALITY_DIRECTOR.name();
+            auditActor = "senior-manager";
+            auditText = "Customer Care Senior Manager reviewed the case and forwarded it to the Service Quality Department.";
+            out.put("seniorManagerRemarks", remarks);
+            out.put("seniorManagerReviewedBy", username);
+        } else if (SlaAlertScope.TASK_SQ_REVIEW.equals(defKey)) {
+            step = SlaAlertScope.STAGE_SERVICE_QUALITY_REVIEW;
+            action = "FORWARDED_TO_CHIEF_EXPERIENCE_OFFICER";
+            nextStage = STAGE_CHIEF_EXPERIENCE_REVIEW;
+            nextRole = Role.ROLE_CHIEF_EXPERIENCE_OFFICER.name();
+            auditActor = "service-quality";
+            auditText = "Service Quality Department reviewed the case and forwarded it to the Chief Experience Officer.";
+            out.put("serviceQualityRemarks", remarks);
+            out.put("serviceQualityReviewedBy", username);
+        } else if (SlaAlertScope.TASK_CXO.equals(defKey)) {
+            step = SlaAlertScope.STAGE_CHIEF_EXPERIENCE_REVIEW;
+            action = "RETURNED_TO_SENIOR_MANAGER";
+            nextStage = SlaAlertScope.STAGE_SENIOR_MANAGER_CLOSURE;
+            nextRole = Role.ROLE_CUSTOMER_CARE_SENIOR_MANAGER.name();
+            auditActor = "chief-experience-officer";
+            remarks = InvestigationWorkflow.text(submitted.get(InvestigationWorkflow.KEY_CXO_RETURN_REASON));
+            auditText = "Chief Experience Officer returned the case to the Customer Care Senior Manager for closure without audit. Reason: "
+                    + remarks;
+            out.put(InvestigationWorkflow.KEY_CXO_DECISION, InvestigationWorkflow.CXO_RETURN_TO_SENIOR_MANAGER);
+            out.put(InvestigationWorkflow.KEY_CXO_RETURN_REASON, remarks);
+            out.put("cxoReviewedBy", username);
+        } else {
+            step = SlaAlertScope.STAGE_SENIOR_MANAGER_CLOSURE;
+            action = "CLOSED_WITHOUT_AUDIT";
+            nextStage = VAL_CLOSED;
+            nextRole = "";
+            auditActor = "senior-manager";
+            auditText = "Customer Care Senior Manager closed the case without audit investigation and customer notification was queued.";
+            closing = true;
+            String summary = remarks.isBlank()
+                    ? "Your complaint has been reviewed and closed by the Customer Care Senior Manager."
+                    : remarks;
+            out.put(KEY_REQUIRES_INVESTIGATION, false);
+            out.put(KEY_STATUS, VAL_CLOSED);
+            out.put(KEY_DECISION, VAL_RESOLVED);
+            out.put(KEY_RESOLUTION_ACCEPTED, true);
+            out.put(KEY_RESOLUTION_NOTES, summary);
+            out.put("resolutionSummary", summary);
+            out.put("closedWithoutAudit", true);
+            out.put("closedBy", username);
+        }
+
+        out.put(KEY_CURRENT_STAGE, nextStage);
+        out.put(KEY_STAGE, nextStage);
+        if (!nextRole.isBlank()) {
+            out.put("assignedToRole", nextRole);
+        }
+        if (InvestigationWorkflow.countFiles(newFiles) > 0) {
+            out.put(InvestigationWorkflow.KEY_INVESTIGATION_FILES, InvestigationWorkflow.mergeFiles(
+                    vars.get(InvestigationWorkflow.KEY_INVESTIGATION_FILES), newFiles));
+        }
+        out.put(InvestigationWorkflow.KEY_TRAIL, InvestigationWorkflow.appendTrail(
+                vars.get(InvestigationWorkflow.KEY_TRAIL),
+                InvestigationWorkflow.trailEntry(step, action, username, role, remarks,
+                        InvestigationWorkflow.countFiles(newFiles))));
+
+        tryInvestigationAudit(task, ticketId, vars, action, auditActor,
+                remarks.isBlank() || SlaAlertScope.TASK_CXO.equals(defKey) ? auditText
+                        : auditText + " Remarks: " + remarks);
+
+        if (!closing) {
+            try {
+                jdbcTemplate.update(
+                        "UPDATE complaint_sla_metrics SET current_stage = ?, requires_investigation = true WHERE process_instance_id = ? OR complaint_id = ?",
+                        nextStage, processInstanceId, ticketId);
+                overlaySlaStage(processInstanceId, nextStage, true, VAL_ESCALATED);
+            } catch (Exception e) {
+                log.info("Could not advance SLA stage to {}: {}", nextStage, e.getMessage());
+            }
+        }
+
+        taskService.complete(task.getId(), out);
+
+        Map<String, Object> workflowVars = new HashMap<>(vars);
+        workflowVars.putAll(out);
+        recordStartForNewTasks(processInstanceId, ticketId);
+
+        if (closing) {
+            String dbcOrIntake = firstNonBlankString(workflowVars.get(KEY_DBC_TICKET_ID),
+                    workflowVars.get(KEY_COMPLAINT_ID), ticketId);
+            tryLogCaseClosedAudit(dbcOrIntake, processInstanceId);
+            tryMarkSlaResolved(processInstanceId);
+            trySendClosureNotification(workflowVars, customer, ticketId, processInstanceId);
+        }
+        tryPersistOverallStatus(workflowVars, processInstanceId, ticketId);
     }
 
     private Map<String, Object> cleanLargeProcessVars(Map<String, Object> variables) {

@@ -26,6 +26,20 @@ test('cxo sees executive review including CXO_REVIEW alias', () => {
   expect(isSlaAlertForUser({ currentStage: 'CMD_SCREENING' }, user)).toBe(false);
 });
 
+test('senior manager sees the investigation review and closure stages, service quality only its review', () => {
+  const manager = { username: 'sm', role: 'ROLE_CUSTOMER_CARE_SENIOR_MANAGER' };
+  expect(isSlaAlertForUser({ currentStage: 'SENIOR_MANAGER_REVIEW' }, manager)).toBe(true);
+  expect(isSlaAlertForUser({ currentStage: 'SENIOR_MANAGER_CLOSURE' }, manager)).toBe(true);
+  expect(isSlaAlertForUser({ currentStage: 'CHIEF_EXPERIENCE_REVIEW' }, manager)).toBe(false);
+
+  const sq = { username: 'sq', role: 'ROLE_SERVICE_QUALITY_DIRECTOR' };
+  expect(isSlaAlertForUser({ currentStage: 'SERVICE_QUALITY_REVIEW' }, sq)).toBe(true);
+  expect(isSlaAlertForUser({ currentStage: 'SENIOR_MANAGER_REVIEW' }, sq)).toBe(false);
+
+  const cco = { username: 'cco', role: 'ROLE_CUSTOMER_CARE_OFFICER' };
+  expect(isSlaAlertForUser({ currentStage: 'SENIOR_MANAGER_REVIEW' }, cco)).toBe(false);
+});
+
 test('work unit sees only assigned or same-department work-unit alerts', () => {
   const user = { username: 'loans.lead', role: 'ROLE_DEPARTMENT_WORKUNIT', department: 'Loans' };
   expect(isSlaAlertForUser({

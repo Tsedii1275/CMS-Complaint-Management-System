@@ -160,7 +160,61 @@
         <design:bordercolor><![CDATA[#1565C0]]></design:bordercolor>
       </extensionElements>
     </userTask>
-    <sequenceFlow id="SequenceFlow_CEX_To_Audit" sourceRef="FormTask_CEX" targetRef="FormTask_48" />
+    <!-- Audit Investigation workflow: CCO -> Senior Manager -> Service Quality -> CXO -> (Audit | back to Senior Manager for closure) -->
+    <userTask id="FormTask_SM_Review" name="Senior Manager Investigation Review"
+      flowable:assignee="${initiator}" flowable:formFieldValidation="false">
+      <extensionElements>
+        <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <flowable:taskListener event="create" delegateExpression="${taskTimeTrackingListener}" />
+        <flowable:taskListener event="complete" delegateExpression="${taskTimeTrackingListener}" />
+        <design:stencilid><![CDATA[FormTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+        <design:bgcolor><![CDATA[#E3F2FD]]></design:bgcolor>
+        <design:bordercolor><![CDATA[#1565C0]]></design:bordercolor>
+      </extensionElements>
+    </userTask>
+    <userTask id="FormTask_SQ_Review" name="Service Quality Investigation Review"
+      flowable:assignee="${initiator}" flowable:formFieldValidation="false">
+      <extensionElements>
+        <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <flowable:taskListener event="create" delegateExpression="${taskTimeTrackingListener}" />
+        <flowable:taskListener event="complete" delegateExpression="${taskTimeTrackingListener}" />
+        <design:stencilid><![CDATA[FormTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+        <design:bgcolor><![CDATA[#E3F2FD]]></design:bgcolor>
+        <design:bordercolor><![CDATA[#1565C0]]></design:bordercolor>
+      </extensionElements>
+    </userTask>
+    <userTask id="FormTask_SM_Closure" name="Senior Manager Closure (No Audit)"
+      flowable:assignee="${initiator}" flowable:formFieldValidation="false">
+      <extensionElements>
+        <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <flowable:taskListener event="create" delegateExpression="${taskTimeTrackingListener}" />
+        <flowable:taskListener event="complete" delegateExpression="${taskTimeTrackingListener}" />
+        <design:stencilid><![CDATA[FormTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+        <design:bgcolor><![CDATA[#E3F2FD]]></design:bgcolor>
+        <design:bordercolor><![CDATA[#1565C0]]></design:bordercolor>
+      </extensionElements>
+    </userTask>
+    <exclusiveGateway id="Gateway_CxoDecision" name="CXO Decision ?" default="SequenceFlow_CXO_SendToAudit">
+      <extensionElements>
+        <design:stencilid><![CDATA[Exclusive_Databased_Gateway]]></design:stencilid>
+        <design:bordercolor><![CDATA[#FBC02D]]></design:bordercolor>
+        <design:bgcolor><![CDATA[#FFF9C4]]></design:bgcolor>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+    </exclusiveGateway>
+    <sequenceFlow id="SequenceFlow_SM_To_SQ" sourceRef="FormTask_SM_Review" targetRef="FormTask_SQ_Review" />
+    <sequenceFlow id="SequenceFlow_SQ_To_CEX" sourceRef="FormTask_SQ_Review" targetRef="FormTask_CEX" />
+    <sequenceFlow id="SequenceFlow_CEX_To_Decision" sourceRef="FormTask_CEX" targetRef="Gateway_CxoDecision" />
+    <sequenceFlow id="SequenceFlow_CXO_SendToAudit" name="Send to Audit Investigation"
+      sourceRef="Gateway_CxoDecision" targetRef="FormTask_48" />
+    <sequenceFlow id="SequenceFlow_CXO_ReturnToSM" name="Return to Customer Care Senior Manager"
+      sourceRef="Gateway_CxoDecision" targetRef="FormTask_SM_Closure">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${execution.getVariable('cxoDecision') == 'RETURN_TO_SENIOR_MANAGER'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="SequenceFlow_SM_Closure_End" sourceRef="FormTask_SM_Closure" targetRef="EndNoneEvent_93" />
     <userTask id="FormTask_48" name="Undertake Investigation and pass decision"
       flowable:assignee="${initiator}" flowable:formFieldValidation="false">
       <extensionElements>
@@ -635,7 +689,7 @@
       <conditionExpression xsi:type="tFormalExpression"><![CDATA[${requiresInvestigation == false && decision != 'DECLINED' && status != 'DECLINED' && classification != 'DECLINED' && status != 'CLOSED' && decision != 'RESOLVED' && decision != 'CLOSED' && resolutionAccepted != true}]]></conditionExpression>
     </sequenceFlow>
     <sequenceFlow id="SequenceFlow_49" name="Yes" sourceRef="Exclusive_Databased_Gateway_45"
-      targetRef="FormTask_CEX">
+      targetRef="FormTask_SM_Review">
       <conditionExpression xsi:type="tFormalExpression"><![CDATA[${requiresInvestigation == true && decision != 'DECLINED' && status != 'DECLINED' && classification != 'DECLINED' && status != 'CLOSED' && decision != 'RESOLVED' && decision != 'CLOSED' && resolutionAccepted != true}]]></conditionExpression>
     </sequenceFlow>
     <sequenceFlow id="SequenceFlow_63" name="No" sourceRef="Exclusive_Databased_Gateway_60"

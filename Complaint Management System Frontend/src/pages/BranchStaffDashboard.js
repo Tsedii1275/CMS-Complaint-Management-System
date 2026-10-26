@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { renderComplaintStatusTag } from '../utils/statusUtils';
 import { isResolvedAtFcr, classifyComplaintFilter } from '../utils/slaMetrics';
 import { collectAttachments, isAudioAttachment } from '../utils/attachments';
+import moment from 'moment';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;

@@ -26,6 +26,10 @@ public final class SlaAlertScope {
     public static final String STAGE_SERVICE_QUALITY_REVIEW = "SERVICE_QUALITY_REVIEW";
     public static final String STAGE_COMMITTEE_REVIEW = "COMMITTEE_REVIEW";
     public static final String STAGE_CHIEF_EXPERIENCE_REVIEW = "CHIEF_EXPERIENCE_REVIEW";
+    /** Customer Care Senior Manager reviews a "Requires Investigation" case before Service Quality. */
+    public static final String STAGE_SENIOR_MANAGER_REVIEW = "SENIOR_MANAGER_REVIEW";
+    /** Case returned by the Chief Experience Officer; Senior Manager closes it without audit. */
+    public static final String STAGE_SENIOR_MANAGER_CLOSURE = "SENIOR_MANAGER_CLOSURE";
 
     public static final String TASK_BRANCH_CAPTURE = "FormTask_12";
     public static final String TASK_BRANCH_REVIEW = "FormTask_16";
@@ -41,6 +45,10 @@ public final class SlaAlertScope {
     public static final String TASK_SERVICE_QUALITY = "ServiceTask_65";
     public static final String TASK_COMMITTEE = "FormTask_ChiefCommittee";
     public static final String TASK_CXO = "FormTask_CEX";
+    /** Audit Investigation workflow: Senior Manager review, Service Quality review, Senior Manager closure. */
+    public static final String TASK_SM_REVIEW = "FormTask_SM_Review";
+    public static final String TASK_SQ_REVIEW = "FormTask_SQ_Review";
+    public static final String TASK_SM_CLOSURE = "FormTask_SM_Closure";
 
     private static final Map<String, String> TASK_TO_STAGE = new HashMap<>();
     private static final Map<String, String> STAGE_LABELS = new HashMap<>();
@@ -61,6 +69,9 @@ public final class SlaAlertScope {
         TASK_TO_STAGE.put(TASK_SERVICE_QUALITY, STAGE_SERVICE_QUALITY_REVIEW);
         TASK_TO_STAGE.put(TASK_COMMITTEE, STAGE_COMMITTEE_REVIEW);
         TASK_TO_STAGE.put(TASK_CXO, STAGE_CHIEF_EXPERIENCE_REVIEW);
+        TASK_TO_STAGE.put(TASK_SM_REVIEW, STAGE_SENIOR_MANAGER_REVIEW);
+        TASK_TO_STAGE.put(TASK_SQ_REVIEW, STAGE_SERVICE_QUALITY_REVIEW);
+        TASK_TO_STAGE.put(TASK_SM_CLOSURE, STAGE_SENIOR_MANAGER_CLOSURE);
 
         STAGE_LABELS.put(STAGE_BRANCH_INTAKE, "Branch Intake / Resolution");
         STAGE_LABELS.put(STAGE_CONTACT_CENTER_INTAKE, "Contact Center Intake");
@@ -71,6 +82,8 @@ public final class SlaAlertScope {
         STAGE_LABELS.put(STAGE_SERVICE_QUALITY_REVIEW, "Service Quality Review");
         STAGE_LABELS.put(STAGE_COMMITTEE_REVIEW, "Chief Committee Review");
         STAGE_LABELS.put(STAGE_CHIEF_EXPERIENCE_REVIEW, "Chief Experience Officer Review");
+        STAGE_LABELS.put(STAGE_SENIOR_MANAGER_REVIEW, "Senior Manager Investigation Review");
+        STAGE_LABELS.put(STAGE_SENIOR_MANAGER_CLOSURE, "Senior Manager Closure");
 
         STAGE_SLA_NAMES.put(STAGE_BRANCH_INTAKE, "Branch SLA");
         STAGE_SLA_NAMES.put(STAGE_CONTACT_CENTER_INTAKE, "Contact Center SLA");
@@ -81,6 +94,8 @@ public final class SlaAlertScope {
         STAGE_SLA_NAMES.put(STAGE_SERVICE_QUALITY_REVIEW, "Service Quality SLA");
         STAGE_SLA_NAMES.put(STAGE_COMMITTEE_REVIEW, "Committee Review SLA");
         STAGE_SLA_NAMES.put(STAGE_CHIEF_EXPERIENCE_REVIEW, "Executive Review SLA");
+        STAGE_SLA_NAMES.put(STAGE_SENIOR_MANAGER_REVIEW, "Senior Manager Review SLA");
+        STAGE_SLA_NAMES.put(STAGE_SENIOR_MANAGER_CLOSURE, "Senior Manager Closure SLA");
     }
 
     private SlaAlertScope() {
@@ -129,6 +144,12 @@ public final class SlaAlertScope {
             return null;
         }
         String upper = stageCode.trim().toUpperCase(Locale.ROOT).replace(' ', '_');
+        if (upper.contains(STAGE_SENIOR_MANAGER_CLOSURE)) {
+            return STAGE_SENIOR_MANAGER_CLOSURE;
+        }
+        if (upper.contains(STAGE_SENIOR_MANAGER_REVIEW)) {
+            return STAGE_SENIOR_MANAGER_REVIEW;
+        }
         if (isWorkUnitStage(upper)) {
             return STAGE_WORK_UNIT_RESOLUTION;
         }
@@ -193,10 +214,11 @@ public final class SlaAlertScope {
             return Set.of(TASK_INVESTIGATION);
         }
         return switch (normalized) {
-            case "ROLE_CUSTOMER_CARE_OFFICER", "ROLE_CUSTOMER_CARE_TEAM_LEADER",
-                    "ROLE_CUSTOMER_CARE_SENIOR_MANAGER" ->
+            case "ROLE_CUSTOMER_CARE_OFFICER", "ROLE_CUSTOMER_CARE_TEAM_LEADER" ->
                 Set.of(TASK_CMD_SCREENING, TASK_CUSTOMER_NOTIFY);
-            case "ROLE_SERVICE_QUALITY_DIRECTOR" -> Set.of(TASK_SERVICE_QUALITY);
+            case "ROLE_CUSTOMER_CARE_SENIOR_MANAGER" ->
+                Set.of(TASK_CMD_SCREENING, TASK_CUSTOMER_NOTIFY, TASK_SM_REVIEW, TASK_SM_CLOSURE);
+            case "ROLE_SERVICE_QUALITY_DIRECTOR" -> Set.of(TASK_SERVICE_QUALITY, TASK_SQ_REVIEW);
             case "ROLE_DEPARTMENT_WORKUNIT" -> Set.of(TASK_WORK_UNIT);
             case "ROLE_CHIEF_COMMITTEE", "ROLE_COMMITTEE_SECRETARY" -> Set.of(TASK_COMMITTEE);
             case "ROLE_CHIEF_EXPERIENCE_OFFICER" -> Set.of(TASK_CXO);
@@ -370,6 +392,7 @@ public final class SlaAlertScope {
             case STAGE_CONTACT_CENTER_INTAKE -> "CONTACT_CENTER";
             case STAGE_CUSTOMER_NOTIFICATION -> "CUSTOMER";
             case STAGE_CMD_SCREENING -> "CMD_OFFICER";
+            case STAGE_SENIOR_MANAGER_REVIEW, STAGE_SENIOR_MANAGER_CLOSURE -> "CUSTOMER_CARE_SENIOR_MANAGER";
             case STAGE_INVESTIGATION -> "AUDIT_TEAM";
             case STAGE_WORK_UNIT_RESOLUTION -> "DEPARTMENT_WORKUNIT";
             case STAGE_SERVICE_QUALITY_REVIEW -> "SERVICE_QUALITY";
