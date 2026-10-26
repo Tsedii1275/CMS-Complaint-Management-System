@@ -68,7 +68,7 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
         if ("POST".equalsIgnoreCase(method) && (path.equals("/api/complaints/upload-evidence")
                 || path.equals("/api/complaints/upload-audio")
                 || path.equals("/api/attachments/upload"))) {
-            return 10;
+            return 30;
         }
         return 0;
     }

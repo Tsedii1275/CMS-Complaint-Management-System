@@ -9,7 +9,7 @@ import { BRAND_COLORS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { renderComplaintStatusTag } from '../utils/statusUtils';
 import { isResolvedAtFcr, classifyComplaintFilter } from '../utils/slaMetrics';
-import moment from 'moment';
+import { collectAttachments, isAudioAttachment } from '../utils/attachments';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -261,13 +261,11 @@ function BranchStaffDashboard() {
   const [fcrChecked, setFcrChecked] = useState(false);
 
   // Evidence Attachment States
-  const [evidenceUrl, setEvidenceUrl] = useState('');
-  const [evidenceName, setEvidenceName] = useState('');
+  const [evidenceFiles, setEvidenceFiles] = useState([]);
   const [isUploadingEvidence, setIsUploadingEvidence] = useState(false);
 
   // Voice Attachment States
-  const [voiceUrl, setVoiceUrl] = useState('');
-  const [voiceName, setVoiceName] = useState('');
+  const [voiceFiles, setVoiceFiles] = useState([]);
   const [isUploadingVoice, setIsUploadingVoice] = useState(false);
   const [cbsProfile, setCbsProfile] = useState(null);
   const [lookingUpAccount, setLookingUpAccount] = useState(false);
@@ -365,15 +363,19 @@ function BranchStaffDashboard() {
   };
 
   const handleEvidenceUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const selected = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (selected.length === 0) return;
 
     setIsUploadingEvidence(true);
     try {
-      const response = await ApiService.uploadEvidence(file);
-      setEvidenceUrl(response.url);
-      setEvidenceName(response.fileName);
-      antMessage.success('Supporting document uploaded successfully!');
+      const uploaded = [];
+      for (const file of selected) {
+        const response = await ApiService.uploadEvidence(file);
+        uploaded.push({ name: response.fileName || file.name, url: response.url });
+      }
+      setEvidenceFiles((prev) => [...prev, ...uploaded]);
+      antMessage.success(uploaded.length > 1 ? 'Supporting documents uploaded successfully!' : 'Supporting document uploaded successfully!');
     } catch (error) {
       console.error('Evidence upload failed:', error);
       antMessage.error(error.message || 'Failed to upload supporting document.');
@@ -383,15 +385,19 @@ function BranchStaffDashboard() {
   };
 
   const handleVoiceUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const selected = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (selected.length === 0) return;
 
     setIsUploadingVoice(true);
     try {
-      const response = await ApiService.uploadAudio(file);
-      setVoiceUrl(response.url);
-      setVoiceName(response.fileName);
-      antMessage.success('Voice attachment uploaded successfully!');
+      const uploaded = [];
+      for (const file of selected) {
+        const response = await ApiService.uploadAudio(file);
+        uploaded.push({ name: response.fileName || file.name, url: response.url });
+      }
+      setVoiceFiles((prev) => [...prev, ...uploaded]);
+      antMessage.success(uploaded.length > 1 ? 'Voice attachments uploaded successfully!' : 'Voice attachment uploaded successfully!');
     } catch (error) {
       console.error('Voice upload failed:', error);
       antMessage.error(error.message || 'Failed to upload voice attachment file.');
@@ -472,10 +478,12 @@ function BranchStaffDashboard() {
           isFcr: fcrChecked,
           fcrNotes: fcrChecked ? values.resolutionNotes : '',
           resolutionNotes: values.resolutionNotes || '',
-          evidenceUrl: evidenceUrl || voiceUrl || undefined,
-          evidenceName: evidenceName || voiceName || undefined,
-          voiceUrl: voiceUrl || undefined,
-          voiceName: voiceName || undefined
+          evidenceUrl: evidenceFiles[0]?.url || voiceFiles[0]?.url || undefined,
+          evidenceName: evidenceFiles[0]?.name || voiceFiles[0]?.name || undefined,
+          evidenceFiles: evidenceFiles.length > 0 ? evidenceFiles : undefined,
+          voiceUrl: voiceFiles[0]?.url || undefined,
+          voiceName: voiceFiles[0]?.name || undefined,
+          voiceFiles: voiceFiles.length > 0 ? voiceFiles : undefined
         }
       };
 
@@ -490,10 +498,8 @@ function BranchStaffDashboard() {
 
       form.resetFields();
       setFcrChecked(false);
-      setEvidenceUrl('');
-      setEvidenceName('');
-      setVoiceUrl('');
-      setVoiceName('');
+      setEvidenceFiles([]);
+      setVoiceFiles([]);
       setCbsProfile(null);
       setIsRegisterModalOpen(false);
       loadComplaintsData();
@@ -986,15 +992,21 @@ function BranchStaffDashboard() {
               <Space align="center">
                 <input
                   type="file"
+                  multiple
                   accept={EVIDENCE_FILE_ACCEPT}
                   onChange={handleEvidenceUpload}
                   style={hiddenFileInputStyle}
                   id="intake-evidence-file-manager"
                 />
                 <Button icon={<PaperClipOutlined />} onClick={() => document.getElementById('intake-evidence-file-manager').click()} loading={isUploadingEvidence} style={roundedButtonStyle}>
-                  {evidenceUrl ? 'Change Document' : 'Upload Supporting Document'}
+                  {evidenceFiles.length > 0 ? 'Add Documents' : 'Upload Supporting Documents'}
                 </Button>
-                {evidenceName && <Text type="success" style={successNameStyle}>✓ {evidenceName}</Text>}
+                {evidenceFiles.map((file) => (
+                  <Text key={file.url} type="success" style={successNameStyle}>
+                    ✓ {file.name}
+                    <Button type="link" size="small" onClick={() => setEvidenceFiles((prev) => prev.filter((item) => item.url !== file.url))}>Remove</Button>
+                  </Text>
+                ))}
               </Space>
             </div>
 
@@ -1005,6 +1017,7 @@ function BranchStaffDashboard() {
               <Space align="center">
                 <input
                   type="file"
+                  multiple
                   accept={VOICE_FILE_ACCEPT}
                   onChange={handleVoiceUpload}
                   style={hiddenFileInputStyle}
@@ -1016,20 +1029,25 @@ function BranchStaffDashboard() {
                   loading={isUploadingVoice}
                   style={roundedButtonStyle}
                 >
-                  {voiceUrl ? 'Change Voice Attachment' : 'Upload Voice / Call Audio File'}
+                  {voiceFiles.length > 0 ? 'Add Voice Attachments' : 'Upload Voice / Call Audio Files'}
                 </Button>
-                {voiceName && <Text type="success" style={successNameStyle}>✓ {voiceName}</Text>}
+                {voiceFiles.map((file) => (
+                  <Text key={file.url} type="success" style={successNameStyle}>
+                    ✓ {file.name}
+                    <Button type="link" size="small" onClick={() => setVoiceFiles((prev) => prev.filter((item) => item.url !== file.url))}>Remove</Button>
+                  </Text>
+                ))}
               </Space>
 
-              {voiceUrl && (
-                <div style={voicePreviewWrapStyle}>
+              {voiceFiles.map((file) => (
+                <div key={file.url} style={voicePreviewWrapStyle}>
                   <Text type="secondary" style={voicePreviewLabelStyle}>
-                    Voice Recording Preview:
+                    Voice Recording Preview: {file.name}
                   </Text>
                   {/* eslint-disable-next-line jsx-a11y/media-has-caption -- call recording has no caption track */}
-                  <audio controls src={ApiService.getAttachmentUrl(voiceUrl)} style={audioPreviewStyle} aria-label="Voice recording preview" />
+                  <audio controls src={ApiService.getAttachmentUrl(file.url)} style={audioPreviewStyle} aria-label="Voice recording preview" />
                 </div>
-              )}
+              ))}
             </div>
 
             <div style={fcrBoxStyle}>
@@ -1149,71 +1167,53 @@ function BranchStaffDashboard() {
                 </div>
               )}
 
-              {(selectedComplaint.evidenceUrl || selectedComplaint.attachmentUrl) && (
-                <div style={sectionDividerStyle}>
-                  <Text type="secondary" style={attachLabelStyle}>
-                    <PaperClipOutlined /> Attached Evidence:
-                  </Text>
-                  {((selectedComplaint.evidenceUrl || selectedComplaint.attachmentUrl || '').toLowerCase().includes('.webm') ||
-                    (selectedComplaint.evidenceUrl || selectedComplaint.attachmentUrl || '').toLowerCase().includes('.mp3') ||
-                    (selectedComplaint.evidenceUrl || selectedComplaint.attachmentUrl || '').toLowerCase().includes('.wav') ||
-                    (selectedComplaint.evidenceUrl || selectedComplaint.attachmentUrl || '').toLowerCase().includes('.m4a') ||
-                    (selectedComplaint.evidenceUrl || selectedComplaint.attachmentUrl || '').toLowerCase().includes('.ogg') ||
-                    (selectedComplaint.evidenceName || '').toLowerCase().includes('voice')) ? (
-                    <div>
-                      {/* eslint-disable-next-line jsx-a11y/media-has-caption -- audio evidence has no caption track */}
-                      <audio
-                        controls
-                        src={ApiService.getAttachmentUrl(selectedComplaint.evidenceUrl || selectedComplaint.attachmentUrl)}
-                        style={audioDetailStyle}
-                        aria-label="Audio evidence"
-                      />
-                      <div style={linkGapStyle}>
-                        <a href={ApiService.getAttachmentUrl(selectedComplaint.evidenceUrl || selectedComplaint.attachmentUrl)} target="_blank" rel="noopener noreferrer">
-                          <PaperClipOutlined /> Download / Listen Audio Evidence ({selectedComplaint.evidenceName || 'Audio_Clip'})
-                        </a>
+              {(() => {
+                const complaintVars = selectedComplaint.variables?.complaint || {};
+                const documents = collectAttachments(
+                  complaintVars.evidenceFiles,
+                  selectedComplaint.evidenceFiles,
+                  { url: complaintVars.evidenceUrl || selectedComplaint.evidenceUrl || selectedComplaint.attachmentUrl, name: complaintVars.evidenceName || selectedComplaint.evidenceName }
+                ).filter((file) => !isAudioAttachment(file));
+                const voices = collectAttachments(
+                  complaintVars.voiceFiles,
+                  selectedComplaint.voiceFiles,
+                  { url: complaintVars.voiceUrl || selectedComplaint.voiceUrl || selectedComplaint.variables?.voiceUrl, name: complaintVars.voiceName || selectedComplaint.voiceName }
+                );
+                return (
+                  <>
+                    {documents.length > 0 && (
+                      <div style={sectionDividerStyle}>
+                        <Text type="secondary" style={attachLabelStyle}>
+                          <PaperClipOutlined /> Attached Evidence:
+                        </Text>
+                        {documents.map((file) => (
+                          <div key={file.url} style={linkGapStyle}>
+                            <a href={ApiService.getAttachmentUrl(file.url)} target="_blank" rel="noopener noreferrer">
+                              <PaperClipOutlined /> View Document: {file.name}
+                            </a>
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                  ) : (
-                    <a href={ApiService.getAttachmentUrl(selectedComplaint.evidenceUrl || selectedComplaint.attachmentUrl)} target="_blank" rel="noopener noreferrer">
-                      <PaperClipOutlined /> View Document: {selectedComplaint.evidenceName || 'Attached Evidence'}
-                    </a>
-                  )}
-                </div>
-              )}
-
-              {(selectedComplaint.voiceUrl || selectedComplaint.variables?.voiceUrl || selectedComplaint.variables?.complaint?.voiceUrl) && (
-                <div style={sectionDividerStyle}>
-                  <Text type="secondary" style={attachLabelStyle}>
-                    <AudioOutlined style={audioIconStyle} /> Voice Recording Attachment:
-                  </Text>
-                  {/* eslint-disable-next-line jsx-a11y/media-has-caption -- voice recording has no caption track */}
-                  <audio
-                    controls
-                    src={ApiService.getAttachmentUrl(
-                      selectedComplaint.voiceUrl ||
-                      selectedComplaint.variables?.voiceUrl ||
-                      selectedComplaint.variables?.complaint?.voiceUrl
                     )}
-                    style={audioDetailStyle}
-                    aria-label="Voice recording attachment"
-                  />
-                  <div style={linkGapStyle}>
-                    <a
-                      href={ApiService.getAttachmentUrl(
-                        selectedComplaint.voiceUrl ||
-                        selectedComplaint.variables?.voiceUrl ||
-                        selectedComplaint.variables?.complaint?.voiceUrl
-                      )}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={voiceLinkStyle}
-                    >
-                      <AudioOutlined /> Download Voice Clip ({selectedComplaint.voiceName || selectedComplaint.variables?.voiceName || 'Voice_Clip.webm'})
-                    </a>
-                  </div>
-                </div>
-              )}
+                    {voices.length > 0 && (
+                      <div style={sectionDividerStyle}>
+                        <Text type="secondary" style={attachLabelStyle}>
+                          <AudioOutlined style={audioIconStyle} /> Voice Recording Attachment:
+                        </Text>
+                        {voices.map((file) => (
+                          <div key={file.url} style={linkGapStyle}>
+                            {/* eslint-disable-next-line jsx-a11y/media-has-caption -- voice recording has no caption track */}
+                            <audio controls src={ApiService.getAttachmentUrl(file.url)} style={audioDetailStyle} aria-label="Voice recording attachment" />
+                            <a href={ApiService.getAttachmentUrl(file.url)} target="_blank" rel="noopener noreferrer" style={voiceLinkStyle}>
+                              <AudioOutlined /> Download Voice Clip ({file.name})
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
 
               {(selectedComplaint.fcrStatus || selectedComplaint.isFcr || selectedComplaint.variables?.complaint?.isFcr || selectedComplaint.fcrNotes || selectedComplaint.resolutionNotes || selectedComplaint.variables?.complaint?.fcrNotes) && (
                 <div style={sectionDividerStyle}>

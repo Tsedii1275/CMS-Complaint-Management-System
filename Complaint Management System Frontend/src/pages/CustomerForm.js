@@ -314,9 +314,9 @@ function isComplaintDateDisabled(current) {
 async function submitPublicComplaint(e, ctx) {
   e?.preventDefault?.();
   const {
-    formData, countryCode, language, consentChecked, t, evidenceUrl, evidenceName,
+    formData, countryCode, language, consentChecked, t, evidenceFiles,
     setIsSubmitting, setMessageText, setMessageType, setErrors, setFormData, setConsentChecked,
-    setEvidenceUrl, setEvidenceName
+    setEvidenceFiles, setEvidenceUrl, setEvidenceName
   } = ctx;
   setIsSubmitting(true);
   setMessageText('');
@@ -362,8 +362,9 @@ async function submitPublicComplaint(e, ctx) {
         complaintDistrict: formData.district,
         date: formData.date,
         preferredContactMethod: formData.preferredContactMethod,
-        evidenceUrl: evidenceUrl || undefined,
-        evidenceName: evidenceName || undefined
+        evidenceUrl: evidenceFiles[0]?.url || undefined,
+        evidenceName: evidenceFiles[0]?.name || undefined,
+        evidenceFiles: evidenceFiles.length > 0 ? evidenceFiles : undefined
       }
     };
 
@@ -388,6 +389,7 @@ async function submitPublicComplaint(e, ctx) {
     setErrors({});
     setEvidenceUrl('');
     setEvidenceName('');
+    setEvidenceFiles([]);
 
     console.log('Complaint submitted successfully:', response);
   } catch (error) {
@@ -463,14 +465,14 @@ function evidenceUploadErrorMessage(err, language) {
     : 'Failed to upload evidence file. Please try again.';
 }
 
-async function onPublicEvidenceSelected(e, { language, setIsUploadingEvidence, setEvidenceUrl, setEvidenceName, setMessageType, setMessageText }) {
-  const file = e.target.files[0];
-  if (!file) {
+async function onPublicEvidenceSelected(e, { language, setIsUploadingEvidence, setEvidenceFiles, setEvidenceUrl, setEvidenceName, setMessageType, setMessageText }) {
+  const selected = Array.from(e.target.files || []);
+  e.target.value = '';
+  if (selected.length === 0) {
     return;
   }
-  const extension = evidenceFileExtension(file.name);
-  if (!SUPPORTED_EVIDENCE_EXTENSIONS.includes(extension)) {
-    e.target.value = '';
+  const unsupported = selected.find((file) => !SUPPORTED_EVIDENCE_EXTENSIONS.includes(evidenceFileExtension(file.name)));
+  if (unsupported) {
     setMessageType('');
     setMessageText('');
     showUnsupportedEvidencePopup(language);
@@ -478,14 +480,21 @@ async function onPublicEvidenceSelected(e, { language, setIsUploadingEvidence, s
   }
   setIsUploadingEvidence(true);
   try {
-    const result = await ApiService.uploadAttachment(file);
-    setEvidenceUrl(result.url);
-    setEvidenceName(result.fileName);
+    const uploaded = [];
+    for (const file of selected) {
+      const result = await ApiService.uploadAttachment(file);
+      uploaded.push({ name: result.fileName || file.name, url: result.url });
+    }
+    setEvidenceFiles((prev) => {
+      const next = [...prev, ...uploaded];
+      setEvidenceUrl(next[0]?.url || '');
+      setEvidenceName(next.map((file) => file.name).join(', '));
+      return next;
+    });
     setMessageType('');
     setMessageText('');
   } catch (err) {
     console.error('Evidence upload failed:', err);
-    e.target.value = '';
     const message = evidenceUploadErrorMessage(err, language);
     if (message === unsupportedEvidenceMessage(language)) {
       setMessageType('');
@@ -500,11 +509,11 @@ async function onPublicEvidenceSelected(e, { language, setIsUploadingEvidence, s
   }
 }
 
-function publicEvidenceButtonLabel(t, isUploadingEvidence, evidenceUrl) {
+function publicEvidenceButtonLabel(t, isUploadingEvidence, evidenceFiles) {
   if (isUploadingEvidence) {
     return t.evidenceUploading;
   }
-  if (evidenceUrl) {
+  if (evidenceFiles.length > 0) {
     return t.evidenceChange;
   }
   return t.evidenceChoose;
@@ -620,6 +629,7 @@ function CustomerForm() {
   // Evidence file attachment states
   const [evidenceUrl, setEvidenceUrl] = useState('');
   const [evidenceName, setEvidenceName] = useState('');
+  const [evidenceFiles, setEvidenceFiles] = useState([]);
   const [isUploadingEvidence, setIsUploadingEvidence] = useState(false);
 
   const countryCodes = PUBLIC_COUNTRY_PHONES;
@@ -683,8 +693,8 @@ function CustomerForm() {
       evidenceUploading: 'Uploading...',
       evidenceUploaded: 'File uploaded successfully',
       evidenceRemove: 'Remove',
-      evidenceChoose: 'Choose File',
-      evidenceChange: 'Change File',
+      evidenceChoose: 'Choose Files',
+      evidenceChange: 'Add Files',
       evidenceDragDrop: 'or drag and drop your file here'
     },
     amharic: {
@@ -757,7 +767,7 @@ function CustomerForm() {
     syncEthiopianFormDate(language, ethMonth, ethDay, ethYear, setFormData);
   }, [ethMonth, ethDay, ethYear, language]);
 
-  const evidenceButtonLabel = publicEvidenceButtonLabel(t, isUploadingEvidence, evidenceUrl);
+  const evidenceButtonLabel = publicEvidenceButtonLabel(t, isUploadingEvidence, evidenceFiles);
   const submitButtonLabel = publicSubmitButtonLabel(t, isSubmitting, language);
   const {
     onSubmit: handleSubmit,
@@ -769,10 +779,10 @@ function CustomerForm() {
     highlightTrackButton,
     resetTrackButton
   } = bindPublicFormHandlers({
-    formData, countryCode, language, consentChecked, t, evidenceUrl, evidenceName, errors,
+    formData, countryCode, language, consentChecked, t, evidenceFiles, evidenceUrl, evidenceName, errors,
     ticketSearch, isUploadingEvidence,
     setIsSubmitting, setMessageText, setMessageType, setErrors, setFormData, setConsentChecked,
-    setEvidenceUrl, setEvidenceName, setSearchError, setIsSearching, setSearchResult
+    setEvidenceFiles, setEvidenceUrl, setEvidenceName, setSearchError, setIsSearching, setSearchResult
   });
 
   return (
@@ -1240,10 +1250,11 @@ function CustomerForm() {
                 <input
                   id="evidence-file-input"
                   type="file"
+                  multiple
                   accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.mp3,.wav,.m4a"
                   style={{ display: 'none' }}
                   onChange={(e) => onPublicEvidenceSelected(e, {
-                    language, setIsUploadingEvidence, setEvidenceUrl, setEvidenceName, setMessageType, setMessageText
+                    language, setIsUploadingEvidence, setEvidenceFiles, setEvidenceUrl, setEvidenceName, setMessageType, setMessageText
                   })}
                 />
                 <button
@@ -1273,31 +1284,33 @@ function CustomerForm() {
                   <span style={{ fontSize: '16px' }}>📎</span>
                   {evidenceButtonLabel}
                 </button>
-                {evidenceName && (
-                  <span style={{ color: '#166534', fontSize: '14px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    {evidenceName}
+                {evidenceFiles.map((file) => (
+                  <span key={file.url} style={{ color: '#166534', fontSize: '14px', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    {file.name}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEvidenceFiles((prev) => {
+                          const next = prev.filter((item) => item.url !== file.url);
+                          setEvidenceUrl(next[0]?.url || '');
+                          setEvidenceName(next.map((item) => item.name).join(', '));
+                          return next;
+                        });
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#dc2626',
+                        cursor: 'pointer',
+                        fontSize: '18px',
+                        padding: '0 4px'
+                      }}
+                      title={t.evidenceRemove}
+                    >
+                      ×
+                    </button>
                   </span>
-                )}
-                {evidenceUrl && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEvidenceUrl('');
-                      setEvidenceName('');
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#dc2626',
-                      cursor: 'pointer',
-                      fontSize: '18px',
-                      padding: '4px'
-                    }}
-                    title={t.evidenceRemove}
-                  >
-                    ×
-                  </button>
-                )}
+                ))}
               </div>
 
             </div>

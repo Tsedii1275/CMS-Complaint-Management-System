@@ -407,6 +407,12 @@ public class ProcessController {
             if (complaintVars.containsKey(KEY_EVIDENCE_NAME)) {
                 vars.put(KEY_EVIDENCE_NAME, complaintVars.get(KEY_EVIDENCE_NAME));
             }
+            if (complaintVars.containsKey("evidenceFiles")) {
+                vars.put("evidenceFiles", complaintVars.get("evidenceFiles"));
+            }
+            if (complaintVars.containsKey("voiceFiles")) {
+                vars.put("voiceFiles", complaintVars.get("voiceFiles"));
+            }
 
             String preferredLanguage = (String) customer.get(KEY_PREFERRED_LANGUAGE);
             vars.put(KEY_PREFERRED_LANGUAGE,
@@ -589,6 +595,8 @@ public class ProcessController {
         if (evidenceNameObj != null) {
             complaintVars.put(KEY_EVIDENCE_NAME, evidenceNameObj);
         }
+        copyAttachmentList(complaint, complaintVars, "evidenceFiles");
+        copyAttachmentList(complaint, complaintVars, "voiceFiles");
 
         Object isFcrVal = complaint.get(KEY_IS_FCR);
         if (isFcrVal == null)
@@ -604,6 +612,13 @@ public class ProcessController {
             complaintVars.put(KEY_RESOLUTION_NOTES, fcrNotesVal);
         }
         return complaintVars;
+    }
+
+    private void copyAttachmentList(Map<String, Object> source, Map<String, Object> target, String key) {
+        Object value = source.get(key);
+        if (value instanceof List<?> list && !list.isEmpty()) {
+            target.put(key, list);
+        }
     }
 
     private void sendRegistrationNotification(String name, String email, String phone, String ticket,

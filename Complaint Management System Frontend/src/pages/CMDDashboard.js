@@ -9,7 +9,7 @@ import Pagination from '../components/Pagination';
 import { useAuth } from '../contexts/AuthContext';
 import { renderComplaintStatusTag } from '../utils/statusUtils';
 import { resolveCurrentContactPhone, resolveCoreBankingPhone } from '../utils/customerContact';
-import { customerHomeBranch, customerHomeDistrict, customerBranchCode, complaintBranch, complaintDistrict } from '../utils/locationKeys';
+import { collectAttachments } from '../utils/attachments';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -1590,23 +1590,16 @@ function useCmdDashboardState() {
 }
 
 
-function getCmdVoiceAttachment(task) {
-  const vUrl =
-    task.variables?.complaint?.voiceAttachmentUrl ||
-    task.variables?.complaint?.voiceUrl ||
-    task.variables?.voiceAttachmentUrl ||
-    task.variables?.voiceUrl ||
-    task.voiceAttachmentUrl ||
-    task.voiceUrl;
-  const vName =
-    task.variables?.complaint?.voiceAttachmentName ||
-    task.variables?.complaint?.voiceName ||
-    task.variables?.voiceAttachmentName ||
-    task.variables?.voiceName ||
-    task.voiceAttachmentName ||
-    task.voiceName ||
-    'Voice_Recording.webm';
-  return vUrl ? { vUrl, vName } : null;
+function getCmdVoiceFiles(task) {
+  const complaint = task?.variables?.complaint || {};
+  return collectAttachments(
+    complaint.voiceFiles,
+    task?.variables?.voiceFiles,
+    {
+      url: complaint.voiceAttachmentUrl || complaint.voiceUrl || task?.variables?.voiceAttachmentUrl || task?.variables?.voiceUrl || task?.voiceUrl,
+      name: complaint.voiceAttachmentName || complaint.voiceName || task?.variables?.voiceName || task?.voiceName
+    }
+  );
 }
 
 function otherCmdSubmitButton(selectedTask, formData, isSubmitting) {
@@ -1641,9 +1634,8 @@ function otherCmdSubmitButton(selectedTask, formData, isSubmitting) {
 }
 
 function CmdVoiceRecordingCard({ task }) {
-  const voice = getCmdVoiceAttachment(task);
-  if (!voice) return null;
-  const { vUrl, vName } = voice;
+  const voices = getCmdVoiceFiles(task);
+  if (voices.length === 0) return null;
   return (
     <div style={{
       background: '#f0f9ff',
@@ -1653,56 +1645,51 @@ function CmdVoiceRecordingCard({ task }) {
       marginTop: '8px',
       display: 'flex',
       flexDirection: 'column',
-      gap: '8px'
+      gap: '12px'
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Space align="center">
-          <AudioOutlined style={{ color: '#0284c7', fontSize: '18px' }} />
-          <Text style={{ fontWeight: 600, color: '#0369a1', fontSize: '14px' }}>
-            Voice / Call Recording Attachment
-          </Text>
-        </Space>
-        <Button
-          href={ApiService.getAttachmentUrl(vUrl)}
-          download={vName}
-          target="_blank"
-          rel="noopener noreferrer"
-          size="small"
-          type="primary"
-          style={{ backgroundColor: '#0284c7', borderColor: '#0284c7', borderRadius: '4px' }}
-        >
-          Download Audio ({vName})
-        </Button>
-      </div>
-      <audio src={ApiService.getAttachmentUrl(vUrl)} controls style={{ width: '100%', height: '36px', marginTop: '4px' }}>
-        <track kind="captions" />
-      </audio>
+      <Space align="center">
+        <AudioOutlined style={{ color: '#0284c7', fontSize: '18px' }} />
+        <Text style={{ fontWeight: 600, color: '#0369a1', fontSize: '14px' }}>
+          Voice / Call Recording Attachment
+        </Text>
+      </Space>
+      {voices.map((voice) => (
+        <div key={voice.url} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <Button
+            href={ApiService.getAttachmentUrl(voice.url)}
+            download={voice.name}
+            target="_blank"
+            rel="noopener noreferrer"
+            size="small"
+            type="primary"
+            style={{ backgroundColor: '#0284c7', borderColor: '#0284c7', borderRadius: '4px', alignSelf: 'flex-start' }}
+          >
+            Download Audio ({voice.name})
+          </Button>
+          <audio src={ApiService.getAttachmentUrl(voice.url)} controls style={{ width: '100%', height: '36px' }}>
+            <track kind="captions" />
+          </audio>
+        </div>
+      ))}
     </div>
   );
 }
 
-function getCmdEvidenceAttachment(task) {
-  const eUrl =
-    task.variables?.complaint?.evidenceUrl ||
-    task.variables?.complaint?.attachmentUrl ||
-    task.variables?.evidenceUrl ||
-    task.variables?.attachmentUrl ||
-    task.evidenceUrl ||
-    task.attachmentUrl;
-  const eName =
-    task.variables?.complaint?.evidenceName ||
-    task.variables?.complaint?.attachmentName ||
-    task.variables?.evidenceName ||
-    task.variables?.attachmentName ||
-    task.evidenceName ||
-    'Supporting_Evidence_Document';
-  return eUrl ? { eUrl, eName } : null;
+function getCmdEvidenceFiles(task) {
+  const complaint = task?.variables?.complaint || {};
+  return collectAttachments(
+    complaint.evidenceFiles,
+    task?.variables?.evidenceFiles,
+    {
+      url: complaint.evidenceUrl || complaint.attachmentUrl || task?.variables?.evidenceUrl || task?.variables?.attachmentUrl || task?.evidenceUrl || task?.attachmentUrl,
+      name: complaint.evidenceName || complaint.attachmentName || task?.variables?.evidenceName || task?.evidenceName
+    }
+  );
 }
 
 function CmdEvidenceDocumentCard({ task }) {
-  const evidence = getCmdEvidenceAttachment(task);
-  if (!evidence) return null;
-  const { eUrl, eName } = evidence;
+  const files = getCmdEvidenceFiles(task);
+  if (files.length === 0) return null;
   return (
     <div style={{
       background: '#f8fafc',
@@ -1711,35 +1698,38 @@ function CmdEvidenceDocumentCard({ task }) {
       padding: '12px 16px',
       marginTop: '8px',
       display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between'
+      flexDirection: 'column',
+      gap: '10px'
     }}>
       <Space align="center">
         <PaperClipOutlined style={{ color: BRAND_COLORS.primary, fontSize: '18px' }} />
-        <div>
-          <Text style={{ fontWeight: 600, color: '#334155', fontSize: '14px', display: 'block' }}>
-            Supporting Evidence Document
-          </Text>
-          <Text type="secondary" style={{ fontSize: '12px' }}>{eName}</Text>
-        </div>
+        <Text style={{ fontWeight: 600, color: '#334155', fontSize: '14px' }}>
+          Supporting Evidence Document
+        </Text>
       </Space>
-      <a
-        href={ApiService.getAttachmentUrl(eUrl)}
-        download={eName}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{
-          fontSize: '13px',
-          fontWeight: 600,
-          color: BRAND_COLORS.primary,
-          background: '#eff6ff',
-          padding: '6px 12px',
-          borderRadius: '4px',
-          border: '1px solid #bfdbfe'
-        }}
-      >
-        Download Document
-      </a>
+      {files.map((file) => (
+        <div key={file.url} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+          <Text type="secondary" style={{ fontSize: '12px' }}>{file.name}</Text>
+          <a
+            href={ApiService.getAttachmentUrl(file.url)}
+            download={file.name}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontSize: '13px',
+              fontWeight: 600,
+              color: BRAND_COLORS.primary,
+              background: '#eff6ff',
+              padding: '6px 12px',
+              borderRadius: '4px',
+              border: '1px solid #bfdbfe',
+              flexShrink: 0
+            }}
+          >
+            Download Document
+          </a>
+        </div>
+      ))}
     </div>
   );
 }
@@ -1844,13 +1834,17 @@ function CmdCommitteeDecisionCard({ selectedTask, formData, setFormData, isSubmi
             <Text style={{ fontSize: '12px', fontWeight: 600, color: isAccepted ? '#166534' : '#991b1b' }}>
               {isAccepted ? 'Committee Resolution Directions:' : 'Reason for Committee Rejection:'}
             </Text>
-            {(selectedTask.variables?.committeeAttachment || selectedTask.variables?.committeeAttachmentName) && (
+            {collectAttachments(
+              selectedTask.variables?.committeeAttachments,
+              {
+                url: selectedTask.variables?.committeeAttachment,
+                name: selectedTask.variables?.committeeAttachmentName
+              }
+            ).map((file) => (
               <a
-                href={ApiService.getAttachmentUrl(
-                  selectedTask.variables.committeeAttachment ||
-                  `/api/complaints/attachments/${selectedTask.variables.committeeAttachmentName}`
-                )}
-                download={selectedTask.variables.committeeAttachmentName || 'committee_decision_document'}
+                key={file.url}
+                href={ApiService.getAttachmentUrl(file.url)}
+                download={file.name}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -1858,13 +1852,14 @@ function CmdCommitteeDecisionCard({ selectedTask, formData, setFormData, isSubmi
                   fontWeight: 600,
                   color: BRAND_COLORS.primary,
                   textAlign: 'right',
-                  flexShrink: 0
+                  flexShrink: 0,
+                  display: 'block'
                 }}
               >
                 <PaperClipOutlined style={{ marginRight: '6px' }} />
-                {selectedTask.variables.committeeAttachmentName || 'Committee Decision Document'}
+                {file.name}
               </a>
-            )}
+            ))}
           </div>
           <Text style={{ fontSize: '14px', color: isAccepted ? '#14532d' : '#7f1d1d', fontWeight: 500, lineHeight: '1.5', display: 'block' }}>
             {selectedTask.variables?.committeeExplanation || selectedTask.variables?.decisionSummary}
@@ -2460,23 +2455,26 @@ function CmdAuditInvestigationCard({ selectedTask }) {
           </Text>
         </div>
 
-        {(selectedTask.variables?.auditAttachment || selectedTask.variables?.auditAttachmentName) && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px' }}>
+        {collectAttachments(
+          selectedTask.variables?.auditAttachments,
+          {
+            url: selectedTask.variables?.auditAttachment,
+            name: selectedTask.variables?.auditAttachmentName
+          }
+        ).map((file) => (
+          <div key={file.url} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', gap: '12px' }}>
             <Text style={{ color: '#64748b', fontSize: '14px' }}>Investigation Attachment</Text>
             <a
-              href={ApiService.getAttachmentUrl(
-                selectedTask.variables.auditAttachment ||
-                `/api/complaints/attachments/${selectedTask.variables.auditAttachmentName}`
-              )}
-              download={selectedTask.variables.auditAttachmentName || 'audit_attachment'}
+              href={ApiService.getAttachmentUrl(file.url)}
+              download={file.name}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ fontSize: '14px', fontWeight: 600, color: BRAND_COLORS.primary }}
+              style={{ fontSize: '14px', fontWeight: 600, color: BRAND_COLORS.primary, textAlign: 'right' }}
             >
-              {selectedTask.variables.auditAttachmentName || 'Download Attachment'}
+              {file.name}
             </a>
           </div>
-        )}
+        ))}
       </div>
     </div>
   );

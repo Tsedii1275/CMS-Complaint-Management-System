@@ -7,6 +7,7 @@ import ApiService from '../services/api';
 import { BRAND_COLORS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { complaintBranch } from '../utils/locationKeys';
+import { collectAttachments } from '../utils/attachments';
 
 const { Title, Text } = Typography;
 
@@ -78,7 +79,7 @@ function CommitteeDecisionWorkspace({
   handleFormChange,
   handleFileChange,
   handleDecisionSubmit,
-  selectedFile,
+  selectedFiles,
   isSubmitting,
   onBack
 }) {
@@ -90,9 +91,10 @@ function CommitteeDecisionWorkspace({
   const intakeId = formatIntakeId(selectedTask);
   const showIntake = Boolean(intakeId && intakeId !== uniqueId);
   const auditSummary = vars.auditFindings || vars.auditJustification;
-  const auditAttachment = vars.auditAttachment || vars.evidenceUrl;
-  const auditAttachmentName = vars.auditAttachmentName || vars.evidenceName || 'audit_attachment';
-  const auditAttachmentLabel = vars.auditAttachmentName || vars.evidenceName || 'Download Audit Attachment';
+  const auditFiles = collectAttachments(
+    vars.auditAttachments,
+    { url: vars.auditAttachment || vars.evidenceUrl, name: vars.auditAttachmentName || vars.evidenceName }
+  );
 
   return (
     <div>
@@ -153,21 +155,24 @@ function CommitteeDecisionWorkspace({
                 </p>
               </div>
             ) : null}
-            {auditAttachment ? (
+            {auditFiles.length > 0 ? (
               <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid #e2e8f0' }}>
                 <Text style={{ fontSize: '12px', color: '#64748b', fontWeight: 500, display: 'block', marginBottom: '6px' }}>
                   Audit Supporting Attachment
                 </Text>
-                <a
-                  href={ApiService.getAttachmentUrl(auditAttachment)}
-                  download={auditAttachmentName}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ fontSize: '13px', fontWeight: 600, color: BRAND_COLORS.primary, display: 'inline-flex', alignItems: 'center' }}
-                >
-                  <PaperClipOutlined style={{ marginRight: '6px' }} />
-                  {auditAttachmentLabel}
-                </a>
+                {auditFiles.map((file) => (
+                  <a
+                    key={file.url}
+                    href={ApiService.getAttachmentUrl(file.url)}
+                    download={file.name}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ fontSize: '13px', fontWeight: 600, color: BRAND_COLORS.primary, display: 'flex', alignItems: 'center', marginBottom: '4px' }}
+                  >
+                    <PaperClipOutlined style={{ marginRight: '6px' }} />
+                    {file.name}
+                  </a>
+                ))}
               </div>
             ) : null}
           </div>
@@ -231,10 +236,11 @@ function CommitteeDecisionWorkspace({
               </Form.Item>
               <div style={{ background: '#ffffff', border: '1px dashed #cbd5e1', borderRadius: '6px', padding: '12px 16px', marginBottom: '16px' }}>
                 <Space direction="vertical" style={{ width: '100%' }}>
-                  <Text strong style={{ fontSize: '13px', color: '#334155' }}>Upload Decision Document (PDF/Doc)</Text>
-                  <Space>
+                  <Text strong style={{ fontSize: '13px', color: '#334155' }}>Upload Decision Documents</Text>
+                  <Space wrap>
                     <input
                       type="file"
+                      multiple
                       accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.mp3,.wav,.m4a"
                       onChange={handleFileChange}
                       style={{ display: 'none' }}
@@ -246,9 +252,11 @@ function CommitteeDecisionWorkspace({
                       onClick={() => document.getElementById('committee-document-upload').click()}
                       style={{ borderRadius: '6px' }}
                     >
-                      {selectedFile ? 'Change Document' : 'Choose Document'}
+                      {selectedFiles.length > 0 ? 'Add Documents' : 'Choose Documents'}
                     </Button>
-                    {selectedFile ? <Text type="success">✓ {selectedFile.name}</Text> : null}
+                    {selectedFiles.map((file) => (
+                      <Text key={`${file.name}-${file.size}`} type="success">✓ {file.name}</Text>
+                    ))}
                   </Space>
                 </Space>
               </div>
@@ -305,7 +313,7 @@ function ChiefCommitteeDashboard() {
     committeeAttachment: '',
     committeeAttachmentName: ''
   });
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -346,14 +354,12 @@ function ChiefCommitteeDashboard() {
   };
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setSelectedFile(file);
-      setFormData(prev => ({
-        ...prev,
-        committeeAttachmentName: file.name
-      }));
+    const chosen = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (chosen.length === 0) {
+      return;
     }
+    setSelectedFiles((prev) => [...prev, ...chosen]);
   };
 
   const handleDecisionSubmit = async (decisionOverride) => {
@@ -370,14 +376,13 @@ function ChiefCommitteeDashboard() {
     setMessage('');
 
     try {
-      let uploadedUrl = formData.committeeAttachment;
-      let uploadedName = formData.committeeAttachmentName;
-
-      if (selectedFile) {
+      const uploadedFiles = [];
+      if (selectedFiles.length > 0) {
         try {
-          const uploadResult = await ApiService.uploadAttachment(selectedFile, ApiService.ticketFromTask(selectedTask));
-          uploadedUrl = uploadResult.url;
-          uploadedName = uploadResult.fileName;
+          for (const file of selectedFiles) {
+            const uploadResult = await ApiService.uploadAttachment(file, ApiService.ticketFromTask(selectedTask));
+            uploadedFiles.push({ name: uploadResult.fileName || file.name, url: uploadResult.url });
+          }
         } catch (uploadError) {
           setMessage('Failed to upload decision document: ' + uploadError.message);
           setIsSubmitting(false);
@@ -392,8 +397,9 @@ function ChiefCommitteeDashboard() {
         approvingAuthority: formData.approvingAuthority,
         committeeExplanation: formData.decisionSummary,
         decisionSummary: formData.decisionSummary,
-        committeeAttachment: uploadedUrl,
-        committeeAttachmentName: uploadedName
+        committeeAttachment: uploadedFiles[0]?.url || '',
+        committeeAttachmentName: uploadedFiles[0]?.name || '',
+        committeeAttachments: uploadedFiles
       };
 
       await ApiService.completeTask(selectedTask.id, payload);
@@ -411,7 +417,7 @@ function ChiefCommitteeDashboard() {
         committeeAttachment: '',
         committeeAttachmentName: ''
       });
-      setSelectedFile(null);
+      setSelectedFiles([]);
       setSelectedTask(null);
       await loadTasks(true);
 
@@ -540,7 +546,7 @@ function ChiefCommitteeDashboard() {
             handleFormChange={handleFormChange}
             handleFileChange={handleFileChange}
             handleDecisionSubmit={handleDecisionSubmit}
-            selectedFile={selectedFile}
+            selectedFiles={selectedFiles}
             isSubmitting={isSubmitting}
             onBack={() => setSelectedTask(null)}
           />

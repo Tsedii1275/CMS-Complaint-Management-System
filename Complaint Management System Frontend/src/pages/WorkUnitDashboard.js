@@ -6,7 +6,7 @@ import ApiService from '../services/api';
 import { BRAND_COLORS } from '../constants/theme';
 import TaskTable, { formatUniqueId, formatIntakeId, matchesTicketSearch } from '../components/TaskTable';
 import { useAuth } from '../contexts/AuthContext';
-import { complaintBranch } from '../utils/locationKeys';
+import { collectAttachments } from '../utils/attachments';
 import { isVisibleOnWorkUnitInbox } from '../utils/workUnitInbox';
 
 const { Title, Text, Paragraph } = Typography;
@@ -21,44 +21,29 @@ function firstAttachmentText(...values) {
   return '';
 }
 
-function workUnitVoice(task) {
+function workUnitVoices(task) {
   const complaint = task?.variables?.complaint || {};
-  const url = firstAttachmentText(
-    complaint.voiceAttachmentUrl,
-    complaint.voiceUrl,
-    task?.variables?.voiceAttachmentUrl,
-    task?.variables?.voiceUrl
+  return collectAttachments(
+    complaint.voiceFiles,
+    task?.variables?.voiceFiles,
+    {
+      url: firstAttachmentText(complaint.voiceAttachmentUrl, complaint.voiceUrl, task?.variables?.voiceAttachmentUrl, task?.variables?.voiceUrl),
+      name: firstAttachmentText(complaint.voiceAttachmentName, complaint.voiceName, task?.variables?.voiceAttachmentName, task?.variables?.voiceName) || 'Voice recording'
+    }
   );
-  if (!url) {
-    return null;
-  }
-  const name = firstAttachmentText(
-    complaint.voiceAttachmentName,
-    complaint.voiceName,
-    task?.variables?.voiceAttachmentName,
-    task?.variables?.voiceName
-  ) || 'Voice recording';
-  return { url, name };
 }
 
-function workUnitDocument(task, voiceUrl) {
+function workUnitDocuments(task) {
   const complaint = task?.variables?.complaint || {};
-  const url = firstAttachmentText(
-    complaint.evidenceUrl,
-    complaint.attachmentUrl,
-    task?.variables?.evidenceUrl,
-    task?.variables?.attachmentUrl
-  );
-  if (!url || url === voiceUrl) {
-    return null;
-  }
-  const name = firstAttachmentText(
-    complaint.evidenceName,
-    complaint.attachmentName,
-    task?.variables?.evidenceName,
-    task?.variables?.attachmentName
-  ) || 'Supporting document';
-  return { url, name };
+  const voices = new Set(workUnitVoices(task).map((file) => file.url));
+  return collectAttachments(
+    complaint.evidenceFiles,
+    task?.variables?.evidenceFiles,
+    {
+      url: firstAttachmentText(complaint.evidenceUrl, complaint.attachmentUrl, task?.variables?.evidenceUrl, task?.variables?.attachmentUrl),
+      name: firstAttachmentText(complaint.evidenceName, complaint.attachmentName, task?.variables?.evidenceName, task?.variables?.attachmentName) || 'Supporting document'
+    }
+  ).filter((file) => !voices.has(file.url));
 }
 
 function WorkUnitDashboard() {
@@ -368,12 +353,12 @@ function WorkUnitDashboard() {
                       )}
 
                       {(() => {
-                        const voice = workUnitVoice(selectedTask);
-                        const document = workUnitDocument(selectedTask, voice?.url);
+                        const voices = workUnitVoices(selectedTask);
+                        const documents = workUnitDocuments(selectedTask);
                         return (
                           <>
-                      {voice && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', paddingTop: '8px' }}>
+                      {voices.map((voice) => (
+                        <div key={voice.url} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', paddingTop: '8px' }}>
                           <Text style={{ color: '#64748b', fontSize: '14px' }}>Voice Call Recording</Text>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <audio
@@ -390,26 +375,26 @@ function WorkUnitDashboard() {
                               rel="noopener noreferrer"
                               size="small"
                             >
-                              Download
+                              {voice.name}
                             </Button>
                           </div>
                         </div>
-                      )}
+                      ))}
 
-                      {document && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px' }}>
+                      {documents.map((document) => (
+                        <div key={document.url} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', gap: '12px' }}>
                           <Text style={{ color: '#64748b', fontSize: '14px' }}>Supporting Document</Text>
                           <a
                             href={ApiService.getAttachmentUrl(document.url)}
                             download={document.name}
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{ fontSize: '14px', fontWeight: 600, color: BRAND_COLORS.primary }}
+                            style={{ fontSize: '14px', fontWeight: 600, color: BRAND_COLORS.primary, textAlign: 'right' }}
                           >
                             {document.name}
                           </a>
                         </div>
-                      )}
+                      ))}
                           </>
                         );
                       })()}

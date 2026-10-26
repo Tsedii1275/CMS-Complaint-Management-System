@@ -139,7 +139,7 @@ function AuditDashboard() {
     auditAttachment: '',
     auditAttachmentName: ''
   });
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -196,14 +196,16 @@ function AuditDashboard() {
   };
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setSelectedFile(file);
-      setFormData(prev => ({
-        ...prev,
-        auditAttachmentName: file.name
-      }));
+    const chosen = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (chosen.length === 0) {
+      return;
     }
+    setSelectedFiles((prev) => [...prev, ...chosen]);
+    setFormData((prev) => ({
+      ...prev,
+      auditAttachmentName: [...(prev.auditAttachmentName ? [prev.auditAttachmentName] : []), ...chosen.map((file) => file.name)].filter(Boolean).join(', ')
+    }));
   };
 
   const handleSubmit = async () => {
@@ -218,14 +220,14 @@ function AuditDashboard() {
     setMessage('');
 
     try {
-      let uploadedUrl = formData.auditAttachment;
-      let uploadedName = formData.auditAttachmentName;
-
-      if (selectedFile) {
+      let uploadedFiles = [];
+      if (selectedFiles.length > 0) {
         try {
-          const uploadResult = await ApiService.uploadAttachment(selectedFile, ApiService.ticketFromTask(selectedTask));
-          uploadedUrl = uploadResult.url;
-          uploadedName = uploadResult.fileName;
+          uploadedFiles = [];
+          for (const file of selectedFiles) {
+            const uploadResult = await ApiService.uploadAttachment(file, ApiService.ticketFromTask(selectedTask));
+            uploadedFiles.push({ name: uploadResult.fileName || file.name, url: uploadResult.url });
+          }
         } catch (uploadError) {
           setMessage('Failed to upload attachment: ' + uploadError.message);
           setIsSubmitting(false);
@@ -236,8 +238,9 @@ function AuditDashboard() {
       await ApiService.submitAuditResult(selectedTask.id, {
         auditJustification: formData.auditJustification,
         auditFindings: formData.auditFindings,
-        auditAttachment: uploadedUrl,
-        auditAttachmentName: uploadedName,
+        auditAttachment: uploadedFiles[0]?.url || '',
+        auditAttachmentName: uploadedFiles[0]?.name || '',
+        auditAttachments: uploadedFiles,
         currentStage: 'COMMITTEE_REVIEW',
         stage: 'COMMITTEE_DECISION',
         auditCompleted: true,
@@ -246,6 +249,7 @@ function AuditDashboard() {
 
       setMessage('Audit investigation completed and case escalated to Complaints Review & Decision Committee!');
       setSelectedTask(null);
+      setSelectedFiles([]);
       setFormData({ auditJustification: '', auditFindings: '', auditAttachment: '', auditAttachmentName: '' });
       await loadTasks();
 
@@ -423,6 +427,7 @@ function AuditDashboard() {
                         <Space>
                           <input
                             type="file"
+                            multiple
                             accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.mp3,.wav,.m4a"
                             onChange={handleFileChange}
                             style={hiddenFileInputStyle}
@@ -433,9 +438,14 @@ function AuditDashboard() {
                             onClick={() => document.getElementById('audit-document-upload').click()}
                             style={roundedButtonStyle}
                           >
-                            {selectedFile ? 'Change Document' : 'Choose Document'}
+                            {selectedFiles.length > 0 ? 'Add Documents' : 'Choose Documents'}
                           </Button>
-                          {selectedFile && <Text type="success">✓ {selectedFile.name}</Text>}
+                          {selectedFiles.map((file) => (
+                            <Text key={`${file.name}-${file.size}`} type="success">
+                              ✓ {file.name}
+                              <Button type="link" size="small" onClick={() => setSelectedFiles((prev) => prev.filter((item) => item !== file))}>Remove</Button>
+                            </Text>
+                          ))}
                         </Space>
                       </Space>
                     </div>

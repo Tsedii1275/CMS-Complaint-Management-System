@@ -37,7 +37,7 @@ public class AttachmentService {
     @Autowired
     private com.dashenbank.cms.security.FileSecurityService fileSecurityService;
 
-    public static final int MAX_ATTACHMENTS_PER_COMPLAINT = 5;
+    public static final int MAX_ATTACHMENTS_PER_COMPLAINT = 20;
 
     public void checkAttachmentLimit(String complaintId) {
         if (complaintId != null && !complaintId.isBlank()) {
@@ -48,7 +48,8 @@ public class AttachmentService {
                         complaintId, MAX_ATTACHMENTS_PER_COMPLAINT);
                 throw new org.springframework.web.server.ResponseStatusException(
                         org.springframework.http.HttpStatus.BAD_REQUEST,
-                        "Maximum allowed attachments limit (5) reached for this complaint.");
+                        "Maximum allowed attachments limit (" + MAX_ATTACHMENTS_PER_COMPLAINT
+                                + ") reached for this complaint.");
             }
         }
     }

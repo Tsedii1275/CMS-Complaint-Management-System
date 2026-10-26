@@ -69,7 +69,7 @@ public final class SecurityRbacCatalog {
                                 new RateLimitRule("POST /api/complaints/start", 20, 60),
                                 new RateLimitRule("GET /api/complaints/status/**", 30, 60),
                                 new RateLimitRule("GET /api/customer-profile/**", 30, 60),
-                                new RateLimitRule("POST /api/complaints/upload-evidence", 10, 60));
+                                new RateLimitRule("POST /api/complaints/upload-evidence", 30, 60));
         }
 
         private static RbacRow row(String role, String permissions, String apis) {
