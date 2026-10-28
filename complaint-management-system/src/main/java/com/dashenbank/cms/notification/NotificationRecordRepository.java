@@ -14,6 +14,8 @@ import java.util.Optional;
 
 public interface NotificationRecordRepository extends JpaRepository<NotificationRecord, Long> {
 
+    Optional<NotificationRecord> findFirstByIdempotencyKey(String idempotencyKey);
+
     boolean existsByIdempotencyKey(String idempotencyKey);
 
     List<NotificationRecord> findByComplaintRefOrderByIdAsc(String complaintRef);

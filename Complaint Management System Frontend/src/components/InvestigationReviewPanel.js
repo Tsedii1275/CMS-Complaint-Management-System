@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Modal, Button, Input, Upload, Typography, Empty, Tag, message as antMessage } from 'antd';
+import { Modal, Button, Input, Upload, Typography, Empty, message as antMessage } from 'antd';
 import { UploadOutlined, SendOutlined } from '@ant-design/icons';
 import TaskTable from './TaskTable';
 import InvestigationCaseSummary from './InvestigationCaseSummary';
@@ -110,13 +110,12 @@ function InvestigationReviewPanel({ tasks = [], searchQuery = '', onCompleted })
       >
         {selectedTask && step ? (
           <div>
-            <div style={{ marginBottom: '12px' }}>
-              <Tag color="blue">{step.label}</Tag>
-              <Text type="secondary" style={{ fontSize: '12px' }}>Next: {step.nextOwner}</Text>
-            </div>
+            <Text type="secondary" style={{ display: 'block', marginBottom: '12px', fontSize: '13px' }}>
+              Next: {step.nextOwner}
+            </Text>
             <InvestigationCaseSummary task={selectedTask} />
             <div style={{ marginBottom: '16px' }}>
-              <Text strong style={{ display: 'block', marginBottom: '6px' }}>
+              <Text style={{ display: 'block', marginBottom: '6px', color: '#334155' }}>
                 {step.remarksLabel}
                 {step.remarksRequired ? <span style={{ color: '#dc2626' }}> *</span> : null}
               </Text>
@@ -129,14 +128,15 @@ function InvestigationReviewPanel({ tasks = [], searchQuery = '', onCompleted })
                   if (remarksError) setRemarksError('');
                 }}
                 placeholder={step.remarksPlaceholder}
+                style={{ borderRadius: '8px' }}
               />
               {remarksError ? (
                 <Text type="danger" style={{ fontSize: '12px' }}>{remarksError}</Text>
               ) : null}
             </div>
             <div>
-              <Text strong style={{ display: 'block', marginBottom: '6px' }}>
-                Attach Supporting Documents / Files (optional, multiple)
+              <Text style={{ display: 'block', marginBottom: '6px', color: '#334155' }}>
+                Attach documents (optional)
               </Text>
               <Upload
                 multiple
@@ -145,7 +145,7 @@ function InvestigationReviewPanel({ tasks = [], searchQuery = '', onCompleted })
                 accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.mp3,.wav,.m4a"
                 onChange={({ fileList: next }) => setFileList(next)}
               >
-                <Button icon={<UploadOutlined />}>Select Files to Attach</Button>
+                <Button icon={<UploadOutlined />}>Select files</Button>
               </Upload>
             </div>
           </div>

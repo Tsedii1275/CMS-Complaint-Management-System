@@ -13,17 +13,11 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 public class AttachmentService {
-
-    private static final long MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
-    private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
-            "pdf", "png", "jpg", "jpeg", "doc", "docx", "xls", "xlsx", "txt", "csv",
-            "mp3", "wav", "m4a", "webm", "ogg");
 
     @Autowired
     private AttachmentRepository attachmentRepository;

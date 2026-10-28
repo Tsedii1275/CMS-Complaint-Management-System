@@ -46,11 +46,6 @@ public class FileSecurityService {
     public static final String UNSUPPORTED_FILE_MESSAGE =
             "This file is unsupported. Please upload one of these file types: PDF, JPG, JPEG, PNG, DOCX, XLSX, MP3, WAV, or M4A.";
 
-    // Explicitly Blacklisted dangerous extensions for audit logging
-    private static final Set<String> DANGEROUS_EXTENSIONS = Set.of(
-            "exe", "bat", "cmd", "ps1", "sh", "jar", "war", "jsp", "php", "asp",
-            "aspx", "html", "htm", "js", "svg", "zip", "rar", "7z", "vbs", "py", "pl", "cgi");
-
     // 2. Strict Whitelist of Approved Content-Types (MIME)
     public static final Set<String> ALLOWED_MIME_TYPES = Set.of(
             "application/pdf",
@@ -118,6 +113,7 @@ public class FileSecurityService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid file name structure");
         }
 
+        // The extension comes only from the uploaded file name, never from Content-Type or the browser accept list.
         String extension = extensionOf(original);
         boolean isAudio = AUDIO_EXTENSIONS.contains(extension);
 
@@ -134,8 +130,8 @@ public class FileSecurityService {
             }
         }
 
-        // Extension Rules & Double Extension Check
-        validateExtensionRules(original, extension);
+        // Extension whitelist, including a hard stop on any extra extension in the name.
+        validateExtensionRules(original, extension, audioAllowed);
 
         // MIME Type Rules & Extension Cross-Check
         String contentType = file.getContentType() == null ? "" : file.getContentType().toLowerCase(Locale.ROOT).trim();
@@ -170,19 +166,19 @@ public class FileSecurityService {
                 || "video/mp4".equals(contentType);
     }
 
-    private void validateExtensionRules(String originalName, String extension) {
-        String[] parts = originalName.toLowerCase(Locale.ROOT).split("\\.");
-        if (parts.length > 2) {
-            for (int i = 1; i < parts.length - 1; i++) {
-                if (DANGEROUS_EXTENSIONS.contains(parts[i]) || ALLOWED_EXTENSIONS.contains(parts[i])) {
-                    log.warn("SECURITY ALERT: Double extension detected in file '{}'", originalName);
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                            "File upload rejected: Suspicious double extension format");
-                }
-            }
+    private void validateExtensionRules(String originalName, String extension, boolean audioAllowed) {
+        String lower = originalName.toLowerCase(Locale.ROOT);
+        int firstDot = lower.indexOf('.');
+        int lastDot = lower.lastIndexOf('.');
+        // "report.pdf" is allowed. "payload.php.docx", "script.sh.docx", and "notes.final.pdf" are not.
+        if (firstDot <= 0 || firstDot != lastDot || lower.endsWith(".")) {
+            log.warn("SECURITY ALERT: File name '{}' has more than one extension", originalName);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "File upload rejected: the file name must have a single extension");
         }
 
-        if (!ALLOWED_EXTENSIONS.contains(extension)) {
+        Set<String> allowed = audioAllowed ? AUDIO_EXTENSIONS : DOCUMENT_EXTENSIONS;
+        if (!allowed.contains(extension)) {
             log.warn("SECURITY REJECTION: Extension '.{}' not allowed for file '{}'", extension, originalName);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, UNSUPPORTED_FILE_MESSAGE);
         }

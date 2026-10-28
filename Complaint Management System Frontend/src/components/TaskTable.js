@@ -193,7 +193,7 @@ export const UniqueIdDisplay = ({ record, showIntake = true }) => {
  * Neat, modern, high-density Table View for staff task queues.
  * Displays standard task card information in a clean, space-efficient single-row table format.
  */
-function TaskTable({ tasks = [], onSelectTask, onAssignTask, showPriority = false, showAssignedOfficer = true, showAssignedDate = true, showOverallStatus = true, listKey = '' }) {
+function TaskTable({ tasks = [], onSelectTask, onAssignTask, showPriority = false, showAssignedOfficer = true, showAssignedDate = true, showOverallStatus = true, listKey = '', antdPagination = false }) {
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -425,22 +425,42 @@ function TaskTable({ tasks = [], onSelectTask, onAssignTask, showPriority = fals
         />
       </div>
       <Table
-        dataSource={paginatedTasks}
+        dataSource={antdPagination ? tasks : paginatedTasks}
         columns={columns}
         rowKey="id"
         size="middle"
-        pagination={false}
+        pagination={antdPagination ? {
+          current: safePage,
+          pageSize,
+          total: tasks.length,
+          showSizeChanger: true,
+          pageSizeOptions: [10, 25, 50, 100],
+          showQuickJumper: true,
+          showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} tasks`,
+          hideOnSinglePage: false,
+          onChange: (page, size) => {
+            if (size !== pageSize) {
+              setPageSize(size);
+              setCurrentPage(1);
+            } else {
+              setCurrentPage(page);
+            }
+          },
+          style: { marginTop: 16, marginBottom: 4 }
+        } : false}
         bordered={false}
         scroll={{ x: 'max-content' }}
       />
-      <Pagination
-        currentPage={currentPage}
-        pageSize={pageSize}
-        totalRecords={tasks.length}
-        onPageChange={(page) => setCurrentPage(page)}
-        onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
-        itemUnit="tasks"
-      />
+      {!antdPagination && (
+        <Pagination
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalRecords={tasks.length}
+          onPageChange={(page) => setCurrentPage(page)}
+          onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
+          itemUnit="tasks"
+        />
+      )}
     </div>
   );
 }

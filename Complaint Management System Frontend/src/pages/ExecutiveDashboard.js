@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Typography, Table, Tag, Button, Modal, Space, Input, Empty, Tooltip, Upload, Alert, message as antMessage } from 'antd';
-import { EyeOutlined, SendOutlined, PaperClipOutlined, UploadOutlined, RollbackOutlined } from '@ant-design/icons';
+import { EyeOutlined, SendOutlined, UploadOutlined, RollbackOutlined } from '@ant-design/icons';
 import DashboardLayout from '../components/DashboardLayout';
 import InvestigationCaseSummary from '../components/InvestigationCaseSummary';
 import { formatUniqueId } from '../components/TaskTable';
@@ -40,26 +40,25 @@ function CxoDecisionBody({
   selectedTask, cxRemarks, setCxRemarks, cxFileList, setCxFileList, returnReason, setReturnReason, returnError
 }) {
   return (
-    <div style={{ paddingTop: '8px' }}>
+    <div>
       <InvestigationCaseSummary task={selectedTask} />
 
       <div style={{ marginBottom: '16px' }}>
-        <Text strong style={{ color: '#0f172a', fontSize: '14px', display: 'block', marginBottom: '8px' }}>
-          Chief Experience Officer Remarks / Instructions (for Send to Audit Investigation):
+        <Text style={{ color: '#334155', display: 'block', marginBottom: '6px' }}>
+          Remarks for Audit Investigation
         </Text>
         <Input.TextArea
           rows={3}
           value={cxRemarks}
           onChange={(e) => setCxRemarks(e.target.value)}
-          placeholder="Enter investigation assessment or instructions for the Audit Investigation Team..."
-          style={{ borderRadius: '6px', padding: '10px' }}
+          placeholder="Instructions for the Audit Investigation Team"
+          style={{ borderRadius: '8px' }}
         />
       </div>
 
       <div style={{ marginBottom: '16px' }}>
-        <Text strong style={{ color: '#0f172a', fontSize: '14px', display: 'block', marginBottom: '8px' }}>
-          <PaperClipOutlined style={{ marginRight: '6px', color: '#0284c7' }} />
-          Attach Supporting Documents / Files:
+        <Text style={{ color: '#334155', display: 'block', marginBottom: '6px' }}>
+          Attach documents (optional)
         </Text>
         <Upload
           fileList={cxFileList}
@@ -68,23 +67,21 @@ function CxoDecisionBody({
           onChange={({ fileList }) => setCxFileList(fileList)}
           multiple
         >
-          <Button icon={<UploadOutlined />} style={{ borderRadius: '6px' }}>
-            Select Supporting Files to Attach
-          </Button>
+          <Button icon={<UploadOutlined />}>Select files</Button>
         </Upload>
       </div>
 
-      <div style={{ padding: '12px', border: '1px solid #fecaca', background: '#fef2f2', borderRadius: '8px' }}>
-        <Text strong style={{ color: '#991b1b', fontSize: '14px', display: 'block', marginBottom: '8px' }}>
-          Reason for returning to the Customer Care Senior Manager (required only when returning):
+      <div>
+        <Text style={{ color: '#334155', display: 'block', marginBottom: '6px' }}>
+          Return reason <Text type="secondary">(required only when returning)</Text>
         </Text>
         <Input.TextArea
           rows={2}
           value={returnReason}
           status={returnError ? 'error' : undefined}
           onChange={(e) => setReturnReason(e.target.value)}
-          placeholder="Explain why this case does not need an audit investigation and can be closed..."
-          style={{ borderRadius: '6px' }}
+          placeholder="Why this case can be closed without an audit"
+          style={{ borderRadius: '8px' }}
         />
         {returnError ? (
           <Text type="danger" style={{ fontSize: '12px' }}>{returnError}</Text>

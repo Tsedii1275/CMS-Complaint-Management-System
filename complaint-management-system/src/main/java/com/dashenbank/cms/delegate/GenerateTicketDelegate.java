@@ -86,6 +86,7 @@ public class GenerateTicketDelegate implements JavaDelegate {
         }
 
         Map<String, Object> customer = castToMap(execution.getVariable("customer"));
+        String preferredContactMethod = (String) customer.get("preferredContactMethod");
         NotificationQueueResult queued = notificationService.notifyCustomer(CustomerNotifications.registration(
                 ticket,
                 execution.getProcessInstanceId(),
@@ -93,11 +94,15 @@ public class GenerateTicketDelegate implements JavaDelegate {
                 (String) customer.get("email"),
                 CustomerContactPhones.currentContact(customer),
                 resolvePreferredLanguage(execution, customer),
+                preferredContactMethod,
                 LocalDateTime.now(SYSTEM_ZONE)));
 
         execution.setVariable("notification.ticketEmailQueued", queued.emailQueued());
         execution.setVariable("notification.ticketSmsQueued", queued.smsQueued());
-        execution.setVariable("ack.sent", true);
+        if (com.dashenbank.cms.notification.ContactChannelPreference.covered(
+                preferredContactMethod, queued.emailQueued(), queued.smsQueued())) {
+            execution.setVariable("ack.sent", true);
+        }
     }
 
     private String resolvePreferredLanguage(DelegateExecution execution, Map<String, Object> customer) {

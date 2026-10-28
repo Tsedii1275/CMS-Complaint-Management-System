@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -46,9 +47,12 @@ class NotificationServiceTest {
         properties = new NotificationProperties();
         when(repository.save(any(NotificationRecord.class))).thenAnswer(invocation -> {
             NotificationRecord row = invocation.getArgument(0);
-            row.setId(ids.incrementAndGet());
+            if (row.getId() == null) {
+                row.setId(ids.incrementAndGet());
+            }
             return row;
         });
+        when(repository.findFirstByIdempotencyKey(any())).thenReturn(Optional.empty());
     }
 
     @AfterEach
@@ -66,7 +70,7 @@ class NotificationServiceTest {
     }
 
     private static NotificationRequest registration(String email, String phone) {
-        return CustomerNotifications.registration("DBC-2026-000001", "pi-1", "Abebe", email, phone, "english",
+        return CustomerNotifications.registration("DBC-2026-000001", "pi-1", "Abebe", email, phone, "english", null,
                 LocalDateTime.of(2026, 9, 23, 14, 0));
     }
 
@@ -129,14 +133,47 @@ class NotificationServiceTest {
     }
 
     @Test
-    void duplicateEventIsNotQueuedTwice() {
-        when(repository.existsByIdempotencyKey("COMPLAINT_REGISTERED:DBC-2026-000001:EMAIL")).thenReturn(true);
+    void duplicateSentEventIsTreatedAsAlreadyCovered() {
+        NotificationRecord existing = new NotificationRecord();
+        existing.setStatus(NotificationStatus.SENT);
+        when(repository.findFirstByIdempotencyKey("COMPLAINT_REGISTERED:DBC-2026-000001:EMAIL"))
+                .thenReturn(Optional.of(existing));
 
         NotificationQueueResult result = service().notifyCustomer(registration("abebe@dashenbanksc.com", null));
 
-        assertFalse(result.emailQueued());
+        assertTrue(result.emailQueued());
         verify(repository, never()).save(any());
         verify(dispatcher, never()).dispatchAsync(any());
+    }
+
+    @Test
+    void failedAcknowledgmentIsQueuedAgain() {
+        NotificationRecord existing = new NotificationRecord();
+        existing.setId(9L);
+        existing.setStatus(NotificationStatus.FAILED);
+        existing.setAttempts(5);
+        when(repository.findFirstByIdempotencyKey("COMPLAINT_REGISTERED:DBC-2026-000001:EMAIL"))
+                .thenReturn(Optional.of(existing));
+
+        NotificationQueueResult result = service().notifyCustomer(registration("abebe@dashenbanksc.com", null));
+
+        assertTrue(result.emailQueued());
+        assertEquals(NotificationStatus.PENDING, existing.getStatus());
+        verify(dispatcher).dispatchAsync(List.of(9L));
+    }
+
+    @Test
+    void smsPreferenceDoesNotQueueEmail() {
+        NotificationRequest request = CustomerNotifications.registration("DBC-2026-000001", "pi-1", "Abebe",
+                "abebe@dashenbanksc.com", "0912345678", "english", "SMS", LocalDateTime.of(2026, 9, 23, 14, 0));
+
+        NotificationQueueResult result = service().notifyCustomer(request);
+
+        assertFalse(result.emailQueued());
+        assertTrue(result.smsQueued());
+        ArgumentCaptor<NotificationRecord> saved = ArgumentCaptor.forClass(NotificationRecord.class);
+        verify(repository).save(saved.capture());
+        assertEquals(NotificationChannel.SMS, saved.getValue().getChannel());
     }
 
     @Test

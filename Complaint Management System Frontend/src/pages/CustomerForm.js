@@ -5,128 +5,18 @@ import { BRAND_COLORS } from '../constants/theme';
 import ApiService from '../services/api';
 import { normalizeComplaintStatus, renderComplaintStatusTag } from '../utils/statusUtils';
 import moment from 'moment';
-
-function sanitizePublicPhone(formPhone, countryCode) {
-  let rawPhone = formPhone.trim();
-  if (rawPhone.startsWith('0')) {
-    rawPhone = rawPhone.substring(1);
-  }
-  if (rawPhone.startsWith(countryCode)) {
-    rawPhone = rawPhone.substring(countryCode.length);
-  } else if (rawPhone.startsWith('+')) {
-    rawPhone = rawPhone.replace(/^\+\d+/, '');
-  }
-  return countryCode + rawPhone;
-}
-
-function getCustomerNameError(name, language) {
-  if (!name?.trim()) {
-    return language === 'english' ? 'Customer name is required' : 'የደንበኛው ሙሉ ስም ግዴታ ነው';
-  }
-  const trimmed = name.trim();
-  if (trimmed.length < 2 || trimmed.length > 100) {
-    return language === 'english' ? 'Customer name must be between 2 and 100 characters' : 'ስም ከ2 እስከ 100 ፊደላት መሆን አለበት';
-  }
-  if (!/^[a-zA-Z\u00C0-\u024F\u1200-\u137F\s'-]+$/.test(trimmed)) {
-    return language === 'english' ? 'Customer name contains invalid characters' : 'ስም የተከለከሉ ፊደላትን ይዟል';
-  }
-  return '';
-}
-
-function getDescriptionError(desc, language) {
-  if (!desc?.trim()) {
-    return language === 'english' ? 'Complaint description is required' : 'የቅሬታው ዝርዝር መግለጫ ግዴታ ነው';
-  }
-  const trimmed = desc.trim();
-  if (trimmed.length < 10) {
-    return language === 'english' ? 'Complaint description must be at least 10 characters long' : 'የቅሬታ መግለጫ ቢያንስ 10 ፊደላት መሆን አለበት';
-  }
-  if (trimmed.length > 5000) {
-    return language === 'english' ? 'Complaint description cannot exceed 5000 characters' : 'የቅሬታ መግለጫ ከ5000 ፊደላት መብለጥ የለበትም';
-  }
-  if (/<\s*script[\s/>]|on\w+\s*=|javascript:/i.test(trimmed)) {
-    return language === 'english' ? 'Description contains invalid script or HTML tags' : 'መግለጫው የተከለከሉ ኮዶችን ይዟል';
-  }
-  return '';
-}
-
-function getAccountNumberError(accountNumber, language) {
-  if (!accountNumber?.trim()) {
-    return language === 'english' ? 'Account Number is mandatory' : 'የአካውንት ቁጥር ግዴታ ነው';
-  }
-  if (accountNumber.length !== 13 || !/^\d+$/.test(accountNumber)) {
-    return language === 'english' ? 'Account Number must be 13 digits' : 'አካውንት ቁጥር 13 አሃዝ መሆን አለበት';
-  }
-  return '';
-}
-
-function lettersOnlyPlaceName(value) {
-  return String(value || '').replace(/[^\p{L} ]/gu, '').slice(0, 100);
-}
-
-function getPlaceNameError(value, language, label) {
-  const trimmed = String(value || '').trim();
-  if (!trimmed) return '';
-  if (!/^[\p{L} ]{1,100}$/u.test(trimmed)) {
-    return language === 'english'
-      ? `${label} may contain letters and spaces only`
-      : `${label} ፊደላት እና ክፍተት ብቻ መያዝ አለበት`;
-  }
-  return '';
-}
-
-function getEmailError(email, language) {
-  if (!email?.trim()) return '';
-  const trimmed = email.trim();
-  const at = trimmed.indexOf('@');
-  const domain = at > 0 ? trimmed.slice(at + 1) : '';
-  const dot = domain.lastIndexOf('.');
-  const looksValid = at > 0 && dot > 0 && dot < domain.length - 1 && !/\s/.test(trimmed);
-  if (!looksValid) {
-    return language === 'english' ? 'Please enter a valid email address' : 'እባክዎን ትክክለኛ የኢሜይል አድራሻ ያስገቡ';
-  }
-  return '';
-}
-
-const PUBLIC_COUNTRY_PHONES = [
-  { code: '+251', flag: '🇪🇹', name: 'Ethiopia', minDigits: 9, maxDigits: 10, national: /^(0?[79]\d{8})$/ },
-  { code: '+1', flag: '🇺🇸', name: 'USA', minDigits: 10, maxDigits: 10, national: /^\d{10}$/ },
-  { code: '+44', flag: '🇬🇧', name: 'UK', minDigits: 10, maxDigits: 11, national: /^(0\d{10}|\d{10})$/ },
-  { code: '+254', flag: '🇰🇪', name: 'Kenya', minDigits: 9, maxDigits: 10, national: /^(0\d{9}|\d{9})$/ },
-  { code: '+253', flag: '🇩🇯', name: 'Djibouti', minDigits: 8, maxDigits: 8, national: /^\d{8}$/ },
-  { code: '+971', flag: '🇦🇪', name: 'UAE', minDigits: 8, maxDigits: 10, national: /^(0\d{8,9}|\d{8,9})$/ },
-  { code: '+966', flag: '🇸🇦', name: 'Saudi Arabia', minDigits: 9, maxDigits: 10, national: /^(0\d{9}|\d{9})$/ }
-];
-
-function publicPhoneRule(countryCode) {
-  return PUBLIC_COUNTRY_PHONES.find((country) => country.code === countryCode) || PUBLIC_COUNTRY_PHONES[0];
-}
-
-function phoneLengthMessage(rule, language) {
-  const count = rule.minDigits === rule.maxDigits
-    ? String(rule.maxDigits)
-    : `${rule.minDigits}-${rule.maxDigits}`;
-  return language === 'english'
-    ? `Enter ${count} digits for ${rule.name}`
-    : `ለ${rule.name} ${count} አሃዝ ያስገቡ`;
-}
-
-function getPhoneError(phone, countryCode, language) {
-  if (!phone?.trim()) {
-    return language === 'english' ? 'Phone number is required' : 'የስልክ ቁጥር ግዴታ ነው';
-  }
-  const digits = phone.trim().replace(/\D/g, '');
-  const rule = publicPhoneRule(countryCode);
-  if (digits.length < rule.minDigits || digits.length > rule.maxDigits) {
-    return phoneLengthMessage(rule, language);
-  }
-  if (!rule.national.test(digits)) {
-    return language === 'english'
-      ? `Invalid ${rule.name} phone number`
-      : `ትክክለኛ የ${rule.name} ስልክ ቁጥር ያስገቡ`;
-  }
-  return '';
-}
+import {
+  sanitizePublicPhone,
+  getCustomerNameError,
+  getDescriptionError,
+  getAccountNumberError,
+  lettersOnlyPlaceName,
+  getPlaceNameError,
+  getEmailError,
+  PUBLIC_COUNTRY_PHONES,
+  publicPhoneRule,
+  getPhoneError
+} from '../utils/complaintFieldValidation';
 
 function formatSubmissionDate(dateStr) {
   if (!dateStr) return '—';
@@ -791,20 +681,9 @@ function CustomerForm() {
       style={{ minHeight: '100vh', backgroundColor: '#fcfcfc', display: 'flex', flexDirection: 'column' }}
     >
       {/* Header - Left Aligned */}
-      <div className="cms-public-header" style={{
-        backgroundColor: '#fff',
-        color: BRAND_COLORS.primary,
-        padding: '40px 80px 20px 80px',
-        position: 'relative',
-        borderBottom: '2px solid #012169'
-      }}>
+      <div className="cms-public-header">
         {/* Language Selector */}
-        <div className="cms-public-lang" style={{
-          position: 'absolute',
-          top: '40px',
-          right: '80px',
-          zIndex: 10
-        }}>
+        <div className="cms-public-lang">
           <Dropdown
             menu={{ items: languageMenuItems }}
             placement="bottomRight"
@@ -829,14 +708,13 @@ function CustomerForm() {
           </Dropdown>
         </div>
 
-        <div className="cms-public-brand" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '20px', marginBottom: '16px' }}>
+        <div className="cms-public-brand">
           <img
             src="/download.png"
             alt="Dashen Bank Logo"
-            style={{ height: '60px', width: 'auto' }}
           />
           <div>
-            <h1 className="cms-public-title" style={{ margin: 0, fontSize: '28px', fontWeight: '800', color: BRAND_COLORS.primary, letterSpacing: '-0.5px' }}>
+            <h1 className="cms-public-title">
               {t.subtitle}
             </h1>
           </div>
@@ -844,28 +722,9 @@ function CustomerForm() {
       </div>
 
       {/* Main Content - Two Column Layout */}
-      <div className="cms-public-body" style={{
-        flex: 1,
-        padding: '40px 80px',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'flex-start',
-        gap: '40px',
-        flexWrap: 'wrap',
-        maxWidth: '1300px',
-        margin: '0 auto',
-        width: '100%'
-      }}>
+      <div className="cms-public-body">
         {/* Left Column - Main Form */}
-        <div className="cms-public-form-card" style={{
-          flex: '3 1 600px',
-          backgroundColor: '#fff',
-          padding: '40px',
-          border: '1px solid #e0e0e0',
-          borderRadius: '2px',
-          boxShadow: 'none',
-          boxSizing: 'border-box'
-        }}>
+        <div className="cms-public-form-card">
           <h2 style={{ textAlign: 'left', marginBottom: '40px', color: BRAND_COLORS.primary, fontSize: '24px', fontWeight: 700, borderBottom: '1px solid #f0f0f0', paddingBottom: '15px' }}>
             {t.formTitle}
           </h2>
@@ -885,7 +744,7 @@ function CustomerForm() {
 
           <form onSubmit={handleSubmit}>
             {/* Row 1: Name and Email */}
-            <div className="cms-form-row" style={{ display: 'flex', gap: '32px', marginBottom: '32px' }}>
+            <div className="cms-form-row">
               <div style={{ flex: 1 }}>
                 <label style={{ display: 'block', marginBottom: '10px', fontWeight: '600', color: '#444', fontSize: '14px' }}>
                   {t.customerName} <span style={{ color: 'red' }}>*</span>
@@ -940,7 +799,7 @@ function CustomerForm() {
             </div>
 
             {/* Row 2: Phone and Date */}
-            <div className="cms-form-row" style={{ display: 'flex', gap: '32px', marginBottom: '32px' }}>
+            <div className="cms-form-row">
               <div style={{ flex: 1 }}>
                 <label style={{ display: 'block', marginBottom: '10px', fontWeight: '600', color: '#444', fontSize: '14px' }}>
                   {t.phoneNumber} <span style={{ color: 'red' }}>*</span>
@@ -1099,7 +958,7 @@ function CustomerForm() {
             </div>
 
             {/* Row 3: Account Number, District, Branch */}
-            <div className="cms-form-row" style={{ display: 'flex', gap: '32px', marginBottom: '32px', flexWrap: 'wrap' }}>
+            <div className="cms-form-row">
               <div style={{ flex: '1 1 180px' }}>
                 <label style={{ display: 'block', marginBottom: '10px', fontWeight: '600', color: '#444', fontSize: '14px' }}>
                   {t.accountNumber} <span style={{ color: 'red' }}>*</span>
@@ -1388,17 +1247,7 @@ function CustomerForm() {
         </div>
 
         {/* Right Column - Status Checker Card */}
-        <div className="cms-public-side-card" style={{
-          flex: '1 1 300px',
-          backgroundColor: '#fff',
-          padding: '30px',
-          border: '1px solid #e0e0e0',
-          borderRadius: '2px',
-          boxSizing: 'border-box',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px'
-        }}>
+        <div className="cms-public-side-card">
           <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: BRAND_COLORS.primary }}>
             {t.checkStatusTitle}
           </h3>
@@ -1453,7 +1302,7 @@ function CustomerForm() {
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#444', fontSize: '14px' }}>
               {t.ticketLabel}
             </label>
-            <div className="cms-form-row" style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+            <div className="cms-form-row cms-form-row-tight">
               <Input
                 placeholder="e.g. DBC-202606170001-AB12CD34"
                 value={ticketSearch}

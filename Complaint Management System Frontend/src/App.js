@@ -16,6 +16,7 @@ import CustomerExperienceDashboard from './pages/CustomerExperienceDashboard';
 import SlaConfigPage from './pages/SlaConfigPage';
 import SlaMonitoringPage from './pages/SlaMonitoringPage';
 import ExecutiveDashboard from './pages/ExecutiveDashboard';
+import EthicsDashboard from './pages/EthicsDashboard';
 import UserManagementPage from './pages/UserManagementPage';
 import LdapMaintenancePage from './pages/LdapMaintenancePage';
 import SystemAdminDashboard from './pages/SystemAdminDashboard';
@@ -44,6 +45,7 @@ function AppRoutes() {
       <Route path="/cmd" element={guarded(<CMDDashboard />)} />
       <Route path="/audit" element={guarded(<AuditDashboard />)} />
       <Route path="/executive" element={guarded(<ExecutiveDashboard />)} />
+      <Route path="/ethics" element={guarded(<EthicsDashboard />)} />
       <Route path="/work-unit" element={guarded(<WorkUnitDashboard />)} />
       <Route path="/chief-committee" element={guarded(<ChiefCommitteeDashboard />)} />
       <Route path="/admin" element={guarded(<AdminDashboard />)} />

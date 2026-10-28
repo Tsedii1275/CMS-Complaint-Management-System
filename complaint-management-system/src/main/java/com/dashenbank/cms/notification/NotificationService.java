@@ -63,9 +63,11 @@ public class NotificationService {
             return NotificationQueueResult.NONE;
         }
         List<Long> dispatchable = new ArrayList<>();
-        boolean emailQueued = StringUtils.hasText(request.email())
+        boolean emailQueued = ContactChannelPreference.emailRequested(request.preferredContactMethod())
+                && StringUtils.hasText(request.email())
                 && enqueue(request, NotificationChannel.EMAIL, request.email(), dispatchable);
-        boolean smsQueued = StringUtils.hasText(request.phone())
+        boolean smsQueued = ContactChannelPreference.smsRequested(request.preferredContactMethod())
+                && StringUtils.hasText(request.phone())
                 && enqueue(request, NotificationChannel.SMS, request.phone(), dispatchable);
         dispatchAfterCommit(dispatchable);
         return new NotificationQueueResult(emailQueued, smsQueued);
@@ -100,10 +102,11 @@ public class NotificationService {
     private boolean enqueue(NotificationRequest request, NotificationChannel channel, String rawRecipient,
             List<Long> dispatchable) {
         String idempotencyKey = idempotencyKey(request, channel);
-        if (idempotencyKey != null && repository.existsByIdempotencyKey(idempotencyKey)) {
-            log.debug("{} {} notification for {} already recorded; not queued again.",
-                    channel, request.eventType(), request.complaintRef());
-            return false;
+        if (idempotencyKey != null) {
+            Optional<NotificationRecord> existing = repository.findFirstByIdempotencyKey(idempotencyKey);
+            if (existing.isPresent()) {
+                return reuseOrRevive(existing.get(), request, channel, rawRecipient, dispatchable);
+            }
         }
 
         LocalDateTime now = LocalDateTime.now(clock);
@@ -151,6 +154,52 @@ public class NotificationService {
         }
         log.info("[{}] {} notification #{} for {} not queued: {}", channel, request.eventType(), saved.getId(),
                 RecipientFormat.mask(channel, saved.getRecipient()), reason);
+        auditRecorder.recordOutcome(saved);
+        return false;
+    }
+
+    /**
+     * A message already pending or sent covers this channel. A skipped or failed
+     * row is tried again so a later acknowledgment step can still deliver it.
+     */
+    private boolean reuseOrRevive(NotificationRecord existing, NotificationRequest request, NotificationChannel channel,
+            String rawRecipient, List<Long> dispatchable) {
+        NotificationStatus status = existing.getStatus();
+        if (status == NotificationStatus.PENDING || status == NotificationStatus.SENDING
+                || status == NotificationStatus.RETRY || status == NotificationStatus.SENT) {
+            log.debug("{} {} notification for {} is already {}.", channel, request.eventType(),
+                    request.complaintRef(), status);
+            return true;
+        }
+        LocalDateTime now = LocalDateTime.now(clock);
+        String language = NotificationTemplateService.resolveLanguage(request.preferredLanguage());
+        Optional<String> recipient = normalize(channel, rawRecipient);
+        existing.setRecipient(truncate(recipient.orElse(rawRecipient.trim()), MAX_RECIPIENT_LENGTH));
+        existing.setUpdatedAt(now);
+        existing.setLanguage(language);
+        NotificationStatus next = NotificationStatus.PENDING;
+        String reason = skipReason(channel, recipient.isPresent());
+        if (reason != null) {
+            next = NotificationStatus.SKIPPED;
+        }
+        try {
+            RenderedMessage rendered = templates.render(request.eventType(), channel, language, request.variables());
+            existing.setSubject(truncate(rendered.subject(), MAX_SUBJECT_LENGTH));
+            existing.setContent(rendered.body());
+        } catch (RuntimeException e) {
+            existing.setContent("");
+            next = NotificationStatus.FAILED;
+            reason = "Template rendering failed: " + e.getClass().getSimpleName();
+        }
+        existing.setStatus(next);
+        existing.setFailureReason(reason);
+        existing.setNextAttemptAt(next == NotificationStatus.PENDING ? now : null);
+        existing.setMaxAttempts(existing.getAttempts() + Math.max(1, properties.getRetry().getMaxAttempts()));
+        NotificationRecord saved = repository.save(existing);
+        if (next == NotificationStatus.PENDING) {
+            dispatchable.add(saved.getId());
+            return true;
+        }
         auditRecorder.recordOutcome(saved);
         return false;
     }

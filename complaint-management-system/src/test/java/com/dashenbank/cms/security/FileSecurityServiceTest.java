@@ -71,6 +71,37 @@ class FileSecurityServiceTest {
     }
 
     @Test
+    void validateUploadRejectsAnyFileNameWithMoreThanOneExtension() {
+        MockMultipartFile phpDocx = new MockMultipartFile(
+                "file", "payload.php.docx", "application/octet-stream", new byte[] { 0x50, 0x4B, 0x03, 0x04 });
+        MockMultipartFile shellDocx = new MockMultipartFile(
+                "file", "script.sh.docx", "application/octet-stream", new byte[] { 0x50, 0x4B, 0x03, 0x04 });
+        MockMultipartFile extraDot = new MockMultipartFile(
+                "file", "notes.final.pdf", "application/pdf", "%PDF-1.4".getBytes());
+
+        for (MockMultipartFile file : new MockMultipartFile[] { phpDocx, shellDocx, extraDot }) {
+            ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                    () -> service.validateUpload(file, false));
+            assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+            assertTrue(ex.getReason().contains("single extension"));
+        }
+    }
+
+    @Test
+    void validateUploadAcceptsASingleWhitelistedExtensionFromTheFileName() {
+        MockMultipartFile pdf = new MockMultipartFile(
+                "file", "evidence.PDF", "application/octet-stream", "%PDF-1.4".getBytes());
+        service.validateUpload(pdf, false);
+    }
+
+    @Test
+    void documentUploadRejectsAnAudioExtension() {
+        MockMultipartFile audio = new MockMultipartFile(
+                "file", "call.mp3", "audio/mpeg", new byte[] { 0x49, 0x44, 0x33, 0x04 });
+        assertThrows(ResponseStatusException.class, () -> service.validateUpload(audio, false));
+    }
+
+    @Test
     void validateUploadRejectsHtmlAndOversizedTypes() {
         MockMultipartFile html = new MockMultipartFile("file", "page.html", "text/html", "<script>".getBytes());
         assertThrows(ResponseStatusException.class, () -> service.validateUpload(html, false));

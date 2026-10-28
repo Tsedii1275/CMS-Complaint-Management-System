@@ -1224,13 +1224,24 @@ public class SlaTrackingService {
     }
 
     /**
-     * Non-complaint items screened as OTHER. Kept out of getAllMetrics so they
-     * never
-     * enter complaint analytics, but they must still be listed on the Contact
-     * Center
-     * Other tab.
+     * Non-complaint items screened as OTHER - Dispute. Kept out of getAllMetrics so
+     * they never enter complaint analytics, and listed on the Contact Center Other tab.
      */
     public List<ComplaintSlaMetrics> getOtherMetrics() {
+        return getOtherMetricsByType(OtherClassification.DISPUTE);
+    }
+
+    /** Items screened as OTHER - Feedback, listed on the Service Quality Feedback tab. */
+    public List<ComplaintSlaMetrics> getFeedbackMetrics() {
+        return getOtherMetricsByType(OtherClassification.FEEDBACK);
+    }
+
+    /** Items screened as OTHER - Ethics and Conduct. */
+    public List<ComplaintSlaMetrics> getEthicsMetrics() {
+        return getOtherMetricsByType(OtherClassification.ETHICS);
+    }
+
+    private List<ComplaintSlaMetrics> getOtherMetricsByType(String otherType) {
         if (entityManager != null) {
             try {
                 entityManager.clear();
@@ -1242,7 +1253,9 @@ public class SlaTrackingService {
         for (ComplaintSlaMetrics m : slaMetricsRepository.findAll()) {
             if (isOtherClassification(m)) {
                 attachRegisteredCaseDetails(m);
-                others.add(m);
+                if (otherType.equals(OtherClassification.normalize(m.getOtherType()))) {
+                    others.add(m);
+                }
             }
         }
         return others;
@@ -1256,6 +1269,9 @@ public class SlaTrackingService {
         Map<String, Object> vars = readCaseVariables(metrics.getProcessInstanceId());
         Map<String, Object> customer = castToMap(vars.get("customer"));
         Map<String, Object> complaint = castToMap(vars.get("complaint"));
+        if (isOtherClassification(metrics)) {
+            metrics.setOtherType(OtherClassification.typeOf(vars));
+        }
 
         String customerName = firstNonBlank(metrics.getCustomerName(), str(customer, "name"), str(vars, "customerName"));
         if (!customerName.isBlank()) {

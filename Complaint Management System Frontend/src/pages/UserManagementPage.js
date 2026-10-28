@@ -13,6 +13,7 @@ const { Option } = Select;
 const ROLE_OPTIONS = [
   { label: 'Customer Care Senior Manager', value: 'ROLE_CUSTOMER_CARE_SENIOR_MANAGER' },
   { label: 'Service Quality Director', value: 'ROLE_SERVICE_QUALITY_DIRECTOR' },
+  { label: 'Ethics and Conduct', value: 'ROLE_ETHICS_AND_CONDUCT' },
   { label: 'Customer Care Team Leader', value: 'ROLE_CUSTOMER_CARE_TEAM_LEADER' },
   { label: 'Customer Care Officer', value: 'ROLE_CUSTOMER_CARE_OFFICER' },
   { label: 'Chief Experience Officer', value: 'ROLE_CHIEF_EXPERIENCE_OFFICER' },

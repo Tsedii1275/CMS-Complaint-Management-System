@@ -13,6 +13,7 @@ export const ROLE_ROUTES = {
   'ROLE_BRANCH_MANAGER': '/branch-staff',
   'ROLE_CUSTOMER_SERVICE_MANAGER': '/branch-staff',
   'ROLE_SERVICE_QUALITY_DIRECTOR': '/cmd',
+  'ROLE_ETHICS_AND_CONDUCT': '/ethics',
 
   // Audit Roles
   'ROLE_AUDIT_INVESTIGATION_TEAM': '/audit',
@@ -82,6 +83,9 @@ export function canAccessPath(pathname, role) {
   if (pathname === '/work-unit') {
     return r === 'ROLE_DEPARTMENT_WORKUNIT' || r.startsWith('ROLE_BRANCH_MANAGER')
       || r === 'ROLE_CUSTOMER_SERVICE_MANAGER';
+  }
+  if (pathname === '/ethics') {
+    return r === 'ROLE_ETHICS_AND_CONDUCT' || r === 'ROLE_ADMIN';
   }
   if (pathname === '/cmd') {
     return r === 'ROLE_CUSTOMER_CARE_OFFICER'

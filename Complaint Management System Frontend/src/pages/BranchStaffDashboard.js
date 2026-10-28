@@ -11,6 +11,16 @@ import { renderComplaintStatusTag } from '../utils/statusUtils';
 import { isResolvedAtFcr, classifyComplaintFilter } from '../utils/slaMetrics';
 import { collectAttachments, isAudioAttachment } from '../utils/attachments';
 import moment from 'moment';
+import ExportDropdown from '../components/ExportDropdown';
+import {
+  getCustomerNameError,
+  getDescriptionError,
+  getAccountNumberError,
+  getPlaceNameError,
+  getEmailError,
+  getStaffPhoneError,
+  fieldRule
+} from '../utils/complaintFieldValidation';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -49,7 +59,7 @@ function matchesIntakeSearch(record, query, range) {
       return false;
     }
   }
-  if (!range || range.length !== 2 || !range[0] || !range[1]) {
+  if (range?.length !== 2 || !range[0] || !range[1]) {
     return true;
   }
   const raw = complaintRecordDate(record);
@@ -293,8 +303,10 @@ function BranchStaffDashboard() {
     userRole === 'ROLE_CONTACT_CENTER_SENIOR_MANAGER');
 
   useEffect(() => {
-    loadComplaintsData();
-    const interval = setInterval(loadComplaintsData, 6000);
+    void loadComplaintsData();
+    const interval = setInterval(() => {
+      void loadComplaintsData();
+    }, 6000);
     return () => clearInterval(interval);
   }, [user]);
 
@@ -363,6 +375,37 @@ function BranchStaffDashboard() {
     setOtherPage(1);
   };
 
+  const intakeExportDataset = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const tabs = {
+      all: { title: 'All Registered', rows: filteredAll, detailed: true },
+      tracking: { title: 'Total Complaints', rows: filteredTracking, detailed: true },
+      other: { title: 'Other', rows: filteredOther, detailed: false }
+    };
+    const current = tabs[activeTab] || tabs.all;
+    const columns = current.detailed
+      ? [
+        { header: 'Unique ID No', accessor: (record) => formatUniqueId(record) },
+        { header: 'Customer Name', key: 'customerName' },
+        { header: 'Complaint Category', accessor: (record) => record.complaintCategory || 'General' },
+        { header: 'Current Status', type: 'status', accessor: (record) => record }
+      ]
+      : [
+        { header: 'Unique ID No', accessor: (record) => formatUniqueId(record) }
+      ];
+    return {
+      filename: `${current.title.replace(/\s+/g, '_')}_${today}`,
+      documentTitle: current.title,
+      subtitle: searchText.trim() ? `Search: ${searchText.trim()}` : 'Complaint Registration',
+      tables: [{
+        title: current.title,
+        sheetName: current.title,
+        columns,
+        rows: current.rows
+      }]
+    };
+  };
+
   const handleEvidenceUpload = async (e) => {
     const selected = Array.from(e.target.files || []);
     e.target.value = '';
@@ -370,11 +413,10 @@ function BranchStaffDashboard() {
 
     setIsUploadingEvidence(true);
     try {
-      const uploaded = [];
-      for (const file of selected) {
+      const uploaded = await Promise.all(selected.map(async (file) => {
         const response = await ApiService.uploadEvidence(file);
-        uploaded.push({ name: response.fileName || file.name, url: response.url });
-      }
+        return { name: response.fileName || file.name, url: response.url };
+      }));
       setEvidenceFiles((prev) => [...prev, ...uploaded]);
       antMessage.success(uploaded.length > 1 ? 'Supporting documents uploaded successfully!' : 'Supporting document uploaded successfully!');
     } catch (error) {
@@ -392,11 +434,10 @@ function BranchStaffDashboard() {
 
     setIsUploadingVoice(true);
     try {
-      const uploaded = [];
-      for (const file of selected) {
+      const uploaded = await Promise.all(selected.map(async (file) => {
         const response = await ApiService.uploadAudio(file);
-        uploaded.push({ name: response.fileName || file.name, url: response.url });
-      }
+        return { name: response.fileName || file.name, url: response.url };
+      }));
       setVoiceFiles((prev) => [...prev, ...uploaded]);
       antMessage.success(uploaded.length > 1 ? 'Voice attachments uploaded successfully!' : 'Voice attachment uploaded successfully!');
     } catch (error) {
@@ -418,7 +459,7 @@ function BranchStaffDashboard() {
   const handleAccountLookup = async () => {
     const accountNumber = String(form.getFieldValue('accountNumber') || '').trim();
     if (!/^\d{13}$/.test(accountNumber)) {
-      antMessage.error('Enter a 13-digit account number first');
+      form.validateFields(['accountNumber']).catch(() => {});
       return;
     }
     setLookingUpAccount(true);
@@ -503,7 +544,7 @@ function BranchStaffDashboard() {
       setVoiceFiles([]);
       setCbsProfile(null);
       setIsRegisterModalOpen(false);
-      loadComplaintsData();
+      await loadComplaintsData();
     } catch (error) {
       console.error('Error submitting complaint:', error);
       const serverMsg = error.response?.data?.error || error.message || 'Failed to submit complaint. Please check fields and try again.';
@@ -669,7 +710,7 @@ function BranchStaffDashboard() {
               value={dateRange}
               format="DD/MM/YYYY"
               placeholder={['Start date', 'End date']}
-              disabledDate={(current) => current && current.isAfter(moment().endOf('day'))}
+              disabledDate={(current) => current?.isAfter(moment().endOf('day'))}
               onChange={applyDateRange}
             />
           </div>
@@ -679,6 +720,9 @@ function BranchStaffDashboard() {
           <Tabs
             activeKey={activeTab}
             onChange={setActiveTab}
+            tabBarExtraContent={(
+              <ExportDropdown size="small" getDataset={intakeExportDataset} />
+            )}
             items={(() => {
               const tabItems = [
                 {
@@ -794,7 +838,9 @@ function BranchStaffDashboard() {
           <Form
             form={form}
             layout="vertical"
+            validateTrigger={['onChange', 'onBlur']}
             onFinish={handleSubmit}
+            onFinishFailed={() => antMessage.error('Please fix the errors in the form before submitting.')}
             initialValues={{
               complaintCategory: 'Customer Service Issues',
               serviceType: 'Deposit Account',
@@ -808,12 +854,20 @@ function BranchStaffDashboard() {
 
             <Row gutter={32} style={rowMargin16Style}>
               <Col xs={24} md={12}>
-                <Form.Item name="customerName" label={<StaffFormLabel>Customer Name</StaffFormLabel>} rules={[{ required: true, message: 'Please enter customer name' }]}>
-                  <Input style={controlStyle} />
+                <Form.Item
+                  name="customerName"
+                  label={<StaffFormLabel>Customer Name</StaffFormLabel>}
+                  rules={[fieldRule((value) => getCustomerNameError(value, 'english'))]}
+                >
+                  <Input maxLength={100} style={controlStyle} />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <Form.Item name="email" label={<StaffFormLabel>Email Address</StaffFormLabel>} rules={[{ type: 'email', message: 'Valid email required' }]}>
+                <Form.Item
+                  name="email"
+                  label={<StaffFormLabel>Email Address</StaffFormLabel>}
+                  rules={[fieldRule((value) => getEmailError(value, 'english'))]}
+                >
                   <Input style={controlStyle} />
                 </Form.Item>
               </Col>
@@ -824,12 +878,10 @@ function BranchStaffDashboard() {
                 <Form.Item
                   name="phone"
                   label={<StaffFormLabel>Current Contact Phone</StaffFormLabel>}
-                  rules={[
-                    { required: true, message: 'Please enter current contact phone' },
-                    { pattern: /^(\+?251[79]\d{8}|0?[79]\d{8}|[79]\d{8})$/, message: 'Valid Ethiopian phone number required' }
-                  ]}
+                  getValueFromEvent={(e) => String(e.target.value || '').replace(/[^\d+]/g, '').slice(0, 13)}
+                  rules={[fieldRule(getStaffPhoneError)]}
                 >
-                  <Input maxLength={13} style={controlStyle} />
+                  <Input maxLength={13} placeholder="09... or +251..." style={controlStyle} />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
@@ -851,7 +903,7 @@ function BranchStaffDashboard() {
                   <DatePicker
                     format="DD/MM/YYYY"
                     placeholder="DD/MM/YYYY"
-                    disabledDate={(current) => current && current.isAfter(moment().endOf('day'))}
+                    disabledDate={(current) => current?.isAfter(moment().endOf('day'))}
                     style={datePickerStyle}
                   />
                 </Form.Item>
@@ -863,10 +915,8 @@ function BranchStaffDashboard() {
                 <Form.Item
                   name="accountNumber"
                   label={<StaffFormLabel>Account Number</StaffFormLabel>}
-                  rules={[
-                    { required: true, message: 'Please enter account number' },
-                    { len: 13, message: 'Account Number must be 13 digits' }
-                  ]}
+                  getValueFromEvent={(e) => String(e.target.value || '').replace(/\D/g, '').slice(0, 13)}
+                  rules={[fieldRule((value) => getAccountNumberError(value, 'english'))]}
                 >
                   <Input.Search
                     maxLength={13}
@@ -883,7 +933,7 @@ function BranchStaffDashboard() {
                   name="district"
                   label={<StaffFormLabel>Complaint District</StaffFormLabel>}
                   getValueFromEvent={(e) => String(e.target.value || '').replace(/[^\p{L} ]/gu, '').slice(0, 100)}
-                  rules={[{ pattern: /^[\p{L} ]*$/u, message: 'Letters and spaces only' }]}
+                  rules={[fieldRule((value) => getPlaceNameError(value, 'english', 'Complaint District'))]}
                 >
                   <Input maxLength={100} placeholder="Enter Complaint District" style={controlStyle} />
                 </Form.Item>
@@ -893,7 +943,7 @@ function BranchStaffDashboard() {
                   name="branch"
                   label={<StaffFormLabel>Complaint Branch</StaffFormLabel>}
                   getValueFromEvent={(e) => String(e.target.value || '').replace(/[^\p{L} ]/gu, '').slice(0, 100)}
-                  rules={[{ pattern: /^[\p{L} ]*$/u, message: 'Letters and spaces only' }]}
+                  rules={[fieldRule((value) => getPlaceNameError(value, 'english', 'Complaint Branch'))]}
                 >
                   <Input maxLength={100} placeholder="Enter Complaint Branch" style={controlStyle} />
                 </Form.Item>
@@ -919,7 +969,7 @@ function BranchStaffDashboard() {
             </div>
             <Row gutter={[16, 16]} style={rowMargin16Style}>
               <Col xs={24} md={6}>
-                <Form.Item name="complaintCategory" label={<StaffFormLabel>Category</StaffFormLabel>} rules={[{ required: true }]}>
+                <Form.Item name="complaintCategory" label={<StaffFormLabel>Category</StaffFormLabel>} rules={[{ required: true, message: 'Please select a category' }]}>
                   <Select style={selectControlStyle}>
                     <Select.Option value="Customer Service Issues">Customer Service Issues</Select.Option>
                     <Select.Option value="Transaction Error">Transaction Error</Select.Option>
@@ -954,7 +1004,7 @@ function BranchStaffDashboard() {
                 </Form.Item>
               </Col>
               <Col xs={24} md={6}>
-                <Form.Item name="channel" label={<StaffFormLabel>Received By</StaffFormLabel>} rules={[{ required: true }]}>
+                <Form.Item name="channel" label={<StaffFormLabel>Received By</StaffFormLabel>} rules={[{ required: true, message: 'Please select how the complaint was received' }]}>
                   <Select style={selectControlStyle}>
                     <Select.Option value="Customer Care-Telephone">Customer Care-Telephone</Select.Option>
                     <Select.Option value="Customer Care-In person">Customer Care-In person</Select.Option>
@@ -982,8 +1032,12 @@ function BranchStaffDashboard() {
               </Col>
             </Row>
 
-            <Form.Item name="complaintDescription" label={<StaffFormLabel>Details of the Complaint</StaffFormLabel>} rules={[{ required: true, message: 'Please enter complaint details' }]}>
-              <Input.TextArea rows={4} style={textareaStyle} />
+            <Form.Item
+              name="complaintDescription"
+              label={<StaffFormLabel>Details of the Complaint</StaffFormLabel>}
+              rules={[fieldRule((value) => getDescriptionError(value, 'english'))]}
+            >
+              <Input.TextArea rows={4} maxLength={5000} showCount style={textareaStyle} />
             </Form.Item>
 
             <div style={uploadBoxStyle}>

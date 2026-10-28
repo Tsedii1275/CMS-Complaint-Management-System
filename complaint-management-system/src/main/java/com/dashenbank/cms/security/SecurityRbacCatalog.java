@@ -25,6 +25,8 @@ public final class SecurityRbacCatalog {
                                                 "/api/tasks/**, /api/process/**, /api/users/officers, /api/sla/alerts/**"),
                                 row("ROLE_SERVICE_QUALITY_DIRECTOR", "Operational + officers",
                                                 "/api/tasks/**, /api/process/**, /api/users/officers, /api/cmd/analytics/**"),
+                                row("ROLE_ETHICS_AND_CONDUCT", "Ethics and Conduct",
+                                                "GET /api/audit/sla/ethics"),
                                 row("ROLE_AUDIT_INVESTIGATION_TEAM", "Audit workspace",
                                                 "/api/audit/sla/**, /api/tasks/** (authenticated)"),
                                 row("PUBLIC", "Unauthenticated intake",

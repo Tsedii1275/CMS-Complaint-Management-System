@@ -47,6 +47,7 @@ public class SendAcknowledgmentDelegate implements JavaDelegate {
         if (preferredLanguage == null && !customer.isEmpty()) {
             preferredLanguage = (String) customer.getOrDefault("preferredLanguage", "english");
         }
+        String preferredContactMethod = (String) customer.get("preferredContactMethod");
 
         LocalDateTime now = LocalDateTime.now(SYSTEM_ZONE);
         NotificationQueueResult queued = notificationService.notifyCustomer(CustomerNotifications.registration(
@@ -56,12 +57,16 @@ public class SendAcknowledgmentDelegate implements JavaDelegate {
                 (String) customer.get("email"),
                 CustomerContactPhones.currentContact(customer),
                 preferredLanguage,
+                preferredContactMethod,
                 now));
 
         execution.setVariable("ack.emailQueued", queued.emailQueued());
         execution.setVariable("ack.smsQueued", queued.smsQueued());
-        execution.setVariable("ack.sent", true);
-        execution.setVariable("ack.sentAt", now.toString());
+        if (com.dashenbank.cms.notification.ContactChannelPreference.covered(
+                preferredContactMethod, queued.emailQueued(), queued.smsQueued())) {
+            execution.setVariable("ack.sent", true);
+            execution.setVariable("ack.sentAt", now.toString());
+        }
 
         appendHistory(execution, "Acknowledgment queued for " + ticketId);
     }

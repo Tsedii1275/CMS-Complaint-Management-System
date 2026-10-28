@@ -25,7 +25,8 @@ public final class CustomerNotifications {
 
     @SuppressWarnings("java:S107")
     public static NotificationRequest registration(String ticketId, String processInstanceId, String customerName,
-            String email, String phone, String preferredLanguage, LocalDateTime submittedAt) {
+            String email, String phone, String preferredLanguage, String preferredContactMethod,
+            LocalDateTime submittedAt) {
         return NotificationRequest.builder()
                 .eventType(NotificationEventType.COMPLAINT_REGISTERED)
                 .complaintRef(ticketId)
@@ -33,6 +34,7 @@ public final class CustomerNotifications {
                 .preferredLanguage(preferredLanguage)
                 .email(email)
                 .phone(phone)
+                .preferredContactMethod(preferredContactMethod)
                 .variable(CUSTOMER_NAME, customerName)
                 .variable(TICKET_ID, ticketId)
                 .variable(SUBMISSION_DATE, submittedAt.format(DATE))

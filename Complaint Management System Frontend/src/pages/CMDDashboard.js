@@ -12,6 +12,7 @@ import { resolveCurrentContactPhone, resolveCoreBankingPhone } from '../utils/cu
 import { collectAttachments } from '../utils/attachments';
 import { customerHomeBranch, customerHomeDistrict, customerBranchCode, complaintBranch, complaintDistrict } from '../utils/locationKeys';
 import InvestigationReviewPanel from '../components/InvestigationReviewPanel';
+import FeedbackPanel from '../components/FeedbackPanel';
 import { hasInvestigationTab, investigationTabLabel, investigationTasksForRole } from '../utils/investigationWorkflow';
 
 const { Title, Text } = Typography;
@@ -117,6 +118,7 @@ function isUnresolvedCmdTask(t, unresolvedTicketIds) {
 
 const CMD_SCREENING_RESET = {
   classification: 'COMPLAINT',
+  otherType: '',
   declineReason: '',
   additionalRemarks: '',
   complaintCategory: 'Customer Service Issues',
@@ -155,6 +157,9 @@ function normalizeAssignmentScope(type) {
 function cmdSubmitValidationError(formData, isDeclined, finalClassification) {
   if (isDeclined) {
     return formData.declineReason?.trim() ? null : 'Decline Reason is mandatory when declining a complaint.';
+  }
+  if (finalClassification === 'OTHER' && !['DISPUTE', 'FEEDBACK', 'ETHICS'].includes(formData.otherType)) {
+    return 'Choose Dispute, Feedback, or Ethics and Conduct for an item classified as Other.';
   }
   if (finalClassification !== 'COMPLAINT' || formData.requiresInvestigation) {
     return null;
@@ -338,7 +343,9 @@ function buildCmdCompleteVariables(formData, finalClassification, selectedTask, 
     variables.targetTab = 'Declined';
     variables.status = 'DECLINED';
   } else if (finalClassification === 'OTHER') {
-    variables.targetTab = 'Other';
+    const otherType = ['FEEDBACK', 'ETHICS'].includes(formData.otherType) ? formData.otherType : 'DISPUTE';
+    variables.otherType = otherType;
+    variables.targetTab = otherType === 'FEEDBACK' ? 'Feedback' : otherType === 'ETHICS' ? 'Ethics' : 'Other';
   } else if (isClosingAfterRes) {
     const summaryText = (formData.resolutionSummary || formData.notes || '').trim();
     if (!summaryText) {
@@ -379,7 +386,13 @@ function cmdSubmitSuccessText(finalClassification, isClosingAfterRes, isReassign
     return 'Complaint declined and recorded in audit log. Case moved to Declined tab.';
   }
   if (finalClassification === 'OTHER') {
-    return 'Item classified as OTHER and routed directly to the Contact Center queue.';
+    if (variables?.otherType === 'FEEDBACK') {
+      return 'Item classified as Feedback and sent to the Service Quality Feedback tab.';
+    }
+    if (variables?.otherType === 'ETHICS') {
+      return 'Item classified as Ethics and Conduct and sent to the Ethics and Conduct dashboard.';
+    }
+    return 'Item classified as Dispute and routed directly to the Contact Center Other tab.';
   }
   if (isClosingAfterRes) {
     return 'Complaint resolution accepted, case CLOSED, and customer notified successfully!';
@@ -565,6 +578,11 @@ function isCmdOfficerWorkspace(role) {
   return role === 'ROLE_CUSTOMER_CARE_OFFICER' || role === 'ROLE_CUSTOMER_CARE_TEAM_LEADER';
 }
 
+// Service Quality only gets its own review queue and a (placeholder) feedback tab here.
+function isServiceQualityWorkspace(role) {
+  return role === 'ROLE_SERVICE_QUALITY_DIRECTOR';
+}
+
 function defaultCmdTab(role) {
   if (isCmdOfficerWorkspace(role)) return 'my_tasks';
   // Service Quality only works the investigation review queue in this workspace.
@@ -744,7 +762,8 @@ function CmdQueueToolbar({
   setSelectedTask
 }) {
   const userRole = user?.role || '';
-  const isSeniorManager = isSeniorCmdManager(userRole);
+  const isServiceQuality = isServiceQualityWorkspace(userRole);
+  const isSeniorManager = isSeniorCmdManager(userRole) && !isServiceQuality;
   const unresolvedTicketIds = buildUnresolvedTicketIds(unresolvedFollowups);
   const activeTasks = tasks.filter(t => isActiveCmdQueueTask(t, unresolvedTicketIds));
   const unassignedTasks = activeTasks.filter(t => isUnassignedAssignee(t.assignee));
@@ -775,7 +794,7 @@ function CmdQueueToolbar({
           </Col>
         </Row>
       )}
-      {openFollowupCount > 0 && (
+      {!isServiceQuality && openFollowupCount > 0 && (
         <Alert
           message="Unresolved Customer Complaint Alert"
           description={`There are ${openFollowupCount} unresolved customer complaint survey response(s) requiring follow-up investigation.`}
@@ -805,7 +824,7 @@ function CmdQueueToolbar({
         }}
         style={{ marginBottom: '16px' }}
       >
-        <Tabs.TabPane tab="All Tasks" key="all_tasks" />
+        {!isServiceQuality && <Tabs.TabPane tab="All Tasks" key="all_tasks" />}
         {hasInvestigationTab(userRole) && (
           <Tabs.TabPane
             tab={(
@@ -828,19 +847,22 @@ function CmdQueueToolbar({
         {isCmdOfficerWorkspace(userRole) && (
           <Tabs.TabPane tab="My Tasks" key="my_tasks" />
         )}
-        <Tabs.TabPane tab="FCR Verification" key="fcr_tasks" />
-        <Tabs.TabPane tab="Declined" key="declined_tasks" />
-        <Tabs.TabPane
-          tab={(
-            <span>
-              Unresolved Follow-Up
-              {openFollowupCount > 0 && (
-                <Badge count={openFollowupCount} overflowCount={99} style={{ marginLeft: 6, backgroundColor: '#ef4444' }} />
-              )}
-            </span>
-          )}
-          key="unresolved_followups"
-        />
+        {isServiceQuality && <Tabs.TabPane tab="Feedback" key="feedback" />}
+        {!isServiceQuality && <Tabs.TabPane tab="FCR Verification" key="fcr_tasks" />}
+        {!isServiceQuality && <Tabs.TabPane tab="Declined" key="declined_tasks" />}
+        {!isServiceQuality && (
+          <Tabs.TabPane
+            tab={(
+              <span>
+                Unresolved Follow-Up
+                {openFollowupCount > 0 && (
+                  <Badge count={openFollowupCount} overflowCount={99} style={{ marginLeft: 6, backgroundColor: '#ef4444' }} />
+                )}
+              </span>
+            )}
+            key="unresolved_followups"
+          />
+        )}
       </Tabs>
     </div>
   );
@@ -1053,6 +1075,7 @@ function CmdTaskQueue({
     <TaskTable
       tasks={filtered}
       listKey={`${activeTab}|${searchQuery}`}
+      antdPagination
       onSelectTask={handleTaskSelect}
       onAssignTask={isSeniorManager && !isDeclinedTab ? handleOpenAssignModal : null}
       showPriority={false}
@@ -2842,7 +2865,7 @@ function CmdScreeningFormCard(props) {
 
                   <button
                     type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, classification: 'OTHER', isDeclining: false, declineReason: '' }))}
+                    onClick={() => setFormData(prev => ({ ...prev, classification: 'OTHER', otherType: prev.classification === 'OTHER' ? prev.otherType : '', isDeclining: false, declineReason: '' }))}
                     style={{
                       border: formData.classification === 'OTHER' ? '2px solid #2563eb' : '1px solid #cbd5e1',
                       background: formData.classification === 'OTHER' ? '#eff6ff' : '#ffffff',
@@ -2868,6 +2891,29 @@ function CmdScreeningFormCard(props) {
                   </button>
                 </div>
               </Radio.Group>
+
+              {formData.classification === 'OTHER' && (
+                <div style={{ marginTop: '12px', padding: '12px 16px', border: '1px solid #bfdbfe', background: '#f8fbff', borderRadius: '10px' }}>
+                  <Text strong style={{ display: 'block', marginBottom: '8px', color: '#1e40af' }}>
+                    What kind of item is this? <span style={{ color: '#ef4444' }}>*</span>
+                  </Text>
+                  <Radio.Group
+                    value={formData.otherType || undefined}
+                    onChange={(e) => setFormData(prev => ({ ...prev, otherType: e.target.value }))}
+                    style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
+                  >
+                    <Radio value="DISPUTE">
+                      Dispute <Text type="secondary" style={{ fontSize: '12px' }}>- goes to the Contact Center &quot;Other&quot; tab</Text>
+                    </Radio>
+                    <Radio value="FEEDBACK">
+                      Feedback <Text type="secondary" style={{ fontSize: '12px' }}>- goes to the Service Quality &quot;Feedback&quot; tab</Text>
+                    </Radio>
+                    <Radio value="ETHICS">
+                      Ethics and Conduct <Text type="secondary" style={{ fontSize: '12px' }}>- goes to the Ethics and Conduct dashboard</Text>
+                    </Radio>
+                  </Radio.Group>
+                </div>
+              )}
 
               <div style={{ marginTop: '12px' }}>
                 <Button
@@ -3379,7 +3425,9 @@ function CmdDashboardView(props) {
               Hello, {user?.fullName || user?.username || ''}
             </Title>
             <Text type="secondary" style={{ fontSize: '15px' }}>
-              Screen &amp; categorize complaints
+              {isServiceQualityWorkspace(user?.role || '')
+                ? 'Review investigation cases and feedback'
+                : 'Screen & categorize complaints'}
             </Text>
           </div>
         </div>
@@ -3387,7 +3435,7 @@ function CmdDashboardView(props) {
 
         <CmdMessageBanner message={message} onClose={() => setMessage('')} />
 
-        {!selectedTask && (
+        {!selectedTask && !isServiceQualityWorkspace(user?.role || '') && (
           <CmdCategoryAnalytics
             tasks={tasks}
             slaMetrics={slaMetrics}
@@ -3420,6 +3468,8 @@ function CmdDashboardView(props) {
                 handleStartFollowup={handleStartFollowup}
                 handleCloseFollowup={handleCloseFollowup}
               />
+            ) : activeTab === 'feedback' ? (
+              <FeedbackPanel searchQuery={searchQuery} />
             ) : activeTab === 'investigation_review' ? (
               <InvestigationReviewPanel
                 tasks={investigationTasks}

@@ -115,6 +115,11 @@ function SidebarMenu({ collapsed, userRole, user, onNavigate }) {
         key: '/admin/sla-config',
         icon: <SettingOutlined />,
         label: 'SLA Governance & Policy Configuration',
+      },
+      {
+        key: '/ethics',
+        icon: <SafetyCertificateOutlined />,
+        label: 'Ethics and Conduct',
       }
     );
   } else if (role === 'ROLE_DEPARTMENT_WORKUNIT' || role.includes('DEPARTMENT_WORKUNIT')) {
@@ -153,6 +158,12 @@ function SidebarMenu({ collapsed, userRole, user, onNavigate }) {
       key: '/executive',
       icon: <HomeOutlined />,
       label: 'Executive Monitoring Workspace',
+    });
+  } else if (role === 'ROLE_ETHICS_AND_CONDUCT') {
+    menuItems.push({
+      key: '/ethics',
+      icon: <SafetyCertificateOutlined />,
+      label: 'Ethics and Conduct',
     });
   } else if (role === 'ROLE_CUSTOMER_CARE_OFFICER' || role === 'ROLE_CUSTOMER_CARE_TEAM_LEADER' || role.includes('CUSTOMER_CARE_OFFICER')) {
     menuItems.push(

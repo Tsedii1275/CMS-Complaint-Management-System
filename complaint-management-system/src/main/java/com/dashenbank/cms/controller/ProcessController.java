@@ -16,12 +16,14 @@ import com.dashenbank.cms.service.AttachmentService;
 import com.dashenbank.cms.service.AuditService;
 import com.dashenbank.cms.service.ComplainantRelatedInformationService;
 import com.dashenbank.cms.service.InvestigationWorkflow;
+import com.dashenbank.cms.notification.ContactChannelPreference;
 import com.dashenbank.cms.notification.CustomerNotifications;
 import com.dashenbank.cms.notification.NotificationEventType;
 import com.dashenbank.cms.notification.NotificationQueueResult;
 import com.dashenbank.cms.notification.NotificationRequest;
 import com.dashenbank.cms.notification.NotificationService;
 import com.dashenbank.cms.service.NbeComplianceReportService;
+import com.dashenbank.cms.service.OtherClassification;
 import com.dashenbank.cms.service.SlaAlertAuthorizationService;
 import com.dashenbank.cms.service.SlaAlertScope;
 import com.dashenbank.cms.service.SlaTrackingService;
@@ -260,11 +262,12 @@ public class ProcessController {
     }
 
     private void tryDispatchRegistrationNotification(String name, String email, String phone, String ticket,
-            String preferredLanguage, Map<String, Object> vars) {
+            String preferredLanguage, String preferredContactMethod, Map<String, Object> vars) {
         try {
-            sendRegistrationNotification(name, email, phone, ticket, preferredLanguage, vars);
+            sendRegistrationNotification(name, email, phone, ticket, preferredLanguage, preferredContactMethod, vars);
         } catch (Exception eNotif) {
             log.warn("Notification dispatch warning: {}", eNotif.getMessage());
+            vars.put("ack.sent", false);
         }
     }
 
@@ -422,6 +425,7 @@ public class ProcessController {
             String preferredLanguage = (String) customer.get(KEY_PREFERRED_LANGUAGE);
             vars.put(KEY_PREFERRED_LANGUAGE,
                     preferredLanguage != null && !preferredLanguage.isBlank() ? preferredLanguage : LANG_ENGLISH);
+            String preferredContactMethod = (String) customer.get(KEY_PREFERRED_CONTACT_METHOD);
 
             boolean isFcr = Boolean.TRUE.equals(complaint.get(KEY_IS_FCR))
                     || Boolean.TRUE.equals(complaint.get(KEY_FCR_RESOLVED));
@@ -434,7 +438,8 @@ public class ProcessController {
             }
 
             if (!skipNotification) {
-                tryDispatchRegistrationNotification(name, email, phone, ticket, preferredLanguage, vars);
+                tryDispatchRegistrationNotification(name, email, phone, ticket, preferredLanguage,
+                        preferredContactMethod, vars);
             }
 
             var instance = runtimeService.startProcessInstanceByKey("cMS", vars);
@@ -627,17 +632,20 @@ public class ProcessController {
     }
 
     private void sendRegistrationNotification(String name, String email, String phone, String ticket,
-            String preferredLanguage, Map<String, Object> vars) {
+            String preferredLanguage, String preferredContactMethod, Map<String, Object> vars) {
         try {
             NotificationQueueResult queued = notificationService.notifyCustomer(CustomerNotifications.registration(
-                    ticket, null, name, email, phone, preferredLanguage, LocalDateTime.now(SYSTEM_ZONE)));
+                    ticket, null, name, email, phone, preferredLanguage, preferredContactMethod,
+                    LocalDateTime.now(SYSTEM_ZONE)));
             vars.put(KEY_NOTIFICATION_EMAIL_QUEUED, queued.emailQueued());
             vars.put(KEY_NOTIFICATION_SMS_QUEUED, queued.smsQueued());
-            vars.put("ack.sent", true);
+            vars.put("ack.sent", ContactChannelPreference.covered(
+                    preferredContactMethod, queued.emailQueued(), queued.smsQueued()));
         } catch (Exception e) {
             log.error("Failed to queue registration notification: {}", e.getClass().getSimpleName());
             vars.put(KEY_NOTIFICATION_EMAIL_QUEUED, false);
             vars.put(KEY_NOTIFICATION_SMS_QUEUED, false);
+            vars.put("ack.sent", false);
         }
     }
 
@@ -1796,11 +1804,14 @@ public class ProcessController {
     private void finalizeOtherClassification(Task task, String ticketId, Map<String, Object> processVars) {
         String processInstanceId = task.getProcessInstanceId();
 
+        // Dispute -> Contact Center Other. Feedback -> Service Quality. Ethics -> Ethics and Conduct.
+        String otherType = OtherClassification.typeOf(processVars);
+        processVars.put(OtherClassification.KEY_OTHER_TYPE, otherType);
         processVars.put(KEY_CLASSIFICATION, VAL_OTHER);
         processVars.put(KEY_STATUS, VAL_OTHER);
         processVars.put(KEY_DECISION, VAL_OTHER);
         processVars.put(KEY_IS_COMPLAINT, false);
-        processVars.put("targetTab", "Other");
+        processVars.put("targetTab", OtherClassification.targetTab(otherType));
         processVars.put(KEY_REQUIRES_INVESTIGATION, false);
         processVars.put(KEY_CURRENT_STAGE, STAGE_COMPLETED);
         processVars.put(KEY_STAGE, STAGE_COMPLETED);
@@ -1840,15 +1851,29 @@ public class ProcessController {
 
         syncOtherMetricsEntity(processInstanceId, ticketId);
 
-        auditService.log(ticketId, processInstanceId, task.getId(), "CLASSIFIED_AS_OTHER", ACTOR_CMD_OFFICER,
+        String destination = switch (otherType) {
+            case OtherClassification.FEEDBACK -> "the Service Quality Feedback tab";
+            case OtherClassification.ETHICS -> "the Ethics and Conduct dashboard";
+            default -> "the Contact Center Other tab";
+        };
+        String auditAction = switch (otherType) {
+            case OtherClassification.FEEDBACK -> "CLASSIFIED_AS_FEEDBACK";
+            case OtherClassification.ETHICS -> "CLASSIFIED_AS_ETHICS";
+            default -> "CLASSIFIED_AS_OTHER";
+        };
+        auditService.log(ticketId, processInstanceId, task.getId(),
+                auditAction, ACTOR_CMD_OFFICER,
                 getCurrentUsername(),
-                "Screened as OTHER (non-complaint). No DBC ticket issued; item routed to the Contact Center Other tab and the workflow ended at screening. Remarks: "
+                "Screened as OTHER - " + OtherClassification.label(otherType)
+                        + " (non-complaint). No DBC ticket issued; item routed to " + destination
+                        + " and the workflow ended at screening. Remarks: "
                         + resolveOtherRemarks(processVars),
                 "", "", "");
 
         try {
             runtimeService.deleteProcessInstance(processInstanceId,
-                    "Classified as OTHER - non-complaint routed to Contact Center Other");
+                    "Classified as OTHER (" + OtherClassification.label(otherType) + ") - non-complaint routed to "
+                            + destination);
         } catch (Exception e) {
             log.error("Could not end process instance {} after OTHER classification: {}", processInstanceId,
                     e.getMessage());

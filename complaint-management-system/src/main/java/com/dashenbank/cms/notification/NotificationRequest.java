@@ -11,8 +11,9 @@ import java.util.Map;
  *
  * @param complaintRef    ticket shown to the customer (DBC-/CM- id); also the audit key
  * @param email           raw email; blank skips the email channel
- * @param phone           raw current contact phone; blank skips the SMS channel
- * @param variables       template placeholder values, see {@link CustomerNotifications}
+ * @param phone                  raw current contact phone; blank skips the SMS channel
+ * @param preferredContactMethod SMS, Email, or Both. Blank sends every contact that is present.
+ * @param variables              template placeholder values, see {@link CustomerNotifications}
  * @param occurrenceKey   distinguishes legitimate repeats of the same event for the same
  *                        complaint (for example a new feedback token after a reopen);
  *                        {@code null} means the event is sent at most once per channel
@@ -25,6 +26,7 @@ public record NotificationRequest(
         String preferredLanguage,
         String email,
         String phone,
+        String preferredContactMethod,
         @Singular Map<String, String> variables,
         String occurrenceKey) {
 }

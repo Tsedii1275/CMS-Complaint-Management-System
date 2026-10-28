@@ -123,6 +123,26 @@ public class AuditController {
         return ResponseEntity.ok(filterByRoleOwnership(metrics));
     }
 
+    /** Items screened as Other - Feedback. Only the Service Quality Director (and admins) may read them. */
+    @GetMapping("/sla/feedback")
+    public ResponseEntity<List<ComplaintSlaMetrics>> getFeedbackSlaMetrics() {
+        String role = slaAlertAuthorizationService.currentRole();
+        if (!SlaAlertScope.isAdmin(role) && !"ROLE_SERVICE_QUALITY_DIRECTOR".equals(role)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).body(List.of());
+        }
+        return ResponseEntity.ok(slaTrackingService.getFeedbackMetrics());
+    }
+
+    /** Items screened as Other - Ethics and Conduct. Only that role (and admins) may read them. */
+    @GetMapping("/sla/ethics")
+    public ResponseEntity<List<ComplaintSlaMetrics>> getEthicsSlaMetrics() {
+        String role = slaAlertAuthorizationService.currentRole();
+        if (!SlaAlertScope.isAdmin(role) && !"ROLE_ETHICS_AND_CONDUCT".equals(role)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).body(List.of());
+        }
+        return ResponseEntity.ok(slaTrackingService.getEthicsMetrics());
+    }
+
     @GetMapping("/sla/process/{processInstanceId}")
     public ResponseEntity<Map<String, Object>> getSlaByProcessInstance(@PathVariable String processInstanceId) {
         slaAlertAuthorizationService.assertCanViewProcessSla(processInstanceId);

@@ -200,6 +200,10 @@ public class ComplaintSlaMetrics {
     @Transient
     private String complaintDescription;
 
+    /** DISPUTE or FEEDBACK for items screened as OTHER. Not stored on the SLA row. */
+    @Transient
+    private String otherType;
+
     public String getDbcTicketId() {
         if (this.dbcTicketId != null && this.dbcTicketId.startsWith("DBC-")) {
             return this.dbcTicketId;

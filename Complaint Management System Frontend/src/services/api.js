@@ -326,6 +326,15 @@ class ApiService {
     return this.get('/api/audit/sla/other');
   }
 
+  // Items screened as Other - Feedback (Service Quality Feedback tab)
+  async getFeedbackSlaMetrics() {
+    return this.get('/api/audit/sla/feedback');
+  }
+
+  async getEthicsSlaMetrics() {
+    return this.get('/api/audit/sla/ethics');
+  }
+
   // Get SLA report for a specific complaint by process instance ID
   async getSlaReport(processInstanceId) {
     return this.get(`/api/audit/sla/process/${processInstanceId}`);
