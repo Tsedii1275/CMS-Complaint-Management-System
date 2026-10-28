@@ -12,8 +12,6 @@ export const STANDARD_COMPLAINT_CATEGORIES = [
   'Branch Operation'
 ];
 
-export const ADD_CATEGORY_VALUE = '__ADD_CATEGORY__';
-
 export function categoryNamesFromResponse(rows) {
   if (!Array.isArray(rows) || rows.length === 0) {
     return [...STANDARD_COMPLAINT_CATEGORIES];

@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Input, Modal, Select, message } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
 import ApiService from '../services/api';
-import { ADD_CATEGORY_VALUE, categoryNamesFromResponse } from '../constants/complaintCategories';
+import { categoryNamesFromResponse } from '../constants/complaintCategories';
 
 const { Option } = Select;
 
@@ -26,7 +27,7 @@ function ComplaintCategorySelect({ value, onChange, style, allowAdd = false }) {
 
   const options = useMemo(() => {
     const names = [...categories];
-    if (value && value !== ADD_CATEGORY_VALUE && !names.includes(value)) {
+    if (value && !names.includes(value)) {
       names.push(value);
     }
     return names;
@@ -59,23 +60,22 @@ function ComplaintCategorySelect({ value, onChange, style, allowAdd = false }) {
   };
 
   return (
-    <>
-      <Select
-        value={value}
-        style={style}
-        onChange={(next) => {
-          if (next === ADD_CATEGORY_VALUE) {
-            setAdding(true);
-            return;
-          }
-          onChange?.(next);
-        }}
-      >
+    <div>
+      <Select value={value} style={style} onChange={onChange}>
         {options.map((name) => (
           <Option key={name} value={name}>{name}</Option>
         ))}
-        {allowAdd && <Option value={ADD_CATEGORY_VALUE}>Add Category</Option>}
       </Select>
+      {allowAdd && (
+        <Button
+          type="link"
+          icon={<PlusOutlined />}
+          onClick={() => setAdding(true)}
+          style={{ paddingLeft: 0, height: 'auto', marginTop: 4 }}
+        >
+          Add Category
+        </Button>
+      )}
       <Modal
         title="Add Category"
         open={adding}
@@ -94,7 +94,7 @@ function ComplaintCategorySelect({ value, onChange, style, allowAdd = false }) {
           onPressEnter={saveCategory}
         />
       </Modal>
-    </>
+    </div>
   );
 }
 
