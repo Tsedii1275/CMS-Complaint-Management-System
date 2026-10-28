@@ -12,6 +12,7 @@ import { isResolvedAtFcr, classifyComplaintFilter } from '../utils/slaMetrics';
 import { collectAttachments, isAudioAttachment } from '../utils/attachments';
 import moment from 'moment';
 import ExportDropdown from '../components/ExportDropdown';
+import ScreenedCaseDetailModal from '../components/ScreenedCaseDetailModal';
 import {
   getCustomerNameError,
   getDescriptionError,
@@ -119,6 +120,40 @@ function isOtherCase(record) {
   const classification = String(record?.classification || '').toUpperCase();
   const status = String(record?.status || '').toUpperCase();
   return classification === 'OTHER' || status === 'OTHER';
+}
+
+function screenedCaseTitle(record) {
+  const type = String(record?.otherType || record?.variables?.otherType || '').toUpperCase();
+  if (type === 'FEEDBACK') return 'Feedback';
+  if (type === 'ETHICS' || type.includes('ETHICS')) return 'Ethics and Conduct';
+  return 'Dispute';
+}
+
+function screenedCaseRecord(record) {
+  if (!record) return null;
+  const customer = record.variables?.customer || {};
+  const complaint = record.variables?.complaint || {};
+  return {
+    ...record,
+    customerName: firstRegisteredValue(record.customerName, customer.name) || '-',
+    currentContactPhone: firstRegisteredValue(
+      record.currentContactPhone,
+      customer.currentContactPhone,
+      customer.phone,
+      record.phone
+    ) || '-',
+    accountNumber: firstRegisteredValue(
+      record.accountNumber,
+      customer.accountNumber,
+      complaint.accountNumber
+    ) || '-',
+    complaintDescription: firstRegisteredValue(
+      record.complaintDescription,
+      complaint.description,
+      record.description
+    ) || '-',
+    createdAt: complaintRecordDate(record)
+  };
 }
 
 const pageStackStyle = { width: '100%', maxWidth: '1400px', margin: '0 auto' };
@@ -653,6 +688,11 @@ function BranchStaffDashboard() {
   ];
 
   const fcrBoxStyle = fcrChecked ? fcrCheckedWrapStyle : fcrWrapStyle;
+  const viewingOtherCase = Boolean(selectedComplaint) && (detailFromOther || isOtherCase(selectedComplaint));
+  const closeDetail = () => {
+    setIsDetailModalOpen(false);
+    setDetailFromOther(false);
+  };
 
   return (
     <DashboardLayout userRole="branch-staff">
@@ -1125,44 +1165,28 @@ function BranchStaffDashboard() {
           </Form>
         </Modal>
 
+        <ScreenedCaseDetailModal
+          open={isDetailModalOpen && viewingOtherCase}
+          record={screenedCaseRecord(selectedComplaint)}
+          title={screenedCaseTitle(selectedComplaint)}
+          onClose={closeDetail}
+        />
+
         <Modal
           title={<span style={detailModalTitleStyle}>Task Details</span>}
-          open={isDetailModalOpen}
-          onCancel={() => {
-            setIsDetailModalOpen(false);
-            setDetailFromOther(false);
-          }}
+          open={isDetailModalOpen && !viewingOtherCase}
+          onCancel={closeDetail}
           footer={null}
           width="100%"
           style={modalDetailStyle}
         >
           {selectedComplaint && (() => {
             const customer = selectedComplaint.variables?.customer || {};
-            const complaint = selectedComplaint.variables?.complaint || {};
-            const showOtherCase = detailFromOther || isOtherCase(selectedComplaint);
-            const contactPhone = firstRegisteredValue(
-              selectedComplaint.currentContactPhone,
-              customer.currentContactPhone,
-              customer.phone,
-              selectedComplaint.phone
-            );
-            const accountNumber = firstRegisteredValue(
-              selectedComplaint.accountNumber,
-              customer.accountNumber,
-              complaint.accountNumber
-            );
-            const complaintDetails = firstRegisteredValue(
-              selectedComplaint.complaintDescription,
-              complaint.description,
-              selectedComplaint.description
-            );
             return (
             <div style={detailBoxStyle}>
-              {!showOtherCase && (
-                <Title level={5} style={detailHeadingStyle}>
-                  Complaint Information
-                </Title>
-              )}
+              <Title level={5} style={detailHeadingStyle}>
+                Complaint Information
+              </Title>
 
               <Row gutter={[16, 12]}>
                 <Col span={12}>
@@ -1180,40 +1204,17 @@ function BranchStaffDashboard() {
                   <Text type="secondary" style={mutedBlockLabelStyle}>Customer Name</Text>
                   <strong style={strong14Style}>{registeredCaseText(selectedComplaint.customerName || customer.name)}</strong>
                 </Col>
-
-                {showOtherCase ? (
-                  <>
-                    <Col span={12}>
-                      <Text type="secondary" style={mutedBlockLabelStyle}>Current Contact Phone</Text>
-                      <strong style={strong14Style}>{registeredCaseText(contactPhone)}</strong>
-                    </Col>
-                    <Col span={12}>
-                      <Text type="secondary" style={mutedBlockLabelStyle}>Account Number</Text>
-                      <strong style={strong14Style}>{registeredCaseText(accountNumber)}</strong>
-                    </Col>
-                  </>
-                ) : (
-                  <>
-                    <Col span={12}>
-                      <Text type="secondary" style={mutedBlockLabelStyle}>Category</Text>
-                      <Tag color="blue">{(selectedComplaint.complaintCategory || 'General').toUpperCase()}</Tag>
-                    </Col>
-                    <Col span={12}>
-                      <Text type="secondary" style={mutedBlockLabelStyle}>Overall Status</Text>
-                      {renderComplaintStatusTag(selectedComplaint)}
-                    </Col>
-                  </>
-                )}
+                <Col span={12}>
+                  <Text type="secondary" style={mutedBlockLabelStyle}>Category</Text>
+                  <Tag color="blue">{(selectedComplaint.complaintCategory || 'General').toUpperCase()}</Tag>
+                </Col>
+                <Col span={12}>
+                  <Text type="secondary" style={mutedBlockLabelStyle}>Overall Status</Text>
+                  {renderComplaintStatusTag(selectedComplaint)}
+                </Col>
               </Row>
 
-              {showOtherCase ? (
-                <div style={sectionDividerStyle}>
-                  <Text type="secondary" style={voicePreviewLabelStyle}>Details of the Complaint</Text>
-                  <p style={descriptionTextStyle}>
-                    {registeredCaseText(complaintDetails)}
-                  </p>
-                </div>
-              ) : selectedComplaint.complaintDescription && (
+              {selectedComplaint.complaintDescription && (
                 <div style={sectionDividerStyle}>
                   <Text type="secondary" style={voicePreviewLabelStyle}>Description</Text>
                   <p style={descriptionTextStyle}>

@@ -1679,8 +1679,8 @@ function otherCmdSubmitButton(selectedTask, formData, isSubmitting) {
         borderRadius: '8px',
         height: '44px',
         fontWeight: 600,
-        backgroundColor: isClosing ? '#16a34a' : '#fa8c16',
-        borderColor: isClosing ? '#16a34a' : '#fa8c16'
+        backgroundColor: isClosing ? '#16a34a' : BRAND_COLORS.primary,
+        borderColor: isClosing ? '#16a34a' : BRAND_COLORS.primary
       }}
     >
       {submitLabel}

@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Table, Card, Empty, Alert, Modal, Descriptions, Button, Tooltip } from 'antd';
+import { Table, Card, Empty, Alert, Button, Tooltip } from 'antd';
 import { EyeOutlined } from '@ant-design/icons';
 import ApiService from '../services/api';
 import { formatUniqueId } from './TaskTable';
+import ScreenedCaseDetailModal from './ScreenedCaseDetailModal';
 
 function formatDate(value) {
   if (!value) return '-';
@@ -30,7 +31,8 @@ function FeedbackPanel({
   searchQuery = '',
   loadItems,
   descriptionTitle = 'Feedback',
-  detailsTitle = 'Feedback Details',
+  detailsTitle = 'Feedback',
+  detailLabel = 'Details',
   emptyDescription = 'No feedback received yet.',
   totalNoun = 'feedback items',
 }) {
@@ -115,26 +117,13 @@ function FeedbackPanel({
         }}
         scroll={{ x: 'max-content' }}
       />
-      <Modal
-        title={detailsTitle}
+      <ScreenedCaseDetailModal
         open={Boolean(selected)}
-        onCancel={() => setSelected(null)}
-        footer={<Button onClick={() => setSelected(null)}>Close</Button>}
-        destroyOnClose
-      >
-        {selected && (
-          <Descriptions column={1} size="small" bordered>
-            <Descriptions.Item label="Unique ID No">{formatUniqueId(selected)}</Descriptions.Item>
-            <Descriptions.Item label="Customer">{selected.customerName || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Phone">{selected.currentContactPhone || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Account Number">{selected.accountNumber || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Received">{formatDate(selected.createdAt)}</Descriptions.Item>
-            <Descriptions.Item label={descriptionTitle}>
-              <div style={{ whiteSpace: 'pre-wrap' }}>{selected.complaintDescription || '-'}</div>
-            </Descriptions.Item>
-          </Descriptions>
-        )}
-      </Modal>
+        record={selected}
+        title={detailsTitle}
+        detailLabel={detailLabel}
+        onClose={() => setSelected(null)}
+      />
     </Card>
   );
 }

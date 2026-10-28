@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Typography, Table, Tag, Button, Modal, Space, Input, Empty, Tooltip, Upload, Alert, message as antMessage } from 'antd';
+import { Card, Typography, Table, Tag, Button, Modal, Space, Input, Empty, Tooltip, Upload, message as antMessage } from 'antd';
 import { EyeOutlined, SendOutlined, UploadOutlined, RollbackOutlined } from '@ant-design/icons';
 import DashboardLayout from '../components/DashboardLayout';
 import InvestigationCaseSummary from '../components/InvestigationCaseSummary';
@@ -234,12 +234,6 @@ function ExecutiveDashboard() {
           size="small"
           style={{ borderRadius: '8px' }}
         >
-          <Alert
-            type="info"
-            showIcon
-            style={{ marginBottom: '12px' }}
-            message="These cases were reviewed by the Customer Care Senior Manager and the Service Quality Department. Send each case to the Audit Investigation Team, or return it to the Customer Care Senior Manager for closure without audit."
-          />
           {investigationTasks.length === 0 ? (
             <Empty description="No complaints currently pending Chief Experience Officer review." />
           ) : (
