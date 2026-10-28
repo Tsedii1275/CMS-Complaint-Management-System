@@ -16,7 +16,8 @@ import {
   LockOutlined,
   CloudServerOutlined,
   SafetyCertificateOutlined,
-  ApiOutlined
+  ApiOutlined,
+  TagsOutlined
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { BRAND_COLORS } from '../constants/theme';
@@ -115,6 +116,11 @@ function SidebarMenu({ collapsed, userRole, user, onNavigate }) {
         key: '/admin/sla-config',
         icon: <SettingOutlined />,
         label: 'SLA Governance & Policy Configuration',
+      },
+      {
+        key: '/admin/complaint-categories',
+        icon: <TagsOutlined />,
+        label: 'Complaint Categories',
       },
       {
         key: '/ethics',

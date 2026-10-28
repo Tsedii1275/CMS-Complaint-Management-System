@@ -3,6 +3,7 @@ import { Dropdown, Modal, Input, Button, Tag, DatePicker, message as antMessage 
 import { GlobalOutlined } from '@ant-design/icons';
 import { BRAND_COLORS } from '../constants/theme';
 import ApiService from '../services/api';
+import { categoryNamesFromResponse } from '../constants/complaintCategories';
 import { normalizeComplaintStatus, renderComplaintStatusTag } from '../utils/statusUtils';
 import moment from 'moment';
 import {
@@ -524,20 +525,7 @@ function CustomerForm() {
 
   const countryCodes = PUBLIC_COUNTRY_PHONES;
 
-  // Standardized 11 Categories List
-  const STANDARDIZED_CATEGORIES = [
-    'Customer Service Issues',
-    'Transaction Error',
-    'Account Management',
-    'Banking App Issues',
-    'Credit/Financing Concerns',
-    'Fraud & Security Risk',
-    'Information Disclosure',
-    'ATM & Card Banking Issues',
-    'Policy & Compliance Disputes',
-    'System Failure',
-    'Branch Operation'
-  ];
+  const [complaintCategories, setComplaintCategories] = useState(() => categoryNamesFromResponse(null));
 
   // Translations
   const translations = {
@@ -651,6 +639,20 @@ function CustomerForm() {
       onClick: () => setLanguage('amharic')
     }
   ];
+
+  useEffect(() => {
+    let cancelled = false;
+    ApiService.getComplaintCategories()
+      .then((rows) => {
+        if (!cancelled) setComplaintCategories(categoryNamesFromResponse(rows));
+      })
+      .catch(() => {
+        if (!cancelled) setComplaintCategories(categoryNamesFromResponse(null));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Synchronize Ethiopian date states to formData.date
   useEffect(() => {
@@ -1065,7 +1067,7 @@ function CustomerForm() {
                   cursor: 'pointer'
                 }}
               >
-                {STANDARDIZED_CATEGORIES.map(cat => (
+                {complaintCategories.map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>

@@ -14,6 +14,7 @@ import RcaDashboard from './pages/RcaDashboard';
 import CustomerFeedbackPage from './pages/CustomerFeedbackPage';
 import CustomerExperienceDashboard from './pages/CustomerExperienceDashboard';
 import SlaConfigPage from './pages/SlaConfigPage';
+import ComplaintCategoriesPage from './pages/ComplaintCategoriesPage';
 import SlaMonitoringPage from './pages/SlaMonitoringPage';
 import ExecutiveDashboard from './pages/ExecutiveDashboard';
 import EthicsDashboard from './pages/EthicsDashboard';
@@ -56,6 +57,7 @@ function AppRoutes() {
       <Route path="/system-admin/integrations" element={guarded(<SystemIntegrationsPage />)} />
       <Route path="/admin/sla-monitoring" element={guarded(<SlaMonitoringPage />)} />
       <Route path="/admin/sla-config" element={guarded(<SlaConfigPage />)} />
+      <Route path="/admin/complaint-categories" element={guarded(<ComplaintCategoriesPage />)} />
       <Route path="/admin/nbe-reports" element={guarded(<NBEReports />)} />
       <Route path="/admin/rca" element={guarded(<RcaDashboard />)} />
       <Route path="/admin/customer-experience" element={guarded(<CustomerExperienceDashboard />)} />

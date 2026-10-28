@@ -14,7 +14,7 @@ public final class SecurityRbacCatalog {
         public static List<RbacRow> rows() {
                 return List.of(
                                 row("ROLE_ADMIN", "Operational Admin",
-                                                "/api/sla/config/**, /api/rca/**, /api/nbe-compliance-reports/**, /api/audit/logs, /api/users/officers"),
+                                                "/api/sla/config/**, /api/rca/**, /api/nbe-compliance-reports/**, /api/audit/logs, /api/users/officers, /api/complaint-categories/**"),
                                 row("ROLE_SYSTEM_ADMIN", "System Admin",
                                                 "/api/system-admin/**, /api/admin/users/**, /api/admin/ldap/**, /api/admin/security/**, /api/admin/notifications/**"),
                                 row("ROLE_CUSTOMER_CARE_OFFICER", "Operational",
@@ -30,7 +30,7 @@ public final class SecurityRbacCatalog {
                                 row("ROLE_AUDIT_INVESTIGATION_TEAM", "Audit workspace",
                                                 "/api/audit/sla/**, /api/tasks/** (authenticated)"),
                                 row("PUBLIC", "Unauthenticated intake",
-                                                "POST /api/auth/login, POST /api/complaints/start, GET /api/complaints/status/**, /api/hierarchy"),
+                                                "POST /api/auth/login, POST /api/complaints/start, GET /api/complaints/status/**, /api/hierarchy, GET /api/complaint-categories"),
                                 row("AUTHENTICATED", "Any signed-in staff",
                                                 "/api/tasks/**, /api/process/**, /api/customer-profile/**, PUT /api/auth/password"));
         }

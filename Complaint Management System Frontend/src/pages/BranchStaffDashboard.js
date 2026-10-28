@@ -13,6 +13,7 @@ import { collectAttachments, isAudioAttachment } from '../utils/attachments';
 import moment from 'moment';
 import ExportDropdown from '../components/ExportDropdown';
 import ScreenedCaseDetailModal from '../components/ScreenedCaseDetailModal';
+import ComplaintCategorySelect from '../components/ComplaintCategorySelect';
 import {
   getCustomerNameError,
   getDescriptionError,
@@ -1010,19 +1011,7 @@ function BranchStaffDashboard() {
             <Row gutter={[16, 16]} style={rowMargin16Style}>
               <Col xs={24} md={6}>
                 <Form.Item name="complaintCategory" label={<StaffFormLabel>Category</StaffFormLabel>} rules={[{ required: true, message: 'Please select a category' }]}>
-                  <Select style={selectControlStyle}>
-                    <Select.Option value="Customer Service Issues">Customer Service Issues</Select.Option>
-                    <Select.Option value="Transaction Error">Transaction Error</Select.Option>
-                    <Select.Option value="Account Management">Account Management</Select.Option>
-                    <Select.Option value="Banking App Issues">Banking App Issues</Select.Option>
-                    <Select.Option value="Credit/Financing Concerns">Credit/Financing Concerns</Select.Option>
-                    <Select.Option value="Fraud & Security Risk">Fraud & Security Risk</Select.Option>
-                    <Select.Option value="Information Disclosure">Information Disclosure</Select.Option>
-                    <Select.Option value="ATM & Card Banking Issues">ATM & Card Banking Issues</Select.Option>
-                    <Select.Option value="Policy & Compliance Disputes">Policy & Compliance Disputes</Select.Option>
-                    <Select.Option value="System Failure">System Failure</Select.Option>
-                    <Select.Option value="Branch Operation">Branch Operation</Select.Option>
-                  </Select>
+                  <ComplaintCategorySelect allowAdd style={selectControlStyle} />
                 </Form.Item>
               </Col>
               <Col xs={24} md={6}>
@@ -1067,6 +1056,7 @@ function BranchStaffDashboard() {
                     <Select.Option value="HO">HO</Select.Option>
                     <Select.Option value="Super App">Super App</Select.Option>
                     <Select.Option value="Merchant">Merchant</Select.Option>
+                    <Select.Option value="Other">Other</Select.Option>
                   </Select>
                 </Form.Item>
               </Col>

@@ -232,6 +232,22 @@ class ApiService {
     return this.post('/api/complaints/staff-submit', complaintData);
   }
 
+  async getComplaintCategories() {
+    return this.get('/api/complaint-categories');
+  }
+
+  async getAllComplaintCategories() {
+    return this.get('/api/complaint-categories/all');
+  }
+
+  async createComplaintCategory(name) {
+    return this.post('/api/complaint-categories', { name });
+  }
+
+  async setComplaintCategoryActive(id, active) {
+    return this.put(`/api/complaint-categories/${id}/active`, { active });
+  }
+
   async getCustomerByAccount(accountNumber) {
     return this.get(`/api/customer-profile/${encodeURIComponent(accountNumber)}`);
   }

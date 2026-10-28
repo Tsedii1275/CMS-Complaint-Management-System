@@ -7,6 +7,7 @@ import { formatUniqueId, formatIntakeId, matchesTicketSearch, compareTicketNumbe
 import Pagination from '../components/Pagination';
 import ApiService from '../services/api';
 import { BRAND_COLORS } from '../constants/theme';
+import { categoryNamesFromResponse } from '../constants/complaintCategories';
 import { normalizeComplaintStatus, renderComplaintStatusTag, COMPLAINT_STATUS } from '../utils/statusUtils';
 import moment from 'moment';
 
@@ -403,6 +404,7 @@ function mapCriItemToMasterRow(item, idx) {
 }
 
 function AdminDashboard() {
+  const [categoryChoices, setCategoryChoices] = useState(CATEGORY_OPTIONS);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -466,6 +468,19 @@ function AdminDashboard() {
   useEffect(() => {
     loadData();
   }, [filters, trendInterval]);
+
+  useEffect(() => {
+    ApiService.getComplaintCategories()
+      .then((rows) => {
+        const names = categoryNamesFromResponse(rows);
+        const merged = [...names];
+        ['General', '-'].forEach((item) => {
+          if (!merged.includes(item)) merged.push(item);
+        });
+        setCategoryChoices(merged);
+      })
+      .catch(() => {});
+  }, []);
 
   const loadData = async () => {
     try {
@@ -793,7 +808,7 @@ function AdminDashboard() {
     { title: 'Is the Complaint Justified', dataIndex: 'isComplaintJustified', width: 160, render: (_, r) => renderDataCell(r, 'isComplaintJustified', 'select', YES_NO_OPTIONS) },
     { title: 'Validity Reason For Justified Complaints', dataIndex: 'validityReasonJustified', width: 220, render: (_, r) => renderDataCell(r, 'validityReasonJustified', 'text') },
     { title: 'Nature of Complaints', dataIndex: 'natureOfComplaints', width: 180, render: (_, r) => renderDataCell(r, 'natureOfComplaints', 'text') },
-    { title: 'Complaints Category', dataIndex: 'complaintsCategory', width: 190, render: (_, r) => renderDataCell(r, 'complaintsCategory', 'select', CATEGORY_OPTIONS) },
+    { title: 'Complaints Category', dataIndex: 'complaintsCategory', width: 190, render: (_, r) => renderDataCell(r, 'complaintsCategory', 'select', categoryChoices) },
     { title: 'Case Assigned To', dataIndex: 'caseAssignedTo', width: 160, render: (_, r) => renderDataCell(r, 'caseAssignedTo', 'text') },
     { title: 'Expected Resolution Date', dataIndex: 'expectedResolutionDate', width: 160, render: (_, r) => renderDataCell(r, 'expectedResolutionDate', 'date') },
     { title: 'Actual Resolution Date', dataIndex: 'actualResolutionDate', width: 160, render: (_, r) => renderDataCell(r, 'actualResolutionDate', 'date') },

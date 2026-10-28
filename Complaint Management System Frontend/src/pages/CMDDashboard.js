@@ -13,6 +13,7 @@ import { collectAttachments } from '../utils/attachments';
 import { customerHomeBranch, customerHomeDistrict, customerBranchCode, complaintBranch, complaintDistrict } from '../utils/locationKeys';
 import InvestigationReviewPanel from '../components/InvestigationReviewPanel';
 import FeedbackPanel from '../components/FeedbackPanel';
+import ComplaintCategorySelect from '../components/ComplaintCategorySelect';
 import { hasInvestigationTab, investigationTabLabel, investigationTasksForRole } from '../utils/investigationWorkflow';
 
 const { Title, Text } = Typography;
@@ -565,7 +566,7 @@ function getTaskCategoryLabel(taskItem, slaMetrics) {
   if (lower.includes('policy') || lower.includes('compliance')) return 'Policy & Compliance Disputes';
   if (lower.includes('system') || lower.includes('technical')) return 'System Failure';
   if (lower.includes('branch')) return 'Branch Operation';
-  return 'General';
+  return str || 'General';
 }
 
 function isSeniorCmdManager(role) {
@@ -2347,23 +2348,11 @@ function CmdComplaintDetailsCard({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Text style={{ color: '#64748b', fontSize: '14px' }}>Complaint Category</Text>
               {activeTab === 'my_tasks' ? (
-                <Select
+                <ComplaintCategorySelect
                   value={formData.complaintCategory || 'Customer Service Issues'}
                   onChange={(value) => setFormData(prev => ({ ...prev, complaintCategory: value }))}
                   style={{ minWidth: '220px' }}
-                >
-                  <Option value="Customer Service Issues">Customer Service Issues</Option>
-                  <Option value="Transaction Error">Transaction Error</Option>
-                  <Option value="Account Management">Account Management</Option>
-                  <Option value="Banking App Issues">Banking App Issues</Option>
-                  <Option value="Credit/Financing Concerns">Credit/Financing Concerns</Option>
-                  <Option value="Fraud & Security Risk">Fraud & Security Risk</Option>
-                  <Option value="Information Disclosure">Information Disclosure</Option>
-                  <Option value="ATM & Card Banking Issues">ATM & Card Banking Issues</Option>
-                  <Option value="Policy & Compliance Disputes">Policy & Compliance Disputes</Option>
-                  <Option value="System Failure">System Failure</Option>
-                  <Option value="Branch Operation">Branch Operation</Option>
-                </Select>
+                />
               ) : (
                 <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>
                   {formData.complaintCategory || selectedTask.variables?.complaintCategory || selectedTask.variables?.complaint?.category || 'Customer Service Issues'}
@@ -2416,6 +2405,7 @@ function CmdComplaintDetailsCard({
                   <Option value="HO">HO</Option>
                   <Option value="Super App">Super App</Option>
                   <Option value="Merchant">Merchant</Option>
+                  <Option value="Other">Other</Option>
                 </Select>
               ) : (
                 <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>
