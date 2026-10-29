@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Card, Typography, Row, Col, Table, Input, Empty, Alert, Spin, Tag, Button,
-  Modal, Upload, message as antMessage, Select
+  Modal, Upload, message as antMessage, DatePicker
 } from 'antd';
 import {
   SearchOutlined, SendOutlined, AuditOutlined, PaperClipOutlined, UploadOutlined
@@ -13,6 +13,7 @@ import { matchesTicketSearch } from '../components/TaskTable';
 import { BRAND_COLORS } from '../constants/theme';
 
 const { Title, Text, Paragraph } = Typography;
+const { RangePicker } = DatePicker;
 
 const PAGE_STYLE = { background: '#f8fafc', minHeight: '100vh', padding: '24px' };
 const PAGE_INNER_STYLE = { maxWidth: '1400px', margin: '0 auto' };
@@ -21,7 +22,7 @@ const HEADER_BLOCK_STYLE = { marginBottom: '28px' };
 const HEADER_TEXT_BLOCK_STYLE = { marginBottom: '16px' };
 const PAGE_TITLE_STYLE = { margin: 0, color: '#334155', fontWeight: 600, letterSpacing: '-0.3px' };
 const PAGE_SUBTITLE_STYLE = { fontSize: '14px', color: '#64748b', fontWeight: 400 };
-const TIME_FILTER_SELECT_STYLE = { width: 150 };
+const DATE_RANGE_STYLE = { width: 260 };
 const ALERT_STYLE = { marginBottom: '24px', borderRadius: '12px' };
 const LOADING_WRAP_STYLE = { textAlign: 'center', padding: '100px 0' };
 const KPI_ROW_STYLE = { marginBottom: '28px' };
@@ -96,6 +97,38 @@ const TEXTAREA_STYLE = { borderRadius: '8px' };
 const CLIP_ICON_STYLE = { marginRight: '6px', color: BRAND_COLORS.primary };
 const UPLOAD_BUTTON_STYLE = { borderRadius: '6px' };
 
+function feedbackDate(item) {
+  const dateStr = item?.feedbackSubmittedAt || item?.submittedAt;
+  if (!dateStr) return null;
+  const date = new Date(dateStr);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function rangeBoundary(value, endOfDay) {
+  if (!value) return null;
+  if (typeof value.startOf === 'function') {
+    return (endOfDay ? value.endOf('day') : value.startOf('day')).toDate();
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function isInsideSubmissionRange(item, range) {
+  if (!range?.[0] || !range?.[1]) return true;
+  const date = feedbackDate(item);
+  const start = rangeBoundary(range[0], false);
+  const end = rangeBoundary(range[1], true);
+  if (!date || !start || !end) return false;
+  return date >= start && date <= end;
+}
+
+function formatRangeLabel(range) {
+  if (!range?.[0] || !range?.[1]) return 'All dates';
+  const start = range[0].format ? range[0].format('YYYY-MM-DD') : '';
+  const end = range[1].format ? range[1].format('YYYY-MM-DD') : '';
+  return start && end ? `${start} to ${end}` : 'Selected dates';
+}
+
 function npsTagColor(score) {
   if (score >= 9) {
     return 'green';
@@ -115,9 +148,8 @@ function CustomerExperienceDashboard() {
   const [cxFileList, setCxFileList] = useState([]);
   const [isEscalating, setIsEscalating] = useState(false);
 
-  // Filters
-  const [timePeriod, setTimePeriod] = useState('All Time'); // 'All Time' | 'Year' | 'Month' | 'Week' | 'Day'
   const [searchQuery, setSearchQuery] = useState('');
+  const [submissionRange, setSubmissionRange] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -173,30 +205,8 @@ function CustomerExperienceDashboard() {
     }
   };
 
-  // Filter rawFeedbackList based on selected timePeriod & searchQuery
   const filteredList = useMemo(() => {
     let list = [...rawFeedbackList];
-    const now = new Date();
-
-    // Time filter
-    if (timePeriod && timePeriod !== 'All Time') {
-      list = list.filter(item => {
-        const dateStr = item.feedbackSubmittedAt || item.submittedAt;
-        if (!dateStr) return false;
-        const d = new Date(dateStr);
-        if (Number.isNaN(d.getTime())) return false;
-        const diffMs = now - d;
-        const diffDays = diffMs / (1000 * 60 * 60 * 24);
-
-        if (timePeriod === 'Day') return diffDays <= 1;
-        if (timePeriod === 'Week') return diffDays <= 7;
-        if (timePeriod === 'Month') return diffDays <= 30;
-        if (timePeriod === 'Year') return diffDays <= 365;
-        return true;
-      });
-    }
-
-    // Search query filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       list = list.filter(item => {
@@ -204,9 +214,13 @@ function CustomerExperienceDashboard() {
         return matchesTicketSearch(item, q) || comments.includes(q);
       });
     }
-
     return list;
-  }, [rawFeedbackList, timePeriod, searchQuery]);
+  }, [rawFeedbackList, searchQuery]);
+
+  const submissionList = useMemo(
+    () => filteredList.filter(item => isInsideSubmissionRange(item, submissionRange)),
+    [filteredList, submissionRange]
+  );
 
   // Derived Analytics & Calculations directly from filtered survey responses
   const analytics = useMemo(() => {
@@ -347,9 +361,9 @@ function CustomerExperienceDashboard() {
   }, [filteredList]);
 
   const cxExportDataset = () => ({
-    filename: `CX_Feedback_Report_${timePeriod}_${new Date().toISOString().slice(0, 10)}`,
+    filename: `CX_Feedback_Report_${new Date().toISOString().slice(0, 10)}`,
     documentTitle: 'Customer Experience Feedback Report',
-    subtitle: `Time period: ${timePeriod}`,
+    subtitle: `Submission dates: ${formatRangeLabel(submissionRange)}`,
     tables: [{
       title: 'Survey Responses',
       sheetName: 'Feedback',
@@ -370,7 +384,7 @@ function CustomerExperienceDashboard() {
         { header: 'Additional Comments', key: 'additionalComments' },
         { header: 'Submission Date', accessor: (item) => item.feedbackSubmittedAt || item.submittedAt, type: 'date' }
       ],
-      rows: filteredList
+      rows: submissionList
     }]
   });
 
@@ -554,18 +568,6 @@ function CustomerExperienceDashboard() {
                 Real-time satisfaction measurement, CSAT, NPS, and CES analytics derived directly from customer survey responses.
               </Text>
             </div>
-
-            <Select
-              value={timePeriod}
-              onChange={(val) => setTimePeriod(val)}
-              style={TIME_FILTER_SELECT_STYLE}
-            >
-              <Select.Option value="All Time">All Time</Select.Option>
-              <Select.Option value="Year">Year</Select.Option>
-              <Select.Option value="Month">Month</Select.Option>
-              <Select.Option value="Week">Week</Select.Option>
-              <Select.Option value="Day">Day</Select.Option>
-            </Select>
           </div>
 
           {error && (
@@ -668,6 +670,13 @@ function CustomerExperienceDashboard() {
                       Customer Feedback Submissions
                     </span>
                     <div style={TABLE_HEADER_ACTIONS_STYLE}>
+                      <RangePicker
+                        value={submissionRange}
+                        onChange={(dates) => setSubmissionRange(dates)}
+                        allowClear
+                        style={DATE_RANGE_STYLE}
+                        placeholder={['Start date', 'End date']}
+                      />
                       <Input
                         placeholder="Search by Ticket ID or Feedback Comments..."
                         prefix={<SearchOutlined style={SEARCH_ICON_STYLE} />}
@@ -685,7 +694,7 @@ function CustomerExperienceDashboard() {
               >
                 <Table
                   columns={columns}
-                  dataSource={filteredList}
+                  dataSource={submissionList}
                   rowKey={(record) => record.id || record.ticketId || record.ticketNumber}
                   pagination={{
                     pageSize: 10,
