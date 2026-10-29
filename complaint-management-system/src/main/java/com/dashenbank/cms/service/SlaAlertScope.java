@@ -344,7 +344,10 @@ public final class SlaAlertScope {
             return false;
         }
         String assignee = firstVariable(processVariables, "assignedOfficerUsername", "assigneeUsername");
-        return hasText(assignee) && user.getUsername().trim().equalsIgnoreCase(assignee.trim());
+        if (hasText(assignee) && user.getUsername().trim().equalsIgnoreCase(assignee.trim())) {
+            return true;
+        }
+        return AssignmentOfficers.includesUsername(processVariables, user.getUsername());
     }
 
     private static String firstVariable(Map<String, Object> vars, String... keys) {

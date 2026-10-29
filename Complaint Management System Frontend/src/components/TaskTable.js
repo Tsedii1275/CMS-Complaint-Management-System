@@ -118,6 +118,18 @@ const recordVariables = (record) => record?.variables || {};
 const assignedUserOf = (record) =>
   record.assignee || record.claimedBy || record.assignedUser || recordVariables(record).assignedUser;
 
+const assignedOfficerLabels = (record) => {
+  const vars = recordVariables(record);
+  const fromObjects = Array.isArray(vars.assignedOfficers)
+    ? vars.assignedOfficers.map((officer) => officer?.fullName || officer?.username).filter(Boolean)
+    : [];
+  if (fromObjects.length > 0) {
+    return fromObjects;
+  }
+  const assignedUser = assignedUserOf(record);
+  return isAssignedOfficer(assignedUser) ? [String(assignedUser)] : [];
+};
+
 const isAssignedOfficer = (assignedUser) =>
   Boolean(
     assignedUser &&
@@ -293,17 +305,23 @@ function TaskTable({ tasks = [], onSelectTask, onAssignTask, showPriority = fals
       key: 'assignedOfficer',
       width: 180,
       render: (_, r) => {
-        const assignedUser = assignedUserOf(r);
-        const isAssigned = isAssignedOfficer(assignedUser);
-        return isAssigned ? (
-          <Tag color="blue" style={{ fontSize: '11px', fontWeight: 600, borderRadius: '4px', whiteSpace: 'nowrap' }}>
-            <UserOutlined style={{ marginRight: '4px' }} />
-            {assignedUser}
-          </Tag>
-        ) : (
-          <Tag color="orange" style={{ fontSize: '11px', fontWeight: 600, borderRadius: '4px', whiteSpace: 'nowrap' }}>
-            Unassigned
-          </Tag>
+        const labels = assignedOfficerLabels(r);
+        if (labels.length === 0) {
+          return (
+            <Tag color="orange" style={{ fontSize: '11px', fontWeight: 600, borderRadius: '4px', whiteSpace: 'nowrap' }}>
+              Unassigned
+            </Tag>
+          );
+        }
+        return (
+          <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: '4px' }}>
+            {labels.map((label) => (
+              <Tag key={label} color="blue" style={{ fontSize: '11px', fontWeight: 600, borderRadius: '4px', margin: 0 }}>
+                <UserOutlined style={{ marginRight: '4px' }} />
+                {label}
+              </Tag>
+            ))}
+          </span>
         );
       }
     }] : []),
@@ -336,7 +354,7 @@ function TaskTable({ tasks = [], onSelectTask, onAssignTask, showPriority = fals
       width: onAssignTask ? 140 : 80,
       align: 'center',
       render: (_, r) => {
-        const isAssigned = isAssignedOfficer(assignedUserOf(r));
+        const isAssigned = assignedOfficerLabels(r).length > 0;
         return (
           <Space size="small">
             <Tooltip title="View Task Details">
@@ -391,16 +409,15 @@ function TaskTable({ tasks = [], onSelectTask, onAssignTask, showPriority = fals
     ...(showAssignedOfficer ? [{
       header: 'Assigned Officer',
       accessor: (r) => {
-        const assignedUser = assignedUserOf(r);
-        return isAssignedOfficer(assignedUser) ? assignedUser : 'Unassigned';
+        const labels = assignedOfficerLabels(r);
+        return labels.length > 0 ? labels.join(', ') : 'Unassigned';
       }
     }] : []),
     ...(showAssignedDate ? [{
       header: 'Assigned Date',
       type: 'date',
       accessor: (r) => {
-        const assignedUser = assignedUserOf(r);
-        if (!isAssignedOfficer(assignedUser)) return null;
+        if (assignedOfficerLabels(r).length === 0) return null;
         const vars = recordVariables(r);
         return r.assignedDate || r.assignedAt || r.claimedAt || vars.assignedDate || vars.assignedAt || vars.claimedAt;
       }

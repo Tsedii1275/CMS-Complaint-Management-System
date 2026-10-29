@@ -12,6 +12,7 @@ import com.dashenbank.cms.model.User;
 import com.dashenbank.cms.repository.ComplaintSlaMetricsRepository;
 import com.dashenbank.cms.repository.UserRepository;
 import com.dashenbank.cms.delegate.NotificationDelegate;
+import com.dashenbank.cms.service.AssignmentOfficers;
 import com.dashenbank.cms.service.AttachmentService;
 import com.dashenbank.cms.service.AuditService;
 import com.dashenbank.cms.service.ComplainantRelatedInformationService;
@@ -1097,7 +1098,8 @@ public class ProcessController {
     @PostMapping("/tasks/{taskId}/assign")
     public ResponseEntity<Object> assignTask(
             @PathVariable String taskId,
-            @RequestParam String targetUsername) {
+            @RequestParam(required = false) String targetUsername,
+            @RequestBody(required = false) Map<String, Object> body) {
         slaAlertAuthorizationService.requireAuthorizedTask(taskId, SlaAlertAuthorizationService.TaskAction.ASSIGN);
         String currentManager = getCurrentUsername();
         Task task = taskService.createTaskQuery().taskId(taskId).singleResult();
@@ -1105,22 +1107,42 @@ public class ProcessController {
             return ResponseEntity.notFound().build();
         }
 
-        User targetUser = userRepository.findByUsernameIgnoreCase(targetUsername.trim()).orElse(null);
-        if (targetUser == null) {
+        Object rawNames = body == null ? null : body.get("usernames");
+        List<String> requested = AssignmentOfficers.distinctUsernames(rawNames, targetUsername);
+        if (requested.isEmpty()) {
             return ResponseEntity.badRequest()
-                    .body(Map.of(KEY_ERROR, "Target officer '" + targetUsername + "' not found."));
+                    .body(Map.of(KEY_ERROR, "Select at least one Customer Care Officer or Team Leader."));
         }
 
+        List<User> targets = new ArrayList<>();
+        for (String username : requested) {
+            User targetUser = userRepository.findByUsernameIgnoreCase(username).orElse(null);
+            if (targetUser == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of(KEY_ERROR, "Target officer '" + username + "' not found."));
+            }
+            if (!AssignmentOfficers.canReceiveCustomerCareCase(targetUser)) {
+                return ResponseEntity.badRequest().body(Map.of(KEY_ERROR,
+                        AssignmentOfficers.displayName(targetUser) + " is not a Customer Care Officer or Team Leader."));
+            }
+            targets.add(targetUser);
+        }
+
+        User primary = targets.get(0);
+        List<String> usernames = targets.stream().map(User::getUsername).toList();
         try {
-            taskService.setAssignee(taskId, targetUser.getUsername());
+            taskService.setAssignee(taskId, primary.getUsername());
             String assignedNow = LocalDateTime.now(SYSTEM_ZONE).toString();
             taskService.setVariable(taskId, "assignedDate", assignedNow);
             taskService.setVariable(taskId, "assignedAt", assignedNow);
-            taskService.setVariable(taskId, "assignedUser", targetUser.getUsername());
-            taskService.setVariable(taskId, "assignedOfficerName", targetUser.getFullName());
+            taskService.setVariable(taskId, "assignedUser", primary.getUsername());
+            taskService.setVariable(taskId, "assignedOfficerUsername", primary.getUsername());
+            taskService.setVariable(taskId, "assignedOfficerName", AssignmentOfficers.displayName(primary));
+            taskService.setVariable(taskId, AssignmentOfficers.KEY_USERNAMES, new ArrayList<>(usernames));
+            taskService.setVariable(taskId, AssignmentOfficers.KEY_OFFICERS, AssignmentOfficers.records(targets));
         } catch (Exception e) {
             try {
-                taskService.claim(taskId, targetUser.getUsername());
+                taskService.claim(taskId, primary.getUsername());
             } catch (Exception ex) {
                 log.error("Task assignment failed: {}", ex.getMessage());
                 return ResponseEntity.status(500).body(Map.of(KEY_ERROR, "Failed to assign task: " + ex.getMessage()));
@@ -1138,26 +1160,28 @@ public class ProcessController {
         String ticketId = complaint.getOrDefault("id", taskId).toString();
 
         try {
-            slaTrackingService.recordTaskClaim(taskId, targetUser.getUsername(), procInstId, ticketId,
+            slaTrackingService.recordTaskClaim(taskId, primary.getUsername(), procInstId, ticketId,
                     task.getTaskDefinitionKey(), task.getName());
         } catch (Exception e) {
             log.error("Failed to record task assignment in SLA tracking: {}", e.getMessage());
         }
 
+        String assignedTo = AssignmentOfficers.joinedNames(targets);
         try {
             auditService.log(ticketId, procInstId, taskId, "TASK_ASSIGNED", "manager", currentManager,
-                    AUDIT_TASK_PREFIX + task.getName() + "' assigned/reassigned to " + targetUser.getFullName() + " ("
-                            + targetUser.getUsername() + ") by " + currentManager + ".",
+                    AUDIT_TASK_PREFIX + task.getName() + "' assigned/reassigned to " + assignedTo
+                            + " by " + currentManager + ".",
                     "", "", "");
         } catch (Exception e) {
             log.error("Failed to record audit log for task assignment: {}", e.getMessage());
         }
 
         Map<String, Object> response = new HashMap<>();
-        response.put(KEY_MESSAGE, "Task successfully assigned to " + targetUser.getFullName());
+        response.put(KEY_MESSAGE, "Task successfully assigned to " + assignedTo);
         response.put(KEY_TASK_ID, taskId);
-        response.put(KEY_ASSIGNEE, targetUser.getUsername());
-        response.put("assigneeFullName", targetUser.getFullName());
+        response.put(KEY_ASSIGNEE, primary.getUsername());
+        response.put("assignees", usernames);
+        response.put("assigneeFullName", AssignmentOfficers.displayName(primary));
         return ResponseEntity.ok(response);
     }
 

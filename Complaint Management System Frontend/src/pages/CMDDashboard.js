@@ -601,8 +601,22 @@ function isFcrPendingCco(t) {
   return pending && t.variables?.fcrStatus !== 'REJECTED' && t.fcrStatus !== 'REJECTED' && t.variables?.isFcr !== false;
 }
 
+function assignedUsernamesOf(task) {
+  const vars = task?.variables || {};
+  const fromList = Array.isArray(vars.assignedOfficerUsernames) ? vars.assignedOfficerUsernames : [];
+  const fromObjects = Array.isArray(vars.assignedOfficers)
+    ? vars.assignedOfficers.map((officer) => officer?.username)
+    : [];
+  return [task?.assignee, task?.claimedBy, task?.assignedUser, ...fromList, ...fromObjects]
+    .map((name) => String(name || '').trim())
+    .filter((name) => name && !['unassigned', 'null', 'initiator'].includes(name.toLowerCase()));
+}
+
 function isMyCmdTask(t, user) {
-  return t.assignee === user?.username || t.assignee === user?.name || t.claimedBy === user?.username;
+  const mine = [user?.username, user?.name]
+    .map((name) => String(name || '').trim().toLowerCase())
+    .filter(Boolean);
+  return assignedUsernamesOf(t).some((name) => mine.includes(name.toLowerCase()));
 }
 
 function isActiveCmdQueueTask(t, unresolvedTicketIds) {
@@ -1035,7 +1049,7 @@ function getCmdTabFilteredTasks({ tasks, unresolvedFollowups, user, activeTab, s
     const customerName = task.customerName || '';
     const desc = task.variables?.complaint?.description || '';
     const cat = task.variables?.complaint?.category || '';
-    const officer = task.assignee || task.claimedBy || '';
+    const officer = assignedUsernamesOf(task).join(' ');
     return !query ||
       matchesTicketSearch(task, query) ||
       customerName.toLowerCase().includes(query) ||
@@ -1171,27 +1185,29 @@ async function closeCmdFollowup(ref, id) {
 function openCmdAssignModal(ref, task) {
   const s = sget(ref);
   s.setTaskToAssign(task);
-  const existingAssignee = task.assignee || task.claimedBy || task.assignedUser;
-  s.setSelectedOfficerUsername(existingAssignee && existingAssignee !== 'Unassigned' && existingAssignee !== 'null' ? existingAssignee : '');
+  s.setSelectedOfficerUsernames([...new Set(assignedUsernamesOf(task))]);
   s.setIsAssignModalOpen(true);
   loadActiveOfficersCmd(ref);
 }
 
 async function confirmCmdTaskAssignment(ref) {
   const s = sget(ref);
-  if (!s.taskToAssign || !s.selectedOfficerUsername) {
-    antMessage.warning('Please select a Customer Care Officer or Team Leader.');
+  const selected = Array.isArray(s.selectedOfficerUsernames) ? s.selectedOfficerUsernames.filter(Boolean) : [];
+  if (!s.taskToAssign || selected.length === 0) {
+    antMessage.warning('Select at least one Customer Care Officer or Team Leader.');
     return;
   }
   s.setIsAssigning(true);
   try {
-    await ApiService.assignTask(s.taskToAssign.id, s.selectedOfficerUsername);
-    const officer = s.activeOfficers.find(o => o.username === s.selectedOfficerUsername);
-    const officerName = officer ? (officer.fullName || officer.username) : s.selectedOfficerUsername;
-    antMessage.success(`Complaint ${s.taskToAssign.complaintId || s.taskToAssign.id} assigned to ${officerName}`);
+    await ApiService.assignTask(s.taskToAssign.id, selected);
+    const names = selected.map((username) => {
+      const officer = s.activeOfficers.find(o => o.username === username);
+      return officer ? (officer.fullName || officer.username) : username;
+    });
+    antMessage.success(`Complaint ${s.taskToAssign.complaintId || s.taskToAssign.id} assigned to ${names.join(', ')}`);
     s.setIsAssignModalOpen(false);
     s.setTaskToAssign(null);
-    s.setSelectedOfficerUsername('');
+    s.setSelectedOfficerUsernames([]);
     await loadCmdTasks(ref, false);
   } catch (err) {
     console.error('Assignment error:', err);
@@ -1519,7 +1535,7 @@ function useCmdDashboardState() {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [taskToAssign, setTaskToAssign] = useState(null);
   const [activeOfficers, setActiveOfficers] = useState([]);
-  const [selectedOfficerUsername, setSelectedOfficerUsername] = useState('');
+  const [selectedOfficerUsernames, setSelectedOfficerUsernames] = useState([]);
   const [isAssigning, setIsAssigning] = useState(false);
   const [unresolvedFollowups, setUnresolvedFollowups] = useState([]);
   const [selectedFollowup, setSelectedFollowup] = useState(null);
@@ -1562,8 +1578,8 @@ function useCmdDashboardState() {
     setTaskToAssign,
     activeOfficers,
     setActiveOfficers,
-    selectedOfficerUsername,
-    setSelectedOfficerUsername,
+    selectedOfficerUsernames,
+    setSelectedOfficerUsernames,
     isAssigning,
     setIsAssigning,
     unresolvedFollowups,
@@ -3367,8 +3383,8 @@ function CmdDashboardView(props) {
     setTaskToAssign,
     taskToAssign,
     activeOfficers,
-    selectedOfficerUsername,
-    setSelectedOfficerUsername,
+    selectedOfficerUsernames,
+    setSelectedOfficerUsernames,
     isAssigning,
     unresolvedFollowups,
     selectedFollowup,
@@ -3522,25 +3538,32 @@ function CmdDashboardView(props) {
                   {renderComplaintStatusTag(taskToAssign)}
                 </div>
                 <div>
-                  <Text type="secondary" style={{ fontSize: '11px', display: 'block' }}>Current Officer</Text>
-                  <Tag color={(taskToAssign.assignee && String(taskToAssign.assignee).toLowerCase() !== 'unassigned' && String(taskToAssign.assignee).toLowerCase() !== 'null' && String(taskToAssign.assignee).toLowerCase() !== 'initiator') ? 'green' : 'orange'} style={{ margin: 0, fontSize: '11px' }}>
-                    {(taskToAssign.assignee && String(taskToAssign.assignee).toLowerCase() !== 'unassigned' && String(taskToAssign.assignee).toLowerCase() !== 'null' && String(taskToAssign.assignee).toLowerCase() !== 'initiator') ? taskToAssign.assignee : 'Unassigned'}
-                  </Tag>
+                  <Text type="secondary" style={{ fontSize: '11px', display: 'block' }}>Current Officers</Text>
+                  {assignedUsernamesOf(taskToAssign).length > 0 ? (
+                    <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: '4px' }}>
+                      {assignedUsernamesOf(taskToAssign).map((username) => (
+                        <Tag key={username} color="green" style={{ margin: 0, fontSize: '11px' }}>{username}</Tag>
+                      ))}
+                    </span>
+                  ) : (
+                    <Tag color="orange" style={{ margin: 0, fontSize: '11px' }}>Unassigned</Tag>
+                  )}
                 </div>
               </div>
             </div>
 
             <div>
               <Text strong style={CMD_OFFICER_LABEL_STYLE}>
-                Select Customer Care Officer or Team Leader{' '}
+                Select Customer Care Officers or Team Leaders{' '}
                 <span style={CMD_REQUIRED_MARK_STYLE}>*</span>
               </Text>
               <Select
+                mode="multiple"
                 showSearch
-                placeholder="Search and select officer or team leader..."
+                placeholder="Search and select one or more officers or team leaders..."
                 optionFilterProp="children"
-                value={selectedOfficerUsername || undefined}
-                onChange={setSelectedOfficerUsername}
+                value={selectedOfficerUsernames}
+                onChange={setSelectedOfficerUsernames}
                 style={{ width: '100%', borderRadius: '6px' }}
                 size="large"
               >

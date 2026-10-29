@@ -314,9 +314,9 @@ public class SlaAlertAuthorizationService {
         boolean claimed = assignee != null && !assignee.isBlank()
                 && !"initiator".equalsIgnoreCase(assignee)
                 && !"unassigned".equalsIgnoreCase(assignee);
-        return !claimed
-                || assignee.equalsIgnoreCase(user.getUsername())
-                || SlaAlertScope.canAssignTasks(role);
+        boolean selectedOfficer = SlaAlertScope.assigneeIsCurrentUser(user, vars)
+                || (assignee != null && assignee.equalsIgnoreCase(user.getUsername()));
+        return !claimed || selectedOfficer || SlaAlertScope.canAssignTasks(role);
     }
 
     public List<ComplaintSlaMetrics> filterMetricsForUser(List<ComplaintSlaMetrics> metrics, String role, User user) {

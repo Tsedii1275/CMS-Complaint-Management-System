@@ -369,8 +369,11 @@ class ApiService {
   }
 
   // Assign or Reassign Task to a specific Customer Care Officer
-  async assignTask(taskId, targetUsername) {
-    return this.post(`/api/tasks/${taskId}/assign?targetUsername=${encodeURIComponent(targetUsername)}`, {});
+  async assignTask(taskId, targetUsernames) {
+    const usernames = (Array.isArray(targetUsernames) ? targetUsernames : [targetUsernames])
+      .map((name) => String(name || '').trim())
+      .filter(Boolean);
+    return this.post(`/api/tasks/${taskId}/assign`, { usernames });
   }
 
   // Update and persist complaint record details
