@@ -3,7 +3,7 @@ import { Dropdown, Modal, Input, Button, Tag, DatePicker, message as antMessage 
 import { GlobalOutlined } from '@ant-design/icons';
 import { BRAND_COLORS } from '../constants/theme';
 import ApiService from '../services/api';
-import { categoryNamesFromResponse } from '../constants/complaintCategories';
+import { categoryLabel, categoryNamesFromResponse } from '../constants/complaintCategories';
 import { normalizeComplaintStatus, renderComplaintStatusTag } from '../utils/statusUtils';
 import moment from 'moment';
 import {
@@ -311,7 +311,7 @@ async function checkPublicComplaintStatus({ ticketSearch, language, t, setSearch
     setSearchResult(response);
   } catch (error) {
     console.error('Status check error:', error);
-    if (error.message?.includes('404')) {
+    if (error.status === 404 || error.status === 400 || error.message?.includes('404')) {
       setSearchError(t.noTicketFound);
     } else {
       setSearchError(language === 'english' ? 'Failed to fetch status. Please try again.' : 'የቅሬታውን ሁኔታ ለማምጣት አልተቻለም። እባክዎ እንደገና ይሞክሩ።');
@@ -1068,7 +1068,7 @@ function CustomerForm() {
                 }}
               >
                 {complaintCategories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
+                  <option key={cat} value={cat}>{categoryLabel(cat, language)}</option>
                 ))}
               </select>
             </div>

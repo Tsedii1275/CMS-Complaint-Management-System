@@ -121,15 +121,15 @@ export function getPhoneError(phone, countryCode, language) {
 }
 
 /** Staff registration accepts 09..., 9... and +251... and checks them as an Ethiopian number. */
-export function getStaffPhoneError(phone) {
+export function getStaffPhoneError(phone, language = 'english') {
   if (!phone?.trim()) {
-    return 'Phone number is required';
+    return language === 'amharic' ? 'የስልክ ቁጥር ያስፈልጋል' : 'Phone number is required';
   }
   let digits = phone.trim().replace(/\D/g, '');
   if (digits.startsWith('251')) {
     digits = digits.slice(3);
   }
-  return getPhoneError(digits, '+251', 'english');
+  return getPhoneError(digits, '+251', language);
 }
 
 export function fieldRule(check) {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Typography, Button, Form, Input, Select, Alert, Row, Col, Space, Checkbox, Table, Tag, Modal, Tooltip, Tabs, DatePicker, message as antMessage } from 'antd';
-import { PlusCircleOutlined, PaperClipOutlined, EyeOutlined, AudioOutlined, SearchOutlined } from '@ant-design/icons';
+import { Card, Typography, Button, Form, Input, Select, Alert, Row, Col, Space, Checkbox, Table, Tag, Modal, Tooltip, Tabs, DatePicker, Dropdown, message as antMessage } from 'antd';
+import { PlusCircleOutlined, PaperClipOutlined, EyeOutlined, AudioOutlined, SearchOutlined, GlobalOutlined } from '@ant-design/icons';
 import DashboardLayout from '../components/DashboardLayout';
 import { formatUniqueId, formatIntakeId, UniqueIdDisplay, compareTicketNumbersAsc, matchesTicketSearch } from '../components/TaskTable';
 import Pagination from '../components/Pagination';
@@ -14,6 +14,7 @@ import moment from 'moment';
 import ExportDropdown from '../components/ExportDropdown';
 import ScreenedCaseDetailModal from '../components/ScreenedCaseDetailModal';
 import ComplaintCategorySelect from '../components/ComplaintCategorySelect';
+import { MADE_ON, RECEIVED_BY, SERVICE_TYPES, staffRegistrationCopy } from '../constants/staffRegistrationCopy';
 import {
   getCustomerNameError,
   getDescriptionError,
@@ -23,6 +24,12 @@ import {
   getStaffPhoneError,
   fieldRule
 } from '../utils/complaintFieldValidation';
+
+function optionNodes(pairs, language) {
+  return pairs.map(([value, amharic]) => (
+    <Select.Option key={value} value={value}>{language === 'amharic' ? amharic : value}</Select.Option>
+  ));
+}
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -299,6 +306,7 @@ function BranchStaffDashboard() {
   const [searchText, setSearchText] = useState('');
   const [dateRange, setDateRange] = useState(null);
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  const [registrationLanguage, setRegistrationLanguage] = useState('english');
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [detailFromOther, setDetailFromOther] = useState(false);
@@ -507,10 +515,10 @@ function BranchStaffDashboard() {
         customerName: profile.customerName || form.getFieldValue('customerName'),
         phone: currentPhone || profile.phoneNumber
       });
-      antMessage.success('Customer profile loaded from Core Banking');
+      antMessage.success(staffRegistrationCopy(registrationLanguage).profileLoaded);
     } catch (error) {
       setCbsProfile(null);
-      antMessage.error(error.message || 'Customer not found for this account number');
+      antMessage.error(error.message || staffRegistrationCopy(registrationLanguage).profileMissing);
     } finally {
       setLookingUpAccount(false);
     }
@@ -521,7 +529,7 @@ function BranchStaffDashboard() {
     setMessage('');
 
     if (values.date && moment(values.date).isAfter(moment().endOf('day'))) {
-      antMessage.error('Complaint date cannot be in the future');
+      antMessage.error(staffRegistrationCopy(registrationLanguage).dateFuture);
       setIsSubmitting(false);
       return;
     }
@@ -537,6 +545,7 @@ function BranchStaffDashboard() {
           currentContactPhone: phone,
           accountNumber: values.accountNumber,
           preferredContactMethod: values.preferredContactMethod || 'Email',
+          preferredLanguage: registrationLanguage,
           customerHomeBranch: cbsProfile?.homeBranch || '',
           customerHomeDistrict: cbsProfile?.homeDistrict || '',
           customerBranchCode: cbsProfile?.branchCode || '',
@@ -688,6 +697,7 @@ function BranchStaffDashboard() {
     }
   ];
 
+  const copy = staffRegistrationCopy(registrationLanguage);
   const fcrBoxStyle = fcrChecked ? fcrCheckedWrapStyle : fcrWrapStyle;
   const viewingOtherCase = Boolean(selectedComplaint) && (detailFromOther || isOtherCase(selectedComplaint));
   const closeDetail = () => {
@@ -856,7 +866,24 @@ function BranchStaffDashboard() {
         </Card>
 
         <Modal
-          title={<span style={modalTitleStyle}>Register Customer Complaint</span>}
+          title={(
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: 28 }}>
+              <span style={modalTitleStyle}>{copy.title}</span>
+              <Dropdown
+                menu={{
+                  items: [
+                    { key: 'english', label: 'English', onClick: () => setRegistrationLanguage('english') },
+                    { key: 'amharic', label: 'አማርኛ', onClick: () => setRegistrationLanguage('amharic') }
+                  ]
+                }}
+                trigger={['click']}
+              >
+                <Button type="text" icon={<GlobalOutlined />} style={{ color: PRIMARY, fontWeight: 600 }}>
+                  {registrationLanguage === 'english' ? 'English' : 'አማርኛ'}
+                </Button>
+              </Dropdown>
+            </div>
+          )}
           open={isRegisterModalOpen}
           onCancel={() => {
             setIsRegisterModalOpen(false);
@@ -881,7 +908,7 @@ function BranchStaffDashboard() {
             layout="vertical"
             validateTrigger={['onChange', 'onBlur']}
             onFinish={handleSubmit}
-            onFinishFailed={() => antMessage.error('Please fix the errors in the form before submitting.')}
+            onFinishFailed={() => antMessage.error(copy.fixErrors)}
             initialValues={{
               complaintCategory: 'Customer Service Issues',
               serviceType: 'Deposit Account',
@@ -890,15 +917,15 @@ function BranchStaffDashboard() {
             }}
           >
             <div style={sectionHeadingStyle}>
-              Customer Information
+              {copy.customerInfo}
             </div>
 
             <Row gutter={32} style={rowMargin16Style}>
               <Col xs={24} md={12}>
                 <Form.Item
                   name="customerName"
-                  label={<StaffFormLabel>Customer Name</StaffFormLabel>}
-                  rules={[fieldRule((value) => getCustomerNameError(value, 'english'))]}
+                  label={<StaffFormLabel>{copy.customerName}</StaffFormLabel>}
+                  rules={[fieldRule((value) => getCustomerNameError(value, registrationLanguage))]}
                 >
                   <Input maxLength={100} style={controlStyle} />
                 </Form.Item>
@@ -906,8 +933,8 @@ function BranchStaffDashboard() {
               <Col xs={24} md={12}>
                 <Form.Item
                   name="email"
-                  label={<StaffFormLabel>Email Address</StaffFormLabel>}
-                  rules={[fieldRule((value) => getEmailError(value, 'english'))]}
+                  label={<StaffFormLabel>{copy.email}</StaffFormLabel>}
+                  rules={[fieldRule((value) => getEmailError(value, registrationLanguage))]}
                 >
                   <Input style={controlStyle} />
                 </Form.Item>
@@ -918,23 +945,23 @@ function BranchStaffDashboard() {
               <Col xs={24} md={12}>
                 <Form.Item
                   name="phone"
-                  label={<StaffFormLabel>Current Contact Phone</StaffFormLabel>}
+                  label={<StaffFormLabel>{copy.phone}</StaffFormLabel>}
                   getValueFromEvent={(e) => String(e.target.value || '').replace(/[^\d+]/g, '').slice(0, 13)}
-                  rules={[fieldRule(getStaffPhoneError)]}
+                  rules={[fieldRule((value) => getStaffPhoneError(value, registrationLanguage))]}
                 >
-                  <Input maxLength={13} placeholder="09... or +251..." style={controlStyle} />
+                  <Input maxLength={13} placeholder={copy.phonePlaceholder} style={controlStyle} />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
                 <Form.Item
                   name="date"
-                  label={<StaffFormLabel>Complaint Date</StaffFormLabel>}
+                  label={<StaffFormLabel>{copy.date}</StaffFormLabel>}
                   rules={[
-                    { required: true, message: 'Please select complaint date' },
+                    { required: true, message: copy.dateRequired },
                     {
                       validator: (_, value) => {
                         if (value && moment(value).isAfter(moment().endOf('day'))) {
-                          return Promise.reject(new Error('Complaint date cannot be in the future'));
+                          return Promise.reject(new Error(copy.dateFuture));
                         }
                         return Promise.resolve();
                       }
@@ -955,9 +982,9 @@ function BranchStaffDashboard() {
               <Col xs={24} md={8}>
                 <Form.Item
                   name="accountNumber"
-                  label={<StaffFormLabel>Account Number</StaffFormLabel>}
+                  label={<StaffFormLabel>{copy.account}</StaffFormLabel>}
                   getValueFromEvent={(e) => String(e.target.value || '').replace(/\D/g, '').slice(0, 13)}
-                  rules={[fieldRule((value) => getAccountNumberError(value, 'english'))]}
+                  rules={[fieldRule((value) => getAccountNumberError(value, registrationLanguage))]}
                 >
                   <Input.Search
                     maxLength={13}
@@ -965,98 +992,73 @@ function BranchStaffDashboard() {
                     enterButton={<SearchOutlined />}
                     loading={lookingUpAccount}
                     onSearch={handleAccountLookup}
-                    placeholder="13-digit account"
+                    placeholder={copy.accountPlaceholder}
                   />
                 </Form.Item>
               </Col>
               <Col xs={24} md={8}>
                 <Form.Item
                   name="district"
-                  label={<StaffFormLabel>Complaint District</StaffFormLabel>}
+                  label={<StaffFormLabel>{copy.district}</StaffFormLabel>}
                   getValueFromEvent={(e) => String(e.target.value || '').replace(/[^\p{L} ]/gu, '').slice(0, 100)}
-                  rules={[fieldRule((value) => getPlaceNameError(value, 'english', 'Complaint District'))]}
+                  rules={[fieldRule((value) => getPlaceNameError(value, registrationLanguage, copy.district))]}
                 >
-                  <Input maxLength={100} placeholder="Enter Complaint District" style={controlStyle} />
+                  <Input maxLength={100} placeholder={copy.districtPlaceholder} style={controlStyle} />
                 </Form.Item>
               </Col>
               <Col xs={24} md={8}>
                 <Form.Item
                   name="branch"
-                  label={<StaffFormLabel>Complaint Branch</StaffFormLabel>}
+                  label={<StaffFormLabel>{copy.branch}</StaffFormLabel>}
                   getValueFromEvent={(e) => String(e.target.value || '').replace(/[^\p{L} ]/gu, '').slice(0, 100)}
-                  rules={[fieldRule((value) => getPlaceNameError(value, 'english', 'Complaint Branch'))]}
+                  rules={[fieldRule((value) => getPlaceNameError(value, registrationLanguage, copy.branch))]}
                 >
-                  <Input maxLength={100} placeholder="Enter Complaint Branch" style={controlStyle} />
+                  <Input maxLength={100} placeholder={copy.branchPlaceholder} style={controlStyle} />
                 </Form.Item>
               </Col>
             </Row>
 
             {cbsProfile && (
               <div style={customerProfileBoxStyle}>
-                <Text style={customerProfileHeadingStyle}>Customer Profile</Text>
+                <Text style={customerProfileHeadingStyle}>{copy.profile}</Text>
                 <Row gutter={[16, 12]}>
-                  <Col xs={24} md={8}><Text type="secondary">Customer Name</Text><div><Text strong>{cbsProfile.customerName || 'N/A'}</Text></div></Col>
-                  <Col xs={24} md={8}><Text type="secondary">Phone Number</Text><div><Text strong>{cbsProfile.phoneNumber || 'N/A'}</Text></div></Col>
-                  <Col xs={24} md={8}><Text type="secondary">Branch Code</Text><div><Text strong>{cbsProfile.branchCode || 'N/A'}</Text></div></Col>
-                  <Col xs={24} md={8}><Text type="secondary">Home Branch</Text><div><Text strong>{cbsProfile.homeBranch || 'N/A'}</Text></div></Col>
-                  <Col xs={24} md={8}><Text type="secondary">Home District</Text><div><Text strong>{cbsProfile.homeDistrict || 'N/A'}</Text></div></Col>
-                  <Col xs={24} md={8}><Text type="secondary">Customer Segment</Text><div><Text strong>{cbsProfile.customerSegment || 'N/A'}</Text></div></Col>
+                  <Col xs={24} md={8}><Text type="secondary">{copy.profileName}</Text><div><Text strong>{cbsProfile.customerName || copy.none}</Text></div></Col>
+                  <Col xs={24} md={8}><Text type="secondary">{copy.profilePhone}</Text><div><Text strong>{cbsProfile.phoneNumber || copy.none}</Text></div></Col>
+                  <Col xs={24} md={8}><Text type="secondary">{copy.profileBranchCode}</Text><div><Text strong>{cbsProfile.branchCode || copy.none}</Text></div></Col>
+                  <Col xs={24} md={8}><Text type="secondary">{copy.profileHomeBranch}</Text><div><Text strong>{cbsProfile.homeBranch || copy.none}</Text></div></Col>
+                  <Col xs={24} md={8}><Text type="secondary">{copy.profileHomeDistrict}</Text><div><Text strong>{cbsProfile.homeDistrict || copy.none}</Text></div></Col>
+                  <Col xs={24} md={8}><Text type="secondary">{copy.profileSegment}</Text><div><Text strong>{cbsProfile.customerSegment || copy.none}</Text></div></Col>
                 </Row>
               </div>
             )}
 
             <div style={complaintSectionHeadingStyle}>
-              Complaint Details
+              {copy.details}
             </div>
             <Row gutter={[16, 16]} style={rowMargin16Style}>
               <Col xs={24} md={6}>
-                <Form.Item name="complaintCategory" label={<StaffFormLabel>Category</StaffFormLabel>} rules={[{ required: true, message: 'Please select a category' }]}>
-                  <ComplaintCategorySelect allowAdd style={selectControlStyle} />
+                <Form.Item name="complaintCategory" label={<StaffFormLabel>{copy.category}</StaffFormLabel>} rules={[{ required: true, message: copy.categoryRequired }]}>
+                  <ComplaintCategorySelect allowAdd language={registrationLanguage} style={selectControlStyle} />
                 </Form.Item>
               </Col>
               <Col xs={24} md={6}>
-                <Form.Item name="serviceType" label={<StaffFormLabel>Service Type</StaffFormLabel>} rules={[{ required: true, message: 'Please select service type' }]}>
+                <Form.Item name="serviceType" label={<StaffFormLabel>{copy.serviceType}</StaffFormLabel>} rules={[{ required: true, message: copy.serviceRequired }]}>
                   <Select style={selectControlStyle}>
-                    <Select.Option value="Deposit Account">Deposit Account</Select.Option>
-                    <Select.Option value="Credit/Financing">Credit/Financing</Select.Option>
-                    <Select.Option value="Digital Banking">Digital Banking</Select.Option>
-                    <Select.Option value="ATM & Card Banking">ATM & Card Banking</Select.Option>
-                    <Select.Option value="RTGs">RTGs</Select.Option>
-                    <Select.Option value="International Banking">International Banking</Select.Option>
-                    <Select.Option value="Vendor/Procurement">Vendor/Procurement</Select.Option>
-                    <Select.Option value="Incoming Fund Transfer">Incoming Fund Transfer</Select.Option>
-                    <Select.Option value="Outgoing Fund Transfer">Outgoing Fund Transfer</Select.Option>
-                    <Select.Option value="Merchant Service via Super App">Merchant Service via Super App</Select.Option>
-                    <Select.Option value="Interest Free Banking Services">Interest Free Banking Services</Select.Option>
-                    <Select.Option value="Other">Other</Select.Option>
+                    {optionNodes(SERVICE_TYPES, registrationLanguage)}
                   </Select>
                 </Form.Item>
               </Col>
               <Col xs={24} md={6}>
-                <Form.Item name="channel" label={<StaffFormLabel>Received By</StaffFormLabel>} rules={[{ required: true, message: 'Please select how the complaint was received' }]}>
+                <Form.Item name="channel" label={<StaffFormLabel>{copy.receivedBy}</StaffFormLabel>} rules={[{ required: true, message: copy.receivedRequired }]}>
                   <Select style={selectControlStyle}>
-                    <Select.Option value="Customer Care-Telephone">Customer Care-Telephone</Select.Option>
-                    <Select.Option value="Customer Care-In person">Customer Care-In person</Select.Option>
-                    <Select.Option value="Contact Center">Contact Center</Select.Option>
-                    <Select.Option value="Contact Center-Email">Contact Center-Email</Select.Option>
-                    <Select.Option value="Digital Marketing">Digital Marketing</Select.Option>
-                    <Select.Option value="HO">HO</Select.Option>
-                    <Select.Option value="Branch">Branch</Select.Option>
-                    <Select.Option value="District">District</Select.Option>
+                    {optionNodes(RECEIVED_BY, registrationLanguage)}
                   </Select>
                 </Form.Item>
               </Col>
               <Col xs={24} md={6}>
-                <Form.Item name="complaintMadeOn" label={<StaffFormLabel>Complaint Made on</StaffFormLabel>} rules={[{ required: true, message: 'Please select Complaint Made on' }]}>
+                <Form.Item name="complaintMadeOn" label={<StaffFormLabel>{copy.madeOn}</StaffFormLabel>} rules={[{ required: true, message: copy.madeOnRequired }]}>
                   <Select style={selectControlStyle}>
-                    <Select.Option value="Agent">Agent</Select.Option>
-                    <Select.Option value="ATM">ATM</Select.Option>
-                    <Select.Option value="Branch">Branch</Select.Option>
-                    <Select.Option value="District Office">District Office</Select.Option>
-                    <Select.Option value="HO">HO</Select.Option>
-                    <Select.Option value="Super App">Super App</Select.Option>
-                    <Select.Option value="Merchant">Merchant</Select.Option>
-                    <Select.Option value="Other">Other</Select.Option>
+                    {optionNodes(MADE_ON, registrationLanguage)}
                   </Select>
                 </Form.Item>
               </Col>
@@ -1064,15 +1066,15 @@ function BranchStaffDashboard() {
 
             <Form.Item
               name="complaintDescription"
-              label={<StaffFormLabel>Details of the Complaint</StaffFormLabel>}
-              rules={[fieldRule((value) => getDescriptionError(value, 'english'))]}
+              label={<StaffFormLabel>{copy.description}</StaffFormLabel>}
+              rules={[fieldRule((value) => getDescriptionError(value, registrationLanguage))]}
             >
               <Input.TextArea rows={4} maxLength={5000} showCount style={textareaStyle} />
             </Form.Item>
 
             <div style={uploadBoxStyle}>
               <div style={uploadTitleStyle}>
-                1. Supporting Evidence Document (PDF / Image / Doc)
+                {copy.evidence}
               </div>
               <Space align="center">
                 <input
@@ -1084,12 +1086,12 @@ function BranchStaffDashboard() {
                   id="intake-evidence-file-manager"
                 />
                 <Button icon={<PaperClipOutlined />} onClick={() => document.getElementById('intake-evidence-file-manager').click()} loading={isUploadingEvidence} style={roundedButtonStyle}>
-                  {evidenceFiles.length > 0 ? 'Add Documents' : 'Upload Supporting Documents'}
+                  {evidenceFiles.length > 0 ? copy.addDocs : copy.uploadDocs}
                 </Button>
                 {evidenceFiles.map((file) => (
                   <Text key={file.url} type="success" style={successNameStyle}>
                     ✓ {file.name}
-                    <Button type="link" size="small" onClick={() => setEvidenceFiles((prev) => prev.filter((item) => item.url !== file.url))}>Remove</Button>
+                    <Button type="link" size="small" onClick={() => setEvidenceFiles((prev) => prev.filter((item) => item.url !== file.url))}>{copy.remove}</Button>
                   </Text>
                 ))}
               </Space>
@@ -1097,7 +1099,7 @@ function BranchStaffDashboard() {
 
             <div style={uploadBoxLastStyle}>
               <div style={uploadTitleStyle}>
-                2. Voice / Call Recording Attachment (Audio File)
+                {copy.voice}
               </div>
               <Space align="center">
                 <input
@@ -1114,12 +1116,12 @@ function BranchStaffDashboard() {
                   loading={isUploadingVoice}
                   style={roundedButtonStyle}
                 >
-                  {voiceFiles.length > 0 ? 'Add Voice Attachments' : 'Upload Voice / Call Audio Files'}
+                  {voiceFiles.length > 0 ? copy.addVoice : copy.uploadVoice}
                 </Button>
                 {voiceFiles.map((file) => (
                   <Text key={file.url} type="success" style={successNameStyle}>
                     ✓ {file.name}
-                    <Button type="link" size="small" onClick={() => setVoiceFiles((prev) => prev.filter((item) => item.url !== file.url))}>Remove</Button>
+                    <Button type="link" size="small" onClick={() => setVoiceFiles((prev) => prev.filter((item) => item.url !== file.url))}>{copy.remove}</Button>
                   </Text>
                 ))}
               </Space>
@@ -1127,7 +1129,7 @@ function BranchStaffDashboard() {
               {voiceFiles.map((file) => (
                 <div key={file.url} style={voicePreviewWrapStyle}>
                   <Text type="secondary" style={voicePreviewLabelStyle}>
-                    Voice Recording Preview: {file.name}
+                    {copy.voicePreview}: {file.name}
                   </Text>
                   {/* eslint-disable-next-line jsx-a11y/media-has-caption -- call recording has no caption track */}
                   <audio controls src={ApiService.getAttachmentUrl(file.url)} style={audioPreviewStyle} aria-label="Voice recording preview" />
@@ -1137,11 +1139,11 @@ function BranchStaffDashboard() {
 
             <div style={fcrBoxStyle}>
               <Checkbox checked={fcrChecked} onChange={(e) => setFcrChecked(e.target.checked)}>
-                <strong style={fcrLabelStyle}>First Contact Resolution (FCR) Notes</strong>
+                <strong style={fcrLabelStyle}>{copy.fcr}</strong>
               </Checkbox>
 
               {fcrChecked && (
-                <Form.Item name="resolutionNotes" label={<StaffFormLabel>FCR Resolution Notes</StaffFormLabel>} rules={[{ required: true, message: 'Provide resolution notes' }]} style={fcrNotesItemStyle}>
+                <Form.Item name="resolutionNotes" label={<StaffFormLabel>{copy.fcrNotes}</StaffFormLabel>} rules={[{ required: true, message: copy.fcrRequired }]} style={fcrNotesItemStyle}>
                   <Input.TextArea rows={3} style={fcrTextareaStyle} />
                 </Form.Item>
               )}
@@ -1149,7 +1151,7 @@ function BranchStaffDashboard() {
 
             <Form.Item style={formItemNoMarginStyle}>
               <Button type="primary" htmlType="submit" loading={isSubmitting} size="large" style={submitButtonStyle}>
-                Submit Complaint into Workflow
+                {copy.submit}
               </Button>
             </Form.Item>
           </Form>

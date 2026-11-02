@@ -2,11 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Input, Modal, Select, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import ApiService from '../services/api';
-import { categoryNamesFromResponse } from '../constants/complaintCategories';
+import { categoryLabel, categoryNamesFromResponse } from '../constants/complaintCategories';
 
 const { Option } = Select;
 
-function ComplaintCategorySelect({ value, onChange, style, allowAdd = false }) {
+function ComplaintCategorySelect({ value, onChange, style, allowAdd = false, language = 'english' }) {
   const [categories, setCategories] = useState(() => categoryNamesFromResponse(null));
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState('');
@@ -39,10 +39,12 @@ function ComplaintCategorySelect({ value, onChange, style, allowAdd = false }) {
     setSaving(false);
   };
 
+  const amharic = language === 'amharic';
+
   const saveCategory = async () => {
     const name = draft.trim();
     if (!name) {
-      message.warning('Enter the new category name.');
+      message.warning(amharic ? 'የአዲሱን የቅሬታ አይነት ስም ያስገቡ።' : 'Enter the new category name.');
       return;
     }
     setSaving(true);
@@ -51,10 +53,10 @@ function ComplaintCategorySelect({ value, onChange, style, allowAdd = false }) {
       const savedName = saved?.name || name;
       setCategories((current) => (current.includes(savedName) ? current : [...current, savedName]));
       onChange?.(savedName);
-      message.success('Category added.');
+      message.success(amharic ? 'የቅሬታ አይነት ተጨምሯል።' : 'Category added.');
       closeAdd();
     } catch (err) {
-      message.error(err?.message || 'Could not add the category.');
+      message.error(err?.message || (amharic ? 'የቅሬታ አይነቱን መጨመር አልተቻለም።' : 'Could not add the category.'));
       setSaving(false);
     }
   };
@@ -63,7 +65,7 @@ function ComplaintCategorySelect({ value, onChange, style, allowAdd = false }) {
     <div>
       <Select value={value} style={style} onChange={onChange}>
         {options.map((name) => (
-          <Option key={name} value={name}>{name}</Option>
+          <Option key={name} value={name}>{categoryLabel(name, language)}</Option>
         ))}
       </Select>
       {allowAdd && (
@@ -73,23 +75,23 @@ function ComplaintCategorySelect({ value, onChange, style, allowAdd = false }) {
           onClick={() => setAdding(true)}
           style={{ paddingLeft: 0, height: 'auto', marginTop: 4 }}
         >
-          Add Category
+          {amharic ? 'የቅሬታ አይነት ጨምር' : 'Add Category'}
         </Button>
       )}
       <Modal
-        title="Add Category"
+        title={amharic ? 'የቅሬታ አይነት ጨምር' : 'Add Category'}
         open={adding}
         onCancel={closeAdd}
         destroyOnClose
         footer={[
-          <Button key="cancel" onClick={closeAdd} disabled={saving}>Cancel</Button>,
-          <Button key="save" type="primary" loading={saving} onClick={saveCategory}>Save</Button>
+          <Button key="cancel" onClick={closeAdd} disabled={saving}>{amharic ? 'ይቅር' : 'Cancel'}</Button>,
+          <Button key="save" type="primary" loading={saving} onClick={saveCategory}>{amharic ? 'አስቀምጥ' : 'Save'}</Button>
         ]}
       >
         <Input
           value={draft}
           maxLength={100}
-          placeholder="Category name"
+          placeholder={amharic ? 'የአይነቱ ስም' : 'Category name'}
           onChange={(event) => setDraft(event.target.value)}
           onPressEnter={saveCategory}
         />

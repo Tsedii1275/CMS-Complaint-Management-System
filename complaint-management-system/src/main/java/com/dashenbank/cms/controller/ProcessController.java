@@ -2365,7 +2365,13 @@ public class ProcessController {
             String queryTicket = URLDecoder.decode(rawTicket.trim(), StandardCharsets.UTF_8).trim();
 
             // 2. Validate expected ticket format & XSS security check
-            inputValidationService.validateTicketId(queryTicket);
+            try {
+                inputValidationService.validateTicketId(queryTicket);
+            } catch (InputValidationException invalidTicket) {
+                // A malformed ticket cannot exist, so tell the customer it was not found.
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of(KEY_ERROR, "No complaint found with the provided ticket number."));
+            }
 
             // 3. Query audit log
             List<AuditLog> logs = auditService.getLogs(null, queryTicket, null, null, null);
