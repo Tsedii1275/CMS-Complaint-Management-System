@@ -13,14 +13,14 @@ export const STANDARD_COMPLAINT_CATEGORIES = [
 ];
 
 export const AMHARIC_CATEGORY_LABELS = {
-  'Customer Service Issues': 'የደንበኞች አገልግሎት ችግኝ',
+  'Customer Service Issues': 'የደንበኞች አገልግሎት ችግር',
   'Transaction Error': 'የግብይት ስህተት',
   'Account Management': 'የሂሳብ አስተዳደር',
-  'Banking App Issues': 'የባንክ መተግበሪያ ችግኝ',
+  'Banking App Issues': 'የባንክ መተግበሪያ ችግር',
   'Credit/Financing Concerns': 'የብድር/ፋይናንስ ጉዳዮች',
   'Fraud & Security Risk': 'የማጭበርበር እና የደህንነት ስጋት',
   'Information Disclosure': 'የመረጃ ይፋ መደረግ',
-  'ATM & Card Banking Issues': 'የኤቲኤም እና የካርድ ባንክ ችግኝ',
+  'ATM & Card Banking Issues': 'የኤቲኤም እና የካርድ ባንክ ችግር',
   'Policy & Compliance Disputes': 'የፖሊሲ እና የተገዢነት ክርክሮች',
   'System Failure': 'የስርዓት መቋረጥ',
   'Branch Operation': 'የቅርንጫፍ አሰራር',
