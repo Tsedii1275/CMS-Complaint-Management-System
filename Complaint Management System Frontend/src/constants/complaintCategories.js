@@ -23,14 +23,19 @@ export const AMHARIC_CATEGORY_LABELS = {
   'ATM & Card Banking Issues': 'የኤቲኤም እና የካርድ ባንክ ችግኝ',
   'Policy & Compliance Disputes': 'የፖሊሲ እና የተገዢነት ክርክሮች',
   'System Failure': 'የስርዓት መቋረጥ',
-  'Branch Operation': 'የቅርንጫፍ አሰራር'
+  'Branch Operation': 'የቅርንጫፍ አሰራር',
+  'Other': 'ሌላ',
+  'Others': 'ሌሎች'
 };
 
+const AMHARIC_BY_LOWERCASE = Object.fromEntries(
+  Object.entries(AMHARIC_CATEGORY_LABELS).map(([english, amharic]) => [english.toLowerCase(), amharic])
+);
+
 export function categoryLabel(name, language) {
-  if (language === 'amharic' && AMHARIC_CATEGORY_LABELS[name]) {
-    return AMHARIC_CATEGORY_LABELS[name];
-  }
-  return name;
+  if (language !== 'amharic') return name;
+  const key = String(name || '').trim().toLowerCase();
+  return AMHARIC_BY_LOWERCASE[key] || name;
 }
 
 export function categoryNamesFromResponse(rows) {
