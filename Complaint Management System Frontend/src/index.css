@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Ethiopic:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
   --primary-color: #012169;
@@ -25,7 +25,7 @@ html, body, #root {
   padding: 0;
   height: 100%;
   width: 100%;
-  font-family: Ebrima, 'Noto Sans Ethiopic', Nyala, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Noto Sans Ethiopic', 'Segoe UI', 'Inter', sans-serif;
   background-color: #f4f6f8;
   color: #111827;
   -webkit-font-smoothing: antialiased;
@@ -33,7 +33,7 @@ html, body, #root {
 }
 
 #root h1, #root h2, #root h3, #root h4, #root h5, #root h6{
-  font-family: Ebrima, 'Noto Sans Ethiopic', Nyala, 'Inter', sans-serif;
+  font-family: 'Noto Sans Ethiopic', 'Segoe UI', 'Inter', sans-serif;
   font-weight: 600;
 }
 
@@ -902,14 +902,16 @@ html {
   }
 }
 
-/* Amharic syllabary needs a face that contains it. Inter does not, so typed text would not appear. */
+/* The Ethiopic font is loaded with the app. A face with no Amharic glyphs leaves the field blank. */
 #root input,
 #root textarea,
 #root .ant-input,
+#root .ant-input-affix-wrapper,
 #root .ant-input-affix-wrapper input,
+#root .ant-input-affix-wrapper textarea,
 #root .amharic-lightweight,
 #root .amharic-lightweight input,
 #root .amharic-lightweight textarea{
-  font-family: Ebrima, 'Noto Sans Ethiopic', Nyala, 'Inter', sans-serif;
+  font-family: 'Noto Sans Ethiopic', 'Segoe UI', 'Inter', sans-serif !important;
 }
 

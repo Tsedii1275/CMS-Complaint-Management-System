@@ -1,8 +1,8 @@
 import React, { forwardRef, useEffect, useRef } from 'react';
 import { Input } from 'antd';
 
-const AntTextArea = Input.TextArea;
-const FIELD_FONT = "Ebrima, 'Noto Sans Ethiopic', Nyala, sans-serif";
+const FIELD_FONT = "'Noto Sans Ethiopic', 'Segoe UI', sans-serif";
+const ANT_ONLY_PROPS = ['size', 'showCount', 'allowClear', 'bordered', 'status', 'variant'];
 
 function domNode(instance) {
   if (!instance) return null;
@@ -32,16 +32,26 @@ export const StableField = forwardRef(function StableField(
 
   useEffect(() => {
     const node = domNode(innerRef.current);
-    if (!node || focused.current) return;
+    if (!node || focused.current || document.activeElement === node) return;
     const next = value ?? '';
     if (node.value !== next) node.value = next;
   }, [value]);
 
   const fieldStyle = style ? { ...style, fontFamily: FIELD_FONT } : { fontFamily: FIELD_FONT };
+  const domRest = {};
+  Object.keys(rest).forEach((key) => {
+    if (!ANT_ONLY_PROPS.includes(key)) domRest[key] = rest[key];
+  });
+  const { className } = rest;
   const props = {
-    ...rest,
+    ...domRest,
+    className: antd ? ['ant-input', className].filter(Boolean).join(' ') : className,
     style: fieldStyle,
     defaultValue: value ?? '',
+    onCompositionStart: (event) => {
+      focused.current = true;
+      if (domRest.onCompositionStart) domRest.onCompositionStart(event);
+    },
     onChange,
     onFocus: (event) => {
       focused.current = true;
@@ -54,8 +64,6 @@ export const StableField = forwardRef(function StableField(
     }
   };
 
-  if (antd && multiline) return <AntTextArea ref={setRef} {...props} />;
-  if (antd) return <Input ref={setRef} {...props} />;
   if (multiline) return <textarea ref={setRef} {...props} />;
   return <input ref={setRef} {...props} />;
 });

@@ -71,6 +71,7 @@ function App() {
       theme={{
         token: {
           colorPrimary: '#012169',
+          fontFamily: "'Noto Sans Ethiopic', 'Segoe UI', sans-serif",
         },
       }}
     >

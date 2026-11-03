@@ -270,7 +270,7 @@ function CustomerFeedbackPage() {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '24px 12px',
-      fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      fontFamily: "'Noto Sans Ethiopic', 'Segoe UI', sans-serif",
     },
     container: {
       width: '100%',
