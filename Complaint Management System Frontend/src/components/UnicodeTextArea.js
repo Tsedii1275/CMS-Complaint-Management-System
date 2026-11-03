@@ -47,14 +47,14 @@ export const StableField = forwardRef(function StableField(
       composing.current = true;
       focused.current = true;
     };
-    const end = () => {
-      composing.current = false;
+    const keepSyllable = (event) => {
+      if (composing.current || event.isComposing) event.stopPropagation();
     };
     node.addEventListener('compositionstart', start);
-    node.addEventListener('compositionend', end);
+    node.addEventListener('input', keepSyllable);
     return () => {
       node.removeEventListener('compositionstart', start);
-      node.removeEventListener('compositionend', end);
+      node.removeEventListener('input', keepSyllable);
     };
   }, []);
 
@@ -104,7 +104,10 @@ export const StableField = forwardRef(function StableField(
         if (onBlurRef.current) onBlurRef.current(event);
       }
     },
-    onChange: emitChange,
+    onChange: (event) => {
+      if (composing.current || event.nativeEvent?.isComposing) return;
+      emitChange(event);
+    },
     onFocus: (event) => {
       focused.current = true;
       if (onFocusRef.current) onFocusRef.current(event);
