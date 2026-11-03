@@ -17,7 +17,7 @@ public class InputValidationService {
     // 1. Customer Name: Letters (Latin + Ethiopic/Ge'ez), spaces, apostrophes,
     // hyphens (2 to 100 chars)
     private static final Pattern NAME_PATTERN = Pattern
-            .compile("^[\\p{L}][\\p{L}\\s.'-]{1,99}$");
+            .compile("^[\\p{L}][\\p{L}\\p{M}\\s.'\\-\\u1361-\\u1368]{1,99}$");
 
     // National lengths after the country code, plus the Ethiopian local form used by staff.
     // Ethiopia 9, USA 10, UK 10, Kenya 9, Djibouti 8, UAE 8-9, Saudi Arabia 9.
@@ -28,7 +28,7 @@ public class InputValidationService {
     private static final Pattern ACCOUNT_NUMBER_PATTERN = Pattern.compile("^\\d{13}$");
 
     // District and branch: letters and spaces only (Latin and Ethiopic), 1 to 100 characters.
-    private static final Pattern DISTRICT_BRANCH_PATTERN = Pattern.compile("^[\\p{L} ]{1,100}$");
+    private static final Pattern DISTRICT_BRANCH_PATTERN = Pattern.compile("^[\\p{L}\\p{M} ]{1,100}$");
 
     // Ticket & Task ID Validation
     private static final Pattern TICKET_ID_PATTERN = Pattern.compile("^[A-Za-z0-9/\\-_]{3,50}$");

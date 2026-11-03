@@ -1,5 +1,24 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Ethiopic:wght@400;600;700&display=swap');
 
+/* Inter has no Amharic letters. These faces are used only for Ethiopic, so a typed syllable is visible. */
+@font-face {
+  font-family: 'CMS Ethiopic';
+  src: local('Ebrima'), local('Nyala');
+  unicode-range: U+1200-139F, U+2D80-2DDF, U+AB00-AB2F;
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'CMS Ethiopic';
+  src: local('Ebrima'), local('Nyala');
+  unicode-range: U+1200-139F, U+2D80-2DDF, U+AB00-AB2F;
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --primary-color: #012169;
   --primary-hover: #011558;
@@ -25,7 +44,7 @@ html, body, #root {
   padding: 0;
   height: 100%;
   width: 100%;
-  font-family: 'Inter', 'Noto Sans Ethiopic', 'Nyala', 'Ebrima', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'CMS Ethiopic', 'Noto Sans Ethiopic', 'Ebrima', 'Nyala', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   background-color: #f4f6f8;
   color: #111827;
   -webkit-font-smoothing: antialiased;
@@ -33,7 +52,7 @@ html, body, #root {
 }
 
 #root h1, #root h2, #root h3, #root h4, #root h5, #root h6{
-  font-family: 'Inter', 'Noto Sans Ethiopic', 'Nyala', 'Ebrima', sans-serif;
+  font-family: 'CMS Ethiopic', 'Noto Sans Ethiopic', 'Ebrima', 'Nyala', 'Inter', sans-serif;
   font-weight: 600;
 }
 
@@ -910,6 +929,6 @@ html {
 #root .amharic-lightweight,
 #root .amharic-lightweight input,
 #root .amharic-lightweight textarea{
-  font-family: 'Inter', 'Noto Sans Ethiopic', 'Nyala', 'Ebrima', sans-serif;
+  font-family: 'CMS Ethiopic', 'Noto Sans Ethiopic', 'Ebrima', 'Nyala', 'Inter', sans-serif;
 }
 

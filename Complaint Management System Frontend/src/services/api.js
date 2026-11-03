@@ -136,7 +136,7 @@ class ApiService {
 
   getHeaders() {
     const headers = {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json;charset=UTF-8',
     };
     const userStr = localStorage.getItem('user');
     if (userStr) {
@@ -194,7 +194,7 @@ class ApiService {
   async login(username, password) {
     const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json;charset=UTF-8' },
       body: JSON.stringify({ username, password }),
     });
     return this.handleResponse(response, { skipSessionRedirect: true });
@@ -203,7 +203,7 @@ class ApiService {
   async changeExpiredPassword(payload) {
     const response = await fetch(`${API_BASE_URL}/api/auth/expired-password`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json;charset=UTF-8' },
       body: JSON.stringify(payload),
     });
     return this.handleResponse(response, { skipSessionRedirect: true });
@@ -551,7 +551,7 @@ class ApiService {
   async validateCustomerFeedbackToken(token) {
     const response = await fetch(`${API_BASE_URL}/api/customer-feedback/validate?token=${token}`, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json;charset=UTF-8' },
     });
     const data = await response.json();
     if (!response.ok) {
@@ -564,7 +564,7 @@ class ApiService {
   async submitCustomerFeedback(payload) {
     const response = await fetch(`${API_BASE_URL}/api/customer-feedback`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json;charset=UTF-8' },
       body: JSON.stringify(payload),
     });
     const data = await response.json();

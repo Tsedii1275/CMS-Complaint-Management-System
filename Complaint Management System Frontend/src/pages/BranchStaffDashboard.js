@@ -20,6 +20,8 @@ import {
   getDescriptionError,
   getAccountNumberError,
   getPlaceNameError,
+  lettersOnlyPlaceName,
+  textWhileComposing,
   getEmailError,
   getStaffPhoneError,
   fieldRule
@@ -1001,20 +1003,30 @@ function BranchStaffDashboard() {
                 <Form.Item
                   name="district"
                   label={<StaffFormLabel>{copy.district}</StaffFormLabel>}
-                  getValueFromEvent={(e) => String(e.target.value || '').replace(/[^\p{L} ]/gu, '').slice(0, 100)}
+                  getValueFromEvent={(e) => textWhileComposing(e, lettersOnlyPlaceName)}
                   rules={[fieldRule((value) => getPlaceNameError(value, registrationLanguage, copy.district))]}
                 >
-                  <Input maxLength={100} placeholder={copy.districtPlaceholder} style={controlStyle} />
+                  <Input
+                    maxLength={100}
+                    placeholder={copy.districtPlaceholder}
+                    style={controlStyle}
+                    onCompositionEnd={(e) => form.setFieldValue('district', lettersOnlyPlaceName(e.target.value))}
+                  />
                 </Form.Item>
               </Col>
               <Col xs={24} md={8}>
                 <Form.Item
                   name="branch"
                   label={<StaffFormLabel>{copy.branch}</StaffFormLabel>}
-                  getValueFromEvent={(e) => String(e.target.value || '').replace(/[^\p{L} ]/gu, '').slice(0, 100)}
+                  getValueFromEvent={(e) => textWhileComposing(e, lettersOnlyPlaceName)}
                   rules={[fieldRule((value) => getPlaceNameError(value, registrationLanguage, copy.branch))]}
                 >
-                  <Input maxLength={100} placeholder={copy.branchPlaceholder} style={controlStyle} />
+                  <Input
+                    maxLength={100}
+                    placeholder={copy.branchPlaceholder}
+                    style={controlStyle}
+                    onCompositionEnd={(e) => form.setFieldValue('branch', lettersOnlyPlaceName(e.target.value))}
+                  />
                 </Form.Item>
               </Col>
             </Row>

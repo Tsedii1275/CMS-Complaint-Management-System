@@ -20,7 +20,13 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 
 function lettersOnlyPlaceName(value) {
-  return String(value || '').replace(/[^\p{L} ]/gu, '').slice(0, 100);
+  return String(value || '').replace(/[^\p{L}\p{M} ]/gu, '').slice(0, 100);
+}
+
+function textWhileComposing(event, filter) {
+  const value = event?.target?.value ?? '';
+  if (event?.nativeEvent?.isComposing) return value;
+  return filter(value);
 }
 
 const CMD_LABEL_STYLE = { color: '#475569', fontSize: '14px', fontWeight: 500 };
@@ -2314,7 +2320,8 @@ function CmdComplaintDetailsCard({
                 placeholder="Enter Complaint Branch"
                 value={formData.branch || ''}
                 maxLength={100}
-                onChange={(e) => setFormData(prev => ({ ...prev, branch: lettersOnlyPlaceName(e.target.value) }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, branch: textWhileComposing(e, lettersOnlyPlaceName) }))}
+                onCompositionEnd={(e) => setFormData(prev => ({ ...prev, branch: lettersOnlyPlaceName(e.target.value) }))}
                 style={{ minWidth: '180px' }}
                 size="small"
               />
@@ -2351,7 +2358,8 @@ function CmdComplaintDetailsCard({
                 placeholder="Enter Complaint District"
                 value={formData.district || ''}
                 maxLength={100}
-                onChange={(e) => setFormData(prev => ({ ...prev, district: lettersOnlyPlaceName(e.target.value) }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, district: textWhileComposing(e, lettersOnlyPlaceName) }))}
+                onCompositionEnd={(e) => setFormData(prev => ({ ...prev, district: lettersOnlyPlaceName(e.target.value) }))}
                 style={{ minWidth: '180px' }}
                 size="small"
               />

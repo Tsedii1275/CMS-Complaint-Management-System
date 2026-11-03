@@ -674,6 +674,7 @@ function CustomerFeedbackPage() {
                       style={styles.textarea}
                       value={additionalComments}
                       onChange={(e) => setAdditionalComments(e.target.value)}
+                      onCompositionEnd={(e) => setAdditionalComments(e.target.value)}
                       placeholder={translations[language].q6Placeholder}
                     />
                   </div>

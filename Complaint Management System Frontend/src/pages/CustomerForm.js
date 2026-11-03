@@ -12,6 +12,7 @@ import {
   getDescriptionError,
   getAccountNumberError,
   lettersOnlyPlaceName,
+  textWhileComposing,
   getPlaceNameError,
   getEmailError,
   PUBLIC_COUNTRY_PHONES,
@@ -80,7 +81,8 @@ function applyPublicFormInputChange(e, { setFormData, setErrors, language, error
     return;
   }
 
-  const nextValue = name === 'district' || name === 'branch' ? lettersOnlyPlaceName(value) : value;
+  const placeName = name === 'district' || name === 'branch';
+  const nextValue = placeName ? textWhileComposing(e, lettersOnlyPlaceName) : value;
 
   setFormData(prev => ({
     ...prev,
@@ -757,6 +759,7 @@ function CustomerForm() {
                   name="customerName"
                   value={formData.customerName}
                   onChange={handleInputChange}
+                  onCompositionEnd={handleInputChange}
                   required
                   style={{
                     width: '100%',
@@ -999,6 +1002,7 @@ function CustomerForm() {
                   name="district"
                   value={formData.district}
                   onChange={handleInputChange}
+                  onCompositionEnd={handleInputChange}
                   maxLength={100}
                   style={{
                     width: '100%',
@@ -1027,6 +1031,7 @@ function CustomerForm() {
                   name="branch"
                   value={formData.branch}
                   onChange={handleInputChange}
+                  onCompositionEnd={handleInputChange}
                   maxLength={100}
                   style={{
                     width: '100%',
@@ -1083,6 +1088,7 @@ function CustomerForm() {
                 name="complaintDescription"
                 value={formData.complaintDescription}
                 onChange={handleInputChange}
+                onCompositionEnd={handleInputChange}
                 required
                 rows={5}
                 style={{

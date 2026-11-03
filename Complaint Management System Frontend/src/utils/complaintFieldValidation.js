@@ -19,7 +19,7 @@ export function getCustomerNameError(name, language) {
   if (trimmed.length < 2 || trimmed.length > 100) {
     return language === 'english' ? 'Customer name must be between 2 and 100 characters' : 'ስም ከ2 እስከ 100 ፊደላት መሆን አለበት';
   }
-  if (!/^\p{L}[\p{L}\s.'-]{1,99}$/u.test(trimmed)) {
+  if (!/^\p{L}[\p{L}\p{M}\s.'\u1361-\u1368-]{1,99}$/u.test(trimmed)) {
     return language === 'english' ? 'Customer name contains invalid characters' : 'ስም የተከለከሉ ፊደላትን ይዟል';
   }
   return '';
@@ -53,13 +53,20 @@ export function getAccountNumberError(accountNumber, language) {
 }
 
 export function lettersOnlyPlaceName(value) {
-  return String(value || '').replace(/[^\p{L} ]/gu, '').slice(0, 100);
+  return String(value || '').replace(/[^\p{L}\p{M} ]/gu, '').slice(0, 100);
+}
+
+/** Keep an in-progress Amharic syllable. Filtering it mid-composition clears the field. */
+export function textWhileComposing(event, filter) {
+  const value = event?.target?.value ?? '';
+  if (event?.nativeEvent?.isComposing) return value;
+  return filter ? filter(value) : value;
 }
 
 export function getPlaceNameError(value, language, label) {
   const trimmed = String(value || '').trim();
   if (!trimmed) return '';
-  if (!/^[\p{L} ]{1,100}$/u.test(trimmed)) {
+  if (!/^[\p{L}\p{M} ]{1,100}$/u.test(trimmed)) {
     return language === 'english'
       ? `${label} may contain letters and spaces only`
       : `${label} ፊደላት እና ክፍተት ብቻ መያዝ አለበት`;
