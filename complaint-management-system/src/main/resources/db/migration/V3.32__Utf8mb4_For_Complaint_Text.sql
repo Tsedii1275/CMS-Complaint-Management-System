@@ -2,14 +2,10 @@
 -- charset cannot store it. New tables, including Flowable variable tables
 -- created after this runs, follow the database default.
 
+-- ALTER DATABASE cannot be prepared. PREPARE raises error 1295 and Flyway stops the app.
+ALTER DATABASE CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 SET @db := DATABASE();
-SET @alterDb := CONCAT(
-    'ALTER DATABASE `', REPLACE(@db, '`', '``'),
-    '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'
-);
-PREPARE stmt FROM @alterDb;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
 
 -- Convert one existing table when it is present and not already utf8mb4.
 -- Already-utf8mb4 tables are left untouched.
