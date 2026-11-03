@@ -21,7 +21,7 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 
 function lettersOnlyPlaceName(value) {
-  return String(value || '').replace(/[^\p{L}\p{M} ]/gu, '').slice(0, 100);
+  return String(value || '').replace(/[^\p{L}\p{M}\p{Co} ]/gu, '').slice(0, 100);
 }
 
 function textWhileComposing(event, filter) {

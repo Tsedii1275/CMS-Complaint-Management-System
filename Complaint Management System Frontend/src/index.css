@@ -25,7 +25,7 @@ html, body, #root {
   padding: 0;
   height: 100%;
   width: 100%;
-  font-family: 'Noto Sans Ethiopic', 'Segoe UI', 'Inter', sans-serif;
+  font-family: 'Noto Sans Ethiopic', Geezigna, 'Segoe UI', 'Inter', sans-serif;
   background-color: #f4f6f8;
   color: #111827;
   -webkit-font-smoothing: antialiased;
@@ -33,7 +33,7 @@ html, body, #root {
 }
 
 #root h1, #root h2, #root h3, #root h4, #root h5, #root h6{
-  font-family: 'Noto Sans Ethiopic', 'Segoe UI', 'Inter', sans-serif;
+  font-family: 'Noto Sans Ethiopic', Geezigna, 'Segoe UI', 'Inter', sans-serif;
   font-weight: 600;
 }
 
@@ -912,6 +912,6 @@ html {
 #root .amharic-lightweight,
 #root .amharic-lightweight input,
 #root .amharic-lightweight textarea{
-  font-family: 'Noto Sans Ethiopic', 'Segoe UI', 'Inter', sans-serif !important;
+  font-family: 'Noto Sans Ethiopic', Geezigna, 'Segoe UI', 'Inter', sans-serif !important;
 }
 

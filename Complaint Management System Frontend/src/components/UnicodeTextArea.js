@@ -1,7 +1,7 @@
 import React, { forwardRef, useEffect, useRef } from 'react';
 import { Input } from 'antd';
 
-const FIELD_FONT = "'Noto Sans Ethiopic', 'Segoe UI', sans-serif";
+const FIELD_FONT = "'Noto Sans Ethiopic', Geezigna, 'Segoe UI', sans-serif";
 const ANT_ONLY_PROPS = ['size', 'showCount', 'allowClear', 'bordered', 'status', 'variant'];
 
 function domNode(instance) {

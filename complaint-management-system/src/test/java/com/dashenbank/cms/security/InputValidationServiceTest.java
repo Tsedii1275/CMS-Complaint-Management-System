@@ -47,6 +47,13 @@ class InputValidationServiceTest {
                 "ቦሌ ቅርንጫፍ", "የኤቲኤም ገንዘብ አላወጣልኝም። እባክዎ ይመልከቱ።", null);
         service.validateComplaintInput("አበበ፣ ተስፋዬ", "0911223344", "1234567890123", "ቦሌ",
                 "ቦሌ ቅርንጫፍ", "የኤቲኤም ገንዘብ አላወጣልኝም።", null);
+        service.validateComplaintInput("\uF041\uF042", "0911223344", "1234567890123", "\uF041 \uF062",
+                "\uF041\uF062", "The ATM did not dispense cash.", null);
+
+        InputValidationException digitInName = assertThrows(InputValidationException.class,
+                () -> service.validateComplaintInput("Abebe1", "0911223344", "1234567890123", "Bole",
+                        "Bole", "The ATM did not dispense cash.", null));
+        assertEquals("Customer name contains invalid characters", digitInName.getErrors().get("name"));
     }
 
     @Test
