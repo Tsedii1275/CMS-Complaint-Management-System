@@ -6,6 +6,7 @@ import ApiService from '../services/api';
 import { categoryLabel, categoryNamesFromResponse } from '../constants/complaintCategories';
 import { normalizeComplaintStatus, renderComplaintStatusTag } from '../utils/statusUtils';
 import moment from 'moment';
+import { StableField } from '../components/UnicodeTextArea';
 import {
   sanitizePublicPhone,
   getCustomerNameError,
@@ -754,12 +755,11 @@ function CustomerForm() {
                 <label style={{ display: 'block', marginBottom: '10px', fontWeight: '600', color: '#444', fontSize: '14px' }}>
                   {t.customerName} <span style={{ color: 'red' }}>*</span>
                 </label>
-                <input
+                <StableField
                   type="text"
                   name="customerName"
                   value={formData.customerName}
                   onChange={handleInputChange}
-                  onCompositionEnd={handleInputChange}
                   required
                   style={{
                     width: '100%',
@@ -997,12 +997,11 @@ function CustomerForm() {
                 <label style={{ display: 'block', marginBottom: '10px', fontWeight: '600', color: '#444', fontSize: '14px' }}>
                   {t.district}
                 </label>
-                <input
+                <StableField
                   type="text"
                   name="district"
                   value={formData.district}
                   onChange={handleInputChange}
-                  onCompositionEnd={handleInputChange}
                   maxLength={100}
                   style={{
                     width: '100%',
@@ -1026,12 +1025,11 @@ function CustomerForm() {
                 <label style={{ display: 'block', marginBottom: '10px', fontWeight: '600', color: '#444', fontSize: '14px' }}>
                   {t.branch}
                 </label>
-                <input
+                <StableField
                   type="text"
                   name="branch"
                   value={formData.branch}
                   onChange={handleInputChange}
-                  onCompositionEnd={handleInputChange}
                   maxLength={100}
                   style={{
                     width: '100%',
@@ -1084,11 +1082,11 @@ function CustomerForm() {
               <label style={{ display: 'block', marginBottom: '10px', fontWeight: '600', color: '#444', fontSize: '14px' }}>
                 {t.complaintDescription} <span style={{ color: 'red' }}>*</span>
               </label>
-              <textarea
+              <StableField
+                multiline
                 name="complaintDescription"
                 value={formData.complaintDescription}
                 onChange={handleInputChange}
-                onCompositionEnd={handleInputChange}
                 required
                 rows={5}
                 style={{

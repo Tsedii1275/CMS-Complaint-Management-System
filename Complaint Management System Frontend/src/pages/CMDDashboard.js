@@ -14,6 +14,7 @@ import { customerHomeBranch, customerHomeDistrict, customerBranchCode, complaint
 import InvestigationReviewPanel from '../components/InvestigationReviewPanel';
 import FeedbackPanel from '../components/FeedbackPanel';
 import ComplaintCategorySelect from '../components/ComplaintCategorySelect';
+import { StableField } from '../components/UnicodeTextArea';
 import { hasInvestigationTab, investigationTabLabel, investigationTasksForRole } from '../utils/investigationWorkflow';
 
 const { Title, Text } = Typography;
@@ -2316,7 +2317,8 @@ function CmdComplaintDetailsCard({
           <Text style={{ color: '#64748b', fontSize: '14px' }}>Complaint Branch</Text>
           {activeTab === 'my_tasks' && editingFields.branch ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Input
+              <StableField
+                antd
                 placeholder="Enter Complaint Branch"
                 value={formData.branch || ''}
                 maxLength={100}
@@ -2354,7 +2356,8 @@ function CmdComplaintDetailsCard({
           <Text style={{ color: '#64748b', fontSize: '14px' }}>Complaint District</Text>
           {activeTab === 'my_tasks' && editingFields.district ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Input
+              <StableField
+                antd
                 placeholder="Enter Complaint District"
                 value={formData.district || ''}
                 maxLength={100}

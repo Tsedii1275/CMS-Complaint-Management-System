@@ -14,6 +14,7 @@ import moment from 'moment';
 import ExportDropdown from '../components/ExportDropdown';
 import ScreenedCaseDetailModal from '../components/ScreenedCaseDetailModal';
 import ComplaintCategorySelect from '../components/ComplaintCategorySelect';
+import { StableField } from '../components/UnicodeTextArea';
 import { MADE_ON, RECEIVED_BY, SERVICE_TYPES, staffRegistrationCopy } from '../constants/staffRegistrationCopy';
 import {
   getCustomerNameError,
@@ -930,7 +931,7 @@ function BranchStaffDashboard() {
                   label={<StaffFormLabel>{copy.customerName}</StaffFormLabel>}
                   rules={[fieldRule((value) => getCustomerNameError(value, registrationLanguage))]}
                 >
-                  <Input maxLength={100} style={controlStyle} />
+                  <StableField antd maxLength={100} style={controlStyle} />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
@@ -1006,7 +1007,8 @@ function BranchStaffDashboard() {
                   getValueFromEvent={(e) => textWhileComposing(e, lettersOnlyPlaceName)}
                   rules={[fieldRule((value) => getPlaceNameError(value, registrationLanguage, copy.district))]}
                 >
-                  <Input
+                  <StableField
+                    antd
                     maxLength={100}
                     placeholder={copy.districtPlaceholder}
                     style={controlStyle}
@@ -1021,7 +1023,8 @@ function BranchStaffDashboard() {
                   getValueFromEvent={(e) => textWhileComposing(e, lettersOnlyPlaceName)}
                   rules={[fieldRule((value) => getPlaceNameError(value, registrationLanguage, copy.branch))]}
                 >
-                  <Input
+                  <StableField
+                    antd
                     maxLength={100}
                     placeholder={copy.branchPlaceholder}
                     style={controlStyle}
@@ -1082,7 +1085,7 @@ function BranchStaffDashboard() {
               label={<StaffFormLabel>{copy.description}</StaffFormLabel>}
               rules={[fieldRule((value) => getDescriptionError(value, registrationLanguage))]}
             >
-              <Input.TextArea rows={4} maxLength={5000} showCount style={textareaStyle} />
+              <StableField antd multiline rows={4} maxLength={5000} showCount style={textareaStyle} />
             </Form.Item>
 
             <div style={uploadBoxStyle}>

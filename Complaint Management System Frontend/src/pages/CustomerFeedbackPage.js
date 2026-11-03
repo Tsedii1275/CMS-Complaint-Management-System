@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { StableField } from '../components/UnicodeTextArea';
 import { useSearchParams } from 'react-router-dom';
 import { BRAND_COLORS } from '../constants/theme';
 import ApiService from '../services/api';
@@ -670,11 +671,11 @@ function CustomerFeedbackPage() {
                     <label style={styles.textareaLabel}>
                       {translations[language].q6Label}
                     </label>
-                    <textarea
+                    <StableField
+                      multiline
                       style={styles.textarea}
                       value={additionalComments}
                       onChange={(e) => setAdditionalComments(e.target.value)}
-                      onCompositionEnd={(e) => setAdditionalComments(e.target.value)}
                       placeholder={translations[language].q6Placeholder}
                     />
                   </div>
