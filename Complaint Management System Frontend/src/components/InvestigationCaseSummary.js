@@ -1,11 +1,8 @@
 import React from 'react';
-import { Button, Timeline, Typography } from 'antd';
+import { Timeline } from 'antd';
 import { formatUniqueId, formatIntakeId } from './TaskTable';
-import ApiService from '../services/api';
-import { collectAttachments } from '../utils/attachments';
+import CaseAttachments from './CaseAttachments';
 import { TRAIL_ACTION_LABELS, reviewTrailOf } from '../utils/investigationWorkflow';
-
-const { Text } = Typography;
 
 function classificationLabel(task) {
   const raw = String(task?.variables?.priorityLevel || task?.priority || 'General').toUpperCase();
@@ -19,32 +16,6 @@ function Fact({ label, children }) {
     <div style={{ minWidth: 0 }}>
       <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '2px' }}>{label}</div>
       <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 600, wordBreak: 'break-word' }}>{children}</div>
-    </div>
-  );
-}
-
-function CaseDocuments({ task }) {
-  const vars = task?.variables || {};
-  const files = collectAttachments(vars.investigationFiles, vars.complaint?.evidenceFiles, vars.evidenceFiles);
-  return (
-    <div style={{ marginTop: '16px' }}>
-      <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '6px' }}>
-        Documents{files.length > 0 ? ` (${files.length})` : ''}
-      </div>
-      {files.length === 0 ? (
-        <Text type="secondary" style={{ fontSize: '13px' }}>No documents attached.</Text>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          {files.map((file) => (
-            <div key={file.url} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center' }}>
-              <Text style={{ fontSize: '13px', color: '#0f172a' }}>{file.name}</Text>
-              <a href={ApiService.getAttachmentUrl(file.url)} download={file.name} target="_blank" rel="noopener noreferrer">
-                <Button size="small" type="link" style={{ padding: 0 }}>Download</Button>
-              </a>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -116,7 +87,7 @@ function InvestigationCaseSummary({ task }) {
           <div style={{ fontSize: '14px', color: '#334155', whiteSpace: 'pre-wrap' }}>{notes}</div>
         </div>
       ) : null}
-      <CaseDocuments task={task} />
+      <CaseAttachments variables={task?.variables} />
       <ReviewTrail task={task} />
     </div>
   );

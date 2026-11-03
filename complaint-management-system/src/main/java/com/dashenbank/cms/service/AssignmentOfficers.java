@@ -20,7 +20,48 @@ public final class AssignmentOfficers {
     public static final String KEY_OFFICERS = "assignedOfficers";
     public static final String KEY_USERNAMES = "assignedOfficerUsernames";
 
+    /** Work unit resolution can name several assignees; any one of them can resolve the case. */
+    public static final String KEY_WORK_UNIT_ASSIGNEES = "workUnitAssignees";
+    public static final String KEY_WORK_UNIT_USERNAMES = "workUnitAssigneeUsernames";
+    public static final int MAX_WORK_UNIT_ASSIGNEES = 10;
+
     private AssignmentOfficers() {
+    }
+
+    /**
+     * Checks the work unit assignee list when one is submitted.
+     *
+     * @return a user-facing message, or {@code null} when the list is absent or acceptable.
+     */
+    public static String validateWorkUnitAssignees(Map<String, Object> variables) {
+        if (variables == null || !variables.containsKey(KEY_WORK_UNIT_USERNAMES)) {
+            return null;
+        }
+        List<String> names = distinctUsernames(variables.get(KEY_WORK_UNIT_USERNAMES), null);
+        if (names.isEmpty()) {
+            return "Select at least one assignee for work unit resolution.";
+        }
+        if (names.size() > MAX_WORK_UNIT_ASSIGNEES) {
+            return "A complaint can be assigned to at most " + MAX_WORK_UNIT_ASSIGNEES
+                    + " people for work unit resolution.";
+        }
+        return null;
+    }
+
+    /**
+     * Cleans the submitted work unit assignee list (no blanks or duplicates) and keeps the first
+     * person as the primary assignee used by existing screens.
+     */
+    public static void normalizeWorkUnitAssignees(Map<String, Object> variables) {
+        if (variables == null || !variables.containsKey(KEY_WORK_UNIT_USERNAMES)) {
+            return;
+        }
+        List<String> names = distinctUsernames(variables.get(KEY_WORK_UNIT_USERNAMES), null);
+        variables.put(KEY_WORK_UNIT_USERNAMES, new ArrayList<>(names));
+        if (!names.isEmpty()) {
+            variables.put("assignedOfficerUsername", names.get(0));
+            variables.put("assigneeUsername", names.get(0));
+        }
     }
 
     public static List<String> distinctUsernames(Object rawUsernames, String singleFallback) {
@@ -91,6 +132,7 @@ public final class AssignmentOfficers {
     private static List<String> usernames(Map<String, Object> vars) {
         List<String> names = new ArrayList<>();
         addAll(names, vars.get(KEY_USERNAMES));
+        addAll(names, vars.get(KEY_WORK_UNIT_USERNAMES));
         Object officers = vars.get(KEY_OFFICERS);
         if (officers instanceof Collection<?> collection) {
             for (Object item : collection) {

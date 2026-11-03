@@ -1,4 +1,4 @@
-import { isVisibleOnWorkUnitInbox } from './workUnitInbox';
+import { isVisibleOnWorkUnitInbox, workUnitAssigneeUsernames } from './workUnitInbox';
 
 function wuTask(variables) {
   return { definitionKey: 'FormTask_57', variables };
@@ -47,6 +47,24 @@ test('AD branch manager with no CMS branch still sees own assignee tickets', () 
     username: 'bole.bm',
     role: 'ROLE_BRANCH_MANAGER',
   })).toBe(true);
+});
+
+test('every person named on a multi-assignee work unit case sees it', () => {
+  const task = wuTask({
+    assignmentType: 'ALL_EMPLOYEES',
+    assignedOfficerUsername: 'east.dd',
+    workUnitAssigneeUsernames: ['east.dd', 'West.DD'],
+  });
+  expect(isVisibleOnWorkUnitInbox(task, { username: 'east.dd', role: 'ROLE_DEPARTMENT_WORKUNIT' })).toBe(true);
+  expect(isVisibleOnWorkUnitInbox(task, { username: 'west.dd', role: 'ROLE_DEPARTMENT_WORKUNIT' })).toBe(true);
+  expect(isVisibleOnWorkUnitInbox(task, { username: 'north.dd', role: 'ROLE_DEPARTMENT_WORKUNIT' })).toBe(false);
+});
+
+test('workUnitAssigneeUsernames falls back to the single assignee and removes duplicates', () => {
+  expect(workUnitAssigneeUsernames(wuTask({ assignedOfficerUsername: 'a.b' }))).toEqual(['a.b']);
+  expect(workUnitAssigneeUsernames(wuTask({ workUnitAssigneeUsernames: ['a.b', 'A.B', ' c.d '] })))
+    .toEqual(['a.b', 'c.d']);
+  expect(workUnitAssigneeUsernames(wuTask({}))).toEqual([]);
 });
 
 test('district work-unit user only sees their assignee tickets', () => {

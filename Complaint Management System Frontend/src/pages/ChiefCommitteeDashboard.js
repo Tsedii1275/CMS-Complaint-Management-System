@@ -7,7 +7,7 @@ import ApiService from '../services/api';
 import { BRAND_COLORS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { complaintBranch } from '../utils/locationKeys';
-import { collectAttachments } from '../utils/attachments';
+import CaseAttachments from '../components/CaseAttachments';
 
 const { Title, Text } = Typography;
 
@@ -91,11 +91,6 @@ function CommitteeDecisionWorkspace({
   const intakeId = formatIntakeId(selectedTask);
   const showIntake = Boolean(intakeId && intakeId !== uniqueId);
   const auditSummary = vars.auditFindings || vars.auditJustification;
-  const auditFiles = collectAttachments(
-    vars.auditAttachments,
-    { url: vars.auditAttachment || vars.evidenceUrl, name: vars.auditAttachmentName || vars.evidenceName }
-  );
-
   return (
     <div>
       <div style={{ marginBottom: '16px' }}>
@@ -155,26 +150,9 @@ function CommitteeDecisionWorkspace({
                 </p>
               </div>
             ) : null}
-            {auditFiles.length > 0 ? (
-              <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid #e2e8f0' }}>
-                <Text style={{ fontSize: '12px', color: '#64748b', fontWeight: 500, display: 'block', marginBottom: '6px' }}>
-                  Audit Supporting Attachment
-                </Text>
-                {auditFiles.map((file) => (
-                  <a
-                    key={file.url}
-                    href={ApiService.getAttachmentUrl(file.url)}
-                    download={file.name}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ fontSize: '13px', fontWeight: 600, color: BRAND_COLORS.primary, display: 'flex', alignItems: 'center', marginBottom: '4px' }}
-                  >
-                    <PaperClipOutlined style={{ marginRight: '6px' }} />
-                    {file.name}
-                  </a>
-                ))}
-              </div>
-            ) : null}
+            <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid #e2e8f0' }}>
+              <CaseAttachments variables={vars} style={{ marginTop: 0 }} />
+            </div>
           </div>
         </Col>
         <Col xs={24} lg={12}>

@@ -471,6 +471,8 @@ public class SlaAlertAuthorizationService {
             assigned = vars.get("assigneeUsername");
         }
         alert.put("assignedOfficerUsername", assigned != null ? assigned.toString() : "");
+        alert.put("assignedOfficerUsernames", AssignmentOfficers.distinctUsernames(
+                vars != null ? vars.get(AssignmentOfficers.KEY_WORK_UNIT_USERNAMES) : null, null));
         return alert;
     }
 

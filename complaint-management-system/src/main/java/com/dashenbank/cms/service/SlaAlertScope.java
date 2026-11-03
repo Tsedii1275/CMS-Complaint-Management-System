@@ -49,6 +49,8 @@ public final class SlaAlertScope {
     public static final String TASK_SM_REVIEW = "FormTask_SM_Review";
     public static final String TASK_SQ_REVIEW = "FormTask_SQ_Review";
     public static final String TASK_SM_CLOSURE = "FormTask_SM_Closure";
+    /** Service Quality passes a case the CXO returned back down to the Senior Manager. */
+    public static final String TASK_SQ_RETURN = "FormTask_SQ_Return";
 
     private static final Map<String, String> TASK_TO_STAGE = new HashMap<>();
     private static final Map<String, String> STAGE_LABELS = new HashMap<>();
@@ -72,6 +74,7 @@ public final class SlaAlertScope {
         TASK_TO_STAGE.put(TASK_SM_REVIEW, STAGE_SENIOR_MANAGER_REVIEW);
         TASK_TO_STAGE.put(TASK_SQ_REVIEW, STAGE_SERVICE_QUALITY_REVIEW);
         TASK_TO_STAGE.put(TASK_SM_CLOSURE, STAGE_SENIOR_MANAGER_CLOSURE);
+        TASK_TO_STAGE.put(TASK_SQ_RETURN, STAGE_SERVICE_QUALITY_REVIEW);
 
         STAGE_LABELS.put(STAGE_BRANCH_INTAKE, "Branch Intake / Resolution");
         STAGE_LABELS.put(STAGE_CONTACT_CENTER_INTAKE, "Contact Center Intake");
@@ -218,7 +221,7 @@ public final class SlaAlertScope {
                 Set.of(TASK_CMD_SCREENING, TASK_CUSTOMER_NOTIFY);
             case "ROLE_CUSTOMER_CARE_SENIOR_MANAGER" ->
                 Set.of(TASK_CMD_SCREENING, TASK_CUSTOMER_NOTIFY, TASK_SM_REVIEW, TASK_SM_CLOSURE);
-            case "ROLE_SERVICE_QUALITY_DIRECTOR" -> Set.of(TASK_SERVICE_QUALITY, TASK_SQ_REVIEW);
+            case "ROLE_SERVICE_QUALITY_DIRECTOR" -> Set.of(TASK_SERVICE_QUALITY, TASK_SQ_REVIEW, TASK_SQ_RETURN);
             case "ROLE_DEPARTMENT_WORKUNIT" -> Set.of(TASK_WORK_UNIT);
             case "ROLE_CHIEF_COMMITTEE", "ROLE_COMMITTEE_SECRETARY" -> Set.of(TASK_COMMITTEE);
             case "ROLE_CHIEF_EXPERIENCE_OFFICER" -> Set.of(TASK_CXO);

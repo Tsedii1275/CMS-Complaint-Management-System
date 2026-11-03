@@ -6,6 +6,7 @@ import { formatDate, PRIORITY_CONFIG } from './TaskCard';
 import Pagination from './Pagination';
 import ExportDropdown from './ExportDropdown';
 import { renderComplaintStatusTag } from '../utils/statusUtils';
+import InvestigationReturnTag from './InvestigationReturnTag';
 
 /**
  * Resolves and formats the actual Complaint ID from backend data (no hardcoding or pseudo-hashing).
@@ -218,7 +219,7 @@ function TaskTable({ tasks = [], onSelectTask, onAssignTask, showPriority = fals
       title: 'Unique ID No',
       dataIndex: 'complaintId',
       key: 'complaintId',
-      width: 250,
+      width: 340,
       sorter: (a, b) => compareTicketNumbersAsc(formatUniqueId(a), formatUniqueId(b)),
       render: (id, r) => {
         const vars = recordVariables(r);
@@ -250,6 +251,7 @@ function TaskTable({ tasks = [], onSelectTask, onAssignTask, showPriority = fals
         return (
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexWrap: 'nowrap' }}>
             <UniqueIdDisplay record={r} />
+            <InvestigationReturnTag record={r} />
             {isCommitteeRejected && (
               <Tag color="magenta" style={{ fontWeight: 700, fontSize: '11px', borderRadius: '4px', margin: 0, whiteSpace: 'nowrap' }}>
                 Committee Rejected

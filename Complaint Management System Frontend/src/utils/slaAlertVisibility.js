@@ -6,8 +6,9 @@ function stageOf(alert) {
   return String(alert?.currentStage || alert?.currentStageLabel || '').toUpperCase();
 }
 
-function assigneeOf(alert) {
-  return normalize(alert?.assignedOfficerUsername || alert?.assigneeUsername);
+function assigneesOf(alert) {
+  const names = Array.isArray(alert?.assignedOfficerUsernames) ? alert.assignedOfficerUsernames : [];
+  return [...names, alert?.assignedOfficerUsername, alert?.assigneeUsername].map(normalize).filter(Boolean);
 }
 
 function branchOf(alert) {
@@ -20,7 +21,7 @@ function departmentOf(alert) {
 
 function matchesAssignee(alert, user) {
   const username = normalize(user?.username);
-  return Boolean(username && assigneeOf(alert) === username);
+  return Boolean(username && assigneesOf(alert).includes(username));
 }
 
 function matchesBranch(alert, user) {

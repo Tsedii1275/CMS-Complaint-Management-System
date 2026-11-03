@@ -15,6 +15,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class InvestigationWorkflowTest {
 
     @Test
+    void mergeFilesUniqueKeepsEarlierFilesAndDropsDuplicates() {
+        Map<String, Object> first = Map.of("name", "a.pdf", "url", "/files/a");
+        Map<String, Object> second = Map.of("name", "b.pdf", "url", "/files/b");
+        Map<String, Object> firstAgain = Map.of("name", "a-renamed.pdf", "url", "/files/a");
+
+        List<Object> merged = InvestigationWorkflow.mergeFilesUnique(List.of(first), List.of(firstAgain, second));
+
+        assertEquals(List.of(first, second), merged);
+        assertEquals(List.of(second), InvestigationWorkflow.mergeFilesUnique(null, List.of(second)));
+        assertTrue(InvestigationWorkflow.mergeFilesUnique(null, null).isEmpty());
+    }
+
+    @Test
     void cxoDecisionDefaultsToSendToAuditForLegacyPayloads() {
         assertEquals(InvestigationWorkflow.CXO_SEND_TO_AUDIT, InvestigationWorkflow.normalizeCxoDecision(null));
         assertEquals(InvestigationWorkflow.CXO_SEND_TO_AUDIT, InvestigationWorkflow.normalizeCxoDecision(""));
@@ -54,6 +67,70 @@ class InvestigationWorkflowTest {
                 Map.of(InvestigationWorkflow.KEY_REVIEW_REMARKS, "  ")));
         assertNull(InvestigationWorkflow.validate(SlaAlertScope.TASK_SM_CLOSURE,
                 Map.of(InvestigationWorkflow.KEY_REVIEW_REMARKS, "Resolved by the CXO review.")));
+    }
+
+    @Test
+    void cxoCanReturnToServiceQualityAndMustGiveAReason() {
+        assertEquals(InvestigationWorkflow.CXO_RETURN_TO_SERVICE_QUALITY,
+                InvestigationWorkflow.normalizeCxoDecision("return to service quality"));
+        Map<String, Object> payload = new HashMap<>();
+        payload.put(InvestigationWorkflow.KEY_CXO_DECISION, InvestigationWorkflow.CXO_RETURN_TO_SERVICE_QUALITY);
+        assertNotNull(InvestigationWorkflow.validate(SlaAlertScope.TASK_CXO, payload));
+        payload.put(InvestigationWorkflow.KEY_CXO_RETURN_REASON, "Needs a deeper review");
+        assertNull(InvestigationWorkflow.validate(SlaAlertScope.TASK_CXO, payload));
+        assertTrue(InvestigationWorkflow.isHandledByChain(SlaAlertScope.TASK_CXO, payload));
+    }
+
+    @Test
+    void serviceQualityCanSendToCxoOrReturnWithAReason() {
+        assertEquals(InvestigationWorkflow.SQ_SEND_TO_CXO, InvestigationWorkflow.normalizeSqDecision(null));
+        assertEquals(InvestigationWorkflow.SQ_SEND_TO_CXO, InvestigationWorkflow.normalizeSqDecision("anything"));
+        assertEquals(InvestigationWorkflow.SQ_RETURN_TO_SENIOR_MANAGER,
+                InvestigationWorkflow.normalizeSqDecision("return to senior manager"));
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put(InvestigationWorkflow.KEY_SQ_DECISION, InvestigationWorkflow.SQ_RETURN_TO_SENIOR_MANAGER);
+        assertNotNull(InvestigationWorkflow.validate(SlaAlertScope.TASK_SQ_REVIEW, payload));
+        payload.put(InvestigationWorkflow.KEY_SQ_RETURN_REASON, "Missing branch statement");
+        assertNull(InvestigationWorkflow.validate(SlaAlertScope.TASK_SQ_REVIEW, payload));
+        assertTrue(InvestigationWorkflow.needsReviewLoop(SlaAlertScope.TASK_SQ_REVIEW, payload));
+        assertFalse(InvestigationWorkflow.needsReviewLoop(SlaAlertScope.TASK_SQ_REVIEW, Map.of()));
+    }
+
+    @Test
+    void returnStepAfterCxoReturnNeedsNoReason() {
+        assertNull(InvestigationWorkflow.validate(SlaAlertScope.TASK_SQ_RETURN, Map.of()));
+        assertTrue(InvestigationWorkflow.isHandledByChain(SlaAlertScope.TASK_SQ_RETURN, Map.of()));
+        assertTrue(InvestigationWorkflow.needsReviewLoop(SlaAlertScope.TASK_SQ_RETURN, Map.of()));
+    }
+
+    @Test
+    void seniorManagerCanCloseOrResendWithNotes() {
+        assertEquals(InvestigationWorkflow.SM_CLOSE, InvestigationWorkflow.normalizeSmDecision(null));
+        assertEquals(InvestigationWorkflow.SM_SEND_TO_SERVICE_QUALITY,
+                InvestigationWorkflow.normalizeSmDecision("send to service quality"));
+
+        Map<String, Object> resend = new HashMap<>();
+        resend.put(InvestigationWorkflow.KEY_SM_DECISION, InvestigationWorkflow.SM_SEND_TO_SERVICE_QUALITY);
+        assertNotNull(InvestigationWorkflow.validate(SlaAlertScope.TASK_SM_CLOSURE, resend));
+        resend.put(InvestigationWorkflow.KEY_SM_RESEND_REASON, "Spoke to the branch, new facts attached");
+        assertNull(InvestigationWorkflow.validate(SlaAlertScope.TASK_SM_CLOSURE, resend));
+        assertTrue(InvestigationWorkflow.needsReviewLoop(SlaAlertScope.TASK_SM_CLOSURE, resend));
+
+        // Resending needs notes, not a closure summary; closing still needs the summary.
+        Map<String, Object> close = Map.of(InvestigationWorkflow.KEY_SM_DECISION, InvestigationWorkflow.SM_CLOSE);
+        assertNotNull(InvestigationWorkflow.validate(SlaAlertScope.TASK_SM_CLOSURE, close));
+        assertFalse(InvestigationWorkflow.needsReviewLoop(SlaAlertScope.TASK_SM_CLOSURE, close));
+    }
+
+    @Test
+    void returnStepBelongsToServiceQualityOnly() {
+        assertTrue(SlaAlertScope.roleMayHandleTask("ROLE_SERVICE_QUALITY_DIRECTOR", SlaAlertScope.TASK_SQ_RETURN));
+        assertFalse(SlaAlertScope.roleMayHandleTask("ROLE_CUSTOMER_CARE_SENIOR_MANAGER", SlaAlertScope.TASK_SQ_RETURN));
+        assertFalse(SlaAlertScope.roleMayHandleTask("ROLE_CHIEF_EXPERIENCE_OFFICER", SlaAlertScope.TASK_SQ_RETURN));
+        assertTrue(SlaAlertScope.roleMayHandleTask("ROLE_ADMIN", SlaAlertScope.TASK_SQ_RETURN));
+        assertEquals(SlaAlertScope.STAGE_SERVICE_QUALITY_REVIEW,
+                SlaAlertScope.stageCodeFromTaskKey(SlaAlertScope.TASK_SQ_RETURN));
     }
 
     @Test

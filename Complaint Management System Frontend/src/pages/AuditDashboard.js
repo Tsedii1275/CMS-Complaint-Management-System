@@ -5,6 +5,7 @@ import DashboardLayout from '../components/DashboardLayout';
 import ApiService from '../services/api';
 import { BRAND_COLORS } from '../constants/theme';
 import TaskTable, { formatUniqueId, formatIntakeId, matchesTicketSearch } from '../components/TaskTable';
+import CaseAttachments from '../components/CaseAttachments';
 import { useAuth } from '../contexts/AuthContext';
 import { renderComplaintStatusTag } from '../utils/statusUtils';
 import { resolveCurrentContactPhone } from '../utils/customerContact';
@@ -53,21 +54,9 @@ const cxBoxStyle = {
 };
 const cxHeadingStyle = { color: '#0369a1', fontSize: '12px', display: 'block' };
 const cxTextStyle = { fontSize: '13px', color: '#0f172a' };
-const cxAttachHeadingStyle = { color: '#0369a1', fontSize: '12px', display: 'block', marginBottom: '4px' };
+const cxAttachWrapStyle = { marginTop: 0 };
 const cxRemarkWrapStyle = { marginBottom: '8px' };
-const paperClipIconStyle = { marginRight: '4px' };
 const fullWidthStyle = { width: '100%' };
-const fileRowStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  backgroundColor: '#fff',
-  padding: '4px 8px',
-  borderRadius: '4px',
-  border: '1px solid #e0f2fe'
-};
-const fileNameStyle = { fontSize: '12px', color: '#0f172a' };
-const downloadLinkStyle = { padding: 0, fontSize: '11px' };
 const textareaStyle = { borderRadius: '6px' };
 const uploadBoxStyle = {
   background: '#ffffff',
@@ -89,10 +78,6 @@ const submitButtonStyle = {
 
 function AuditCxInstructionsPanel({ variables }) {
   const remarks = variables?.cxRemarks;
-  const files = variables?.investigationFiles || [];
-  if (!remarks && files.length === 0) {
-    return null;
-  }
   return (
     <Col span={24}>
       <div style={cxBoxStyle}>
@@ -102,26 +87,7 @@ function AuditCxInstructionsPanel({ variables }) {
             <Text style={cxTextStyle}>{remarks}</Text>
           </div>
         ) : null}
-        {files.length === 0 ? null : (
-          <div>
-            <Text strong style={cxAttachHeadingStyle}>
-              <PaperClipOutlined style={paperClipIconStyle} />
-              Attached Evidence & Documents ({files.length}):
-            </Text>
-            <Space direction="vertical" style={fullWidthStyle}>
-              {files.map((file, idx) => (
-                <div key={file.uid || idx} style={fileRowStyle}>
-                  <Text style={fileNameStyle}>{file.name}</Text>
-                  {file.url ? (
-                    <a href={file.url} download={file.name} target="_blank" rel="noreferrer">
-                      <Button size="small" type="link" style={downloadLinkStyle}>Download</Button>
-                    </a>
-                  ) : null}
-                </div>
-              ))}
-            </Space>
-          </div>
-        )}
+        <CaseAttachments variables={variables} style={cxAttachWrapStyle} />
       </div>
     </Col>
   );

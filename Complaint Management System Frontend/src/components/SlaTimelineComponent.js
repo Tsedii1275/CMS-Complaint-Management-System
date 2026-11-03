@@ -79,7 +79,8 @@ const formatStageName = (rawName, defKey) => {
   if (key.includes('FORMTASK_SM_REVIEW') || key.includes('SENIOR MANAGER INVESTIGATION REVIEW') || key.includes('SENIOR_MANAGER_REVIEW')) {
     return 'Senior Manager Investigation Review';
   }
-  if (key.includes('FORMTASK_SQ_REVIEW') || key.includes('SERVICE QUALITY INVESTIGATION REVIEW')) {
+  if (key.includes('FORMTASK_SQ_REVIEW') || key.includes('FORMTASK_SQ_RETURN')
+    || key.includes('SERVICE QUALITY INVESTIGATION REVIEW') || key.includes('SERVICE QUALITY RETURN')) {
     return 'Service Quality Review';
   }
   if (key.includes('FORMTASK_57') || key.includes('TASK_57') || key.includes('WORK_UNIT')) {

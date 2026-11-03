@@ -4,13 +4,14 @@ import { EyeOutlined, SendOutlined, UploadOutlined, RollbackOutlined } from '@an
 import DashboardLayout from '../components/DashboardLayout';
 import InvestigationCaseSummary from '../components/InvestigationCaseSummary';
 import { formatUniqueId } from '../components/TaskTable';
+import InvestigationReturnTag from '../components/InvestigationReturnTag';
 import ApiService from '../services/api';
 import { BRAND_COLORS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import {
   TASK_CXO,
   CXO_SEND_TO_AUDIT,
-  CXO_RETURN_TO_SENIOR_MANAGER,
+  CXO_RETURN_TO_SERVICE_QUALITY,
   buildCxoDecisionPayload
 } from '../utils/investigationWorkflow';
 
@@ -73,14 +74,14 @@ function CxoDecisionBody({
 
       <div>
         <Text style={{ color: '#334155', display: 'block', marginBottom: '6px' }}>
-          Return reason <Text type="secondary">(required only when returning)</Text>
+          Return reason <Text type="secondary">(required only when returning to Service Quality)</Text>
         </Text>
         <Input.TextArea
           rows={2}
           value={returnReason}
           status={returnError ? 'error' : undefined}
           onChange={(e) => setReturnReason(e.target.value)}
-          placeholder="Why this case can be closed without an audit"
+          placeholder="Why this case is being returned to Service Quality"
           style={{ borderRadius: '8px' }}
         />
         {returnError ? (
@@ -129,8 +130,8 @@ function ExecutiveDashboard() {
 
   const submitDecision = async (task, decision) => {
     if (!task) return;
-    if (decision === CXO_RETURN_TO_SENIOR_MANAGER && !returnReason.trim()) {
-      setReturnError('A reason is required to return the case to the Customer Care Senior Manager.');
+    if (decision === CXO_RETURN_TO_SERVICE_QUALITY && !returnReason.trim()) {
+      setReturnError('A reason is required to return the case to Service Quality.');
       return;
     }
     setReturnError('');
@@ -147,8 +148,8 @@ function ExecutiveDashboard() {
         existingFiles: recordVars(task).investigationFiles || []
       });
       await ApiService.completeTask(task.id, payload);
-      antMessage.success(decision === CXO_RETURN_TO_SENIOR_MANAGER
-        ? 'Case returned to the Customer Care Senior Manager for closure without audit.'
+      antMessage.success(decision === CXO_RETURN_TO_SERVICE_QUALITY
+        ? 'Case returned to the Service Quality Department.'
         : 'Case sent to the Audit Investigation Team.');
       resetDecisionForm();
       await loadData();
@@ -170,7 +171,12 @@ function ExecutiveDashboard() {
       title: 'Unique ID No',
       key: 'complaintId',
       render: (_, r) => {
-        return <strong style={{ color: BRAND_COLORS.primary, fontFamily: 'monospace' }}>{formatUniqueId(r)}</strong>;
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <strong style={{ color: BRAND_COLORS.primary, fontFamily: 'monospace' }}>{formatUniqueId(r)}</strong>
+            <InvestigationReturnTag record={r} />
+          </span>
+        );
       }
     },
     {
@@ -264,12 +270,12 @@ function ExecutiveDashboard() {
               key="return"
               danger
               icon={<RollbackOutlined />}
-              loading={submittingDecision === CXO_RETURN_TO_SENIOR_MANAGER}
-              disabled={Boolean(submittingDecision) && submittingDecision !== CXO_RETURN_TO_SENIOR_MANAGER}
+              loading={submittingDecision === CXO_RETURN_TO_SERVICE_QUALITY}
+              disabled={Boolean(submittingDecision) && submittingDecision !== CXO_RETURN_TO_SERVICE_QUALITY}
               style={{ borderRadius: '6px' }}
-              onClick={() => submitDecision(selectedTask, CXO_RETURN_TO_SENIOR_MANAGER)}
+              onClick={() => submitDecision(selectedTask, CXO_RETURN_TO_SERVICE_QUALITY)}
             >
-              Return to Customer Care Senior Manager
+              Return to Service Quality
             </Button>,
             <Button
               key="audit"

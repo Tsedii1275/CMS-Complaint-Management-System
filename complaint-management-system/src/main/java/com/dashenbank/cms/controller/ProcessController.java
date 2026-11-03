@@ -105,6 +105,7 @@ public class ProcessController {
     private static final String KEY_FORM_TASK_43 = "FormTask_43";
     private static final String KEY_FORM_TASK_48 = "FormTask_48";
     private static final String KEY_FORM_TASK_57 = "FormTask_57";
+    private static final String KEY_WORK_UNIT_FILES = "workUnitFiles";
     private static final String KEY_SERVICE_TASK_65 = "ServiceTask_65";
     private static final String KEY_FORM_TASK_CHIEF_COMMITTEE = "FormTask_ChiefCommittee";
     private static final String KEY_COMMITTEE_DECISION = "committeeDecision";
@@ -1111,7 +1112,11 @@ public class ProcessController {
         List<String> requested = AssignmentOfficers.distinctUsernames(rawNames, targetUsername);
         if (requested.isEmpty()) {
             return ResponseEntity.badRequest()
-                    .body(Map.of(KEY_ERROR, "Select at least one Customer Care Officer or Team Leader."));
+                    .body(Map.of(KEY_ERROR, "Select a Customer Care Officer or Team Leader."));
+        }
+        if (requested.size() > 1) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of(KEY_ERROR, "A complaint can be assigned to one Customer Care Officer or Team Leader."));
         }
 
         List<User> targets = new ArrayList<>();
@@ -1212,6 +1217,13 @@ public class ProcessController {
                     SlaAlertAuthorizationService.TaskAction.COMPLETE);
 
             String investigationError = validateInvestigationDecision(task, variables);
+            if (investigationError == null) {
+                investigationError = com.dashenbank.cms.service.AssignmentOfficers.validateWorkUnitAssignees(variables);
+            }
+            if (investigationError == null) {
+                investigationError = com.dashenbank.cms.service.WorkUnitResolutionRules.validate(
+                        task.getTaskDefinitionKey(), task.getName(), variables);
+            }
             if (investigationError != null) {
                 return ResponseEntity.badRequest()
                         .body(Map.of(KEY_ERROR, investigationError, "code", "VALIDATION_ERROR"));
@@ -1250,9 +1262,25 @@ public class ProcessController {
         tryRecordTaskCompletion(task.getId());
         Map<String, Object> processVars = cleanLargeProcessVars(variables);
 
+        com.dashenbank.cms.service.AssignmentOfficers.normalizeWorkUnitAssignees(processVars);
+
+        if (SlaAlertScope.TASK_WORK_UNIT.equals(task.getTaskDefinitionKey())
+                && processVars.get(KEY_WORK_UNIT_FILES) instanceof List<?>) {
+            // Keep documents from earlier work unit resolutions when a case comes back to the work unit.
+            processVars.put(KEY_WORK_UNIT_FILES, InvestigationWorkflow.mergeFilesUnique(
+                    vars.get(KEY_WORK_UNIT_FILES), processVars.get(KEY_WORK_UNIT_FILES)));
+        }
+
         if (SlaAlertScope.TASK_CXO.equals(task.getTaskDefinitionKey())) {
-            processVars.put(InvestigationWorkflow.KEY_CXO_DECISION,
-                    InvestigationWorkflow.normalizeCxoDecision(processVars.get(InvestigationWorkflow.KEY_CXO_DECISION)));
+            String cxoDecision = InvestigationWorkflow
+                    .normalizeCxoDecision(processVars.get(InvestigationWorkflow.KEY_CXO_DECISION));
+            if (InvestigationWorkflow.isCxoReturn(cxoDecision)) {
+                // Newer process versions return to Service Quality; older ones return to the Senior Manager.
+                cxoDecision = processDefinitionHasElement(task, InvestigationWorkflow.LOOP_TASK_ELEMENT)
+                        ? InvestigationWorkflow.CXO_RETURN_TO_SERVICE_QUALITY
+                        : InvestigationWorkflow.CXO_RETURN_TO_SENIOR_MANAGER;
+            }
+            processVars.put(InvestigationWorkflow.KEY_CXO_DECISION, cxoDecision);
             if (!InvestigationWorkflow.isHandledByChain(task.getTaskDefinitionKey(), processVars)
                     && processDefinitionHasReviewChain(task)) {
                 processVars.put(InvestigationWorkflow.KEY_TRAIL, InvestigationWorkflow.appendTrail(
@@ -2060,6 +2088,13 @@ public class ProcessController {
             return "This case was registered before the Return to Customer Care Senior Manager route existed. "
                     + "Please send it to Audit Investigation.";
         }
+        if (InvestigationWorkflow.needsReviewLoop(task.getTaskDefinitionKey(), variables)
+                && !processDefinitionHasElement(task, InvestigationWorkflow.LOOP_TASK_ELEMENT)) {
+            return SlaAlertScope.TASK_CXO.equals(task.getTaskDefinitionKey())
+                    ? null
+                    : "This case was registered before the review loop existed, so it cannot be sent back. "
+                            + "Please continue it on its current route.";
+        }
         return null;
     }
 
@@ -2068,12 +2103,16 @@ public class ProcessController {
      * Senior Manager closure task. Their in-flight cases keep the legacy route.
      */
     private boolean processDefinitionHasReviewChain(Task task) {
+        return processDefinitionHasElement(task, InvestigationWorkflow.CLOSURE_TASK_ELEMENT);
+    }
+
+    private boolean processDefinitionHasElement(Task task, String elementId) {
         if (repositoryService == null || task == null || task.getProcessDefinitionId() == null) {
             return false;
         }
         try {
             org.flowable.bpmn.model.BpmnModel model = repositoryService.getBpmnModel(task.getProcessDefinitionId());
-            return model != null && model.getFlowElement(InvestigationWorkflow.CLOSURE_TASK_ELEMENT) != null;
+            return model != null && model.getFlowElement(elementId) != null;
         } catch (Exception e) {
             log.info("Could not inspect process definition {}: {}", task.getProcessDefinitionId(), e.getMessage());
             return false;
@@ -2115,6 +2154,10 @@ public class ProcessController {
         String auditActor;
         String auditText;
         boolean closing = false;
+        // Set only when this step sends the case back; it tags the row for whoever receives it.
+        String returnTag = "";
+        String returnReason = "";
+        String returnedBy = "";
 
         if (SlaAlertScope.TASK_SM_REVIEW.equals(defKey)) {
             step = SlaAlertScope.STAGE_SENIOR_MANAGER_REVIEW;
@@ -2127,25 +2170,86 @@ public class ProcessController {
             out.put("seniorManagerReviewedBy", username);
         } else if (SlaAlertScope.TASK_SQ_REVIEW.equals(defKey)) {
             step = SlaAlertScope.STAGE_SERVICE_QUALITY_REVIEW;
-            action = "FORWARDED_TO_CHIEF_EXPERIENCE_OFFICER";
-            nextStage = STAGE_CHIEF_EXPERIENCE_REVIEW;
-            nextRole = Role.ROLE_CHIEF_EXPERIENCE_OFFICER.name();
             auditActor = "service-quality";
-            auditText = "Service Quality Department reviewed the case and forwarded it to the Chief Experience Officer.";
+            String sqDecision = InvestigationWorkflow.normalizeSqDecision(
+                    submitted.get(InvestigationWorkflow.KEY_SQ_DECISION));
+            out.put(InvestigationWorkflow.KEY_SQ_DECISION, sqDecision);
+            if (InvestigationWorkflow.SQ_RETURN_TO_SENIOR_MANAGER.equals(sqDecision)) {
+                action = "RETURNED_TO_SENIOR_MANAGER";
+                nextStage = SlaAlertScope.STAGE_SENIOR_MANAGER_CLOSURE;
+                nextRole = Role.ROLE_CUSTOMER_CARE_SENIOR_MANAGER.name();
+                remarks = InvestigationWorkflow.text(submitted.get(InvestigationWorkflow.KEY_SQ_RETURN_REASON));
+                auditText = "Service Quality Department returned the case to the Customer Care Senior Manager. Reason: "
+                        + remarks;
+                returnTag = InvestigationWorkflow.TAG_RETURNED_BY_SERVICE_QUALITY;
+                returnReason = remarks;
+                returnedBy = "Service Quality";
+                out.put(InvestigationWorkflow.KEY_SQ_RETURN_REASON, remarks);
+            } else {
+                action = "FORWARDED_TO_CHIEF_EXPERIENCE_OFFICER";
+                nextStage = STAGE_CHIEF_EXPERIENCE_REVIEW;
+                nextRole = Role.ROLE_CHIEF_EXPERIENCE_OFFICER.name();
+                auditText = "Service Quality Department reviewed the case and forwarded it to the Chief Experience Officer.";
+            }
             out.put("serviceQualityRemarks", remarks);
             out.put("serviceQualityReviewedBy", username);
-        } else if (SlaAlertScope.TASK_CXO.equals(defKey)) {
-            step = SlaAlertScope.STAGE_CHIEF_EXPERIENCE_REVIEW;
+        } else if (SlaAlertScope.TASK_SQ_RETURN.equals(defKey)) {
+            // The CXO already gave the reason; Service Quality only passes the case down.
+            step = SlaAlertScope.STAGE_SERVICE_QUALITY_REVIEW;
             action = "RETURNED_TO_SENIOR_MANAGER";
             nextStage = SlaAlertScope.STAGE_SENIOR_MANAGER_CLOSURE;
             nextRole = Role.ROLE_CUSTOMER_CARE_SENIOR_MANAGER.name();
+            auditActor = "service-quality";
+            remarks = "";
+            returnReason = InvestigationWorkflow.text(vars.get(InvestigationWorkflow.KEY_CXO_RETURN_REASON));
+            auditText = "Service Quality Department returned the case, which the Chief Experience Officer sent back, to the Customer Care Senior Manager.";
+            returnTag = InvestigationWorkflow.TAG_RETURNED_TO_SENIOR_MANAGER;
+            returnedBy = "Chief Experience Officer";
+            out.put("serviceQualityReviewedBy", username);
+        } else if (SlaAlertScope.TASK_CXO.equals(defKey)) {
+            step = SlaAlertScope.STAGE_CHIEF_EXPERIENCE_REVIEW;
             auditActor = "chief-experience-officer";
             remarks = InvestigationWorkflow.text(submitted.get(InvestigationWorkflow.KEY_CXO_RETURN_REASON));
-            auditText = "Chief Experience Officer returned the case to the Customer Care Senior Manager for closure without audit. Reason: "
-                    + remarks;
-            out.put(InvestigationWorkflow.KEY_CXO_DECISION, InvestigationWorkflow.CXO_RETURN_TO_SENIOR_MANAGER);
+            String cxoDecision = InvestigationWorkflow.normalizeCxoDecision(
+                    submitted.get(InvestigationWorkflow.KEY_CXO_DECISION));
+            returnReason = remarks;
+            returnedBy = "Chief Experience Officer";
+            if (InvestigationWorkflow.CXO_RETURN_TO_SERVICE_QUALITY.equals(cxoDecision)) {
+                action = "RETURNED_TO_SERVICE_QUALITY";
+                nextStage = SlaAlertScope.STAGE_SERVICE_QUALITY_REVIEW;
+                nextRole = Role.ROLE_SERVICE_QUALITY_DIRECTOR.name();
+                auditText = "Chief Experience Officer returned the case to the Service Quality Department. Reason: "
+                        + remarks;
+                returnTag = InvestigationWorkflow.TAG_RETURNED_BY_CXO;
+                out.put(InvestigationWorkflow.KEY_CXO_DECISION, InvestigationWorkflow.CXO_RETURN_TO_SERVICE_QUALITY);
+            } else {
+                action = "RETURNED_TO_SENIOR_MANAGER";
+                nextStage = SlaAlertScope.STAGE_SENIOR_MANAGER_CLOSURE;
+                nextRole = Role.ROLE_CUSTOMER_CARE_SENIOR_MANAGER.name();
+                auditText = "Chief Experience Officer returned the case to the Customer Care Senior Manager for closure without audit. Reason: "
+                        + remarks;
+                returnTag = InvestigationWorkflow.TAG_RETURNED_BY_CXO;
+                out.put(InvestigationWorkflow.KEY_CXO_DECISION, InvestigationWorkflow.CXO_RETURN_TO_SENIOR_MANAGER);
+            }
             out.put(InvestigationWorkflow.KEY_CXO_RETURN_REASON, remarks);
             out.put("cxoReviewedBy", username);
+        } else if (InvestigationWorkflow.SM_SEND_TO_SERVICE_QUALITY.equals(
+                InvestigationWorkflow.normalizeSmDecision(submitted.get(InvestigationWorkflow.KEY_SM_DECISION)))) {
+            step = SlaAlertScope.STAGE_SENIOR_MANAGER_CLOSURE;
+            action = "RESENT_TO_SERVICE_QUALITY";
+            nextStage = SlaAlertScope.STAGE_SERVICE_QUALITY_REVIEW;
+            nextRole = Role.ROLE_SERVICE_QUALITY_DIRECTOR.name();
+            auditActor = "senior-manager";
+            remarks = InvestigationWorkflow.text(submitted.get(InvestigationWorkflow.KEY_SM_RESEND_REASON));
+            auditText = "Customer Care Senior Manager investigated further and sent the case back to the Service Quality Department. Notes: "
+                    + remarks;
+            returnTag = InvestigationWorkflow.TAG_RESENT_BY_SENIOR_MANAGER;
+            returnReason = remarks;
+            returnedBy = "Customer Care Senior Manager";
+            out.put(InvestigationWorkflow.KEY_SM_DECISION, InvestigationWorkflow.SM_SEND_TO_SERVICE_QUALITY);
+            out.put(InvestigationWorkflow.KEY_SM_RESEND_REASON, remarks);
+            out.put("seniorManagerRemarks", remarks);
+            out.put("seniorManagerReviewedBy", username);
         } else {
             step = SlaAlertScope.STAGE_SENIOR_MANAGER_CLOSURE;
             action = "CLOSED_WITHOUT_AUDIT";
@@ -2157,6 +2261,7 @@ public class ProcessController {
             String summary = remarks.isBlank()
                     ? "Your complaint has been reviewed and closed by the Customer Care Senior Manager."
                     : remarks;
+            out.put(InvestigationWorkflow.KEY_SM_DECISION, InvestigationWorkflow.SM_CLOSE);
             out.put(KEY_REQUIRES_INVESTIGATION, false);
             out.put(KEY_STATUS, VAL_CLOSED);
             out.put(KEY_DECISION, VAL_RESOLVED);
@@ -2167,6 +2272,9 @@ public class ProcessController {
             out.put("closedBy", username);
         }
 
+        out.put(InvestigationWorkflow.KEY_RETURN_TAG, returnTag);
+        out.put(InvestigationWorkflow.KEY_RETURN_REASON, returnReason);
+        out.put(InvestigationWorkflow.KEY_RETURNED_BY, returnedBy);
         out.put(KEY_CURRENT_STAGE, nextStage);
         out.put(KEY_STAGE, nextStage);
         if (!nextRole.isBlank()) {
@@ -2182,7 +2290,7 @@ public class ProcessController {
                         InvestigationWorkflow.countFiles(newFiles))));
 
         tryInvestigationAudit(task, ticketId, vars, action, auditActor,
-                remarks.isBlank() || SlaAlertScope.TASK_CXO.equals(defKey) ? auditText
+                remarks.isBlank() || !returnTag.isEmpty() || SlaAlertScope.TASK_CXO.equals(defKey) ? auditText
                         : auditText + " Remarks: " + remarks);
 
         if (!closing) {

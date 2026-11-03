@@ -54,6 +54,25 @@ export function assignedOfficerUsername(task) {
   return vars.assignedOfficerUsername || vars.assigneeUsername || '';
 }
 
+/** Everyone assigned to resolve the case (several people can be named; the first is the primary). */
+export function workUnitAssigneeUsernames(task) {
+  const vars = task?.variables || {};
+  const names = [];
+  const add = (value) => {
+    const name = String(value || '').trim();
+    if (name && !names.some((existing) => normalizeKey(existing) === normalizeKey(name))) {
+      names.push(name);
+    }
+  };
+  if (Array.isArray(vars.workUnitAssigneeUsernames)) {
+    vars.workUnitAssigneeUsernames.forEach(add);
+  }
+  if (names.length === 0) {
+    add(assignedOfficerUsername(task));
+  }
+  return names;
+}
+
 export function assignmentScope(task) {
   const stored = String(task?.variables?.assignmentType || '').toUpperCase();
   if (stored === 'DISTRICT_DEPARTMENT' || stored === 'DISTRICT') return 'DISTRICT';
@@ -105,9 +124,9 @@ export function isVisibleOnWorkUnitInbox(task, user) {
   if (!username) {
     return false;
   }
-  const assignee = normalizeKey(assignedOfficerUsername(task));
-  if (assignee) {
-    if (assignee !== username) {
+  const assignees = workUnitAssigneeUsernames(task).map(normalizeKey);
+  if (assignees.length > 0) {
+    if (!assignees.includes(username)) {
       return false;
     }
     const role = String(user?.role || '').toUpperCase();

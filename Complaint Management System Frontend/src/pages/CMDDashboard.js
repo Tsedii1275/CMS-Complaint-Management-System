@@ -171,7 +171,7 @@ function cmdSubmitValidationError(formData, isDeclined, finalClassification) {
 function assignmentAdScopeError(formData) {
   const mode = normalizeAssignmentScope(formData.assignmentType);
   if (mode === 'ALL_EMPLOYEES') {
-    return formData.assigneeUsername?.trim() ? null : 'Select an employee from Active Directory.';
+    return formData.assigneeUsername?.trim() ? null : 'Select at least one employee from Active Directory.';
   }
   if (!formData.adUnitId?.trim()) {
     if (mode === 'DISTRICT') return 'District is required.';
@@ -179,7 +179,7 @@ function assignmentAdScopeError(formData) {
     return 'Head Office Department is required.';
   }
   if (!formData.assigneeUsername?.trim()) {
-    return 'Select an assignee from Active Directory.';
+    return 'Select at least one assignee from Active Directory.';
   }
   return null;
 }
@@ -218,17 +218,63 @@ function officerOptionLabel(officer) {
   return officer.title ? `${officer.displayName} — ${officer.title}` : (officer.displayName || officer.username || '');
 }
 
+const MAX_WORK_UNIT_ASSIGNEES = 10;
+
+const EMPTY_ASSIGNEES = {
+  assignees: [],
+  assigneeUsername: '',
+  assigneeDisplayName: '',
+  assigneeTitle: '',
+  assigneeEmail: ''
+};
+
+/** People picked for work unit resolution; the first one is the primary assignee. */
+function formAssignees(formData) {
+  if (Array.isArray(formData?.assignees) && formData.assignees.length > 0) {
+    return formData.assignees;
+  }
+  if (formData?.assigneeUsername) {
+    return [{
+      username: formData.assigneeUsername,
+      displayName: formData.assigneeDisplayName || formData.assigneeUsername,
+      title: formData.assigneeTitle || '',
+      email: formData.assigneeEmail || ''
+    }];
+  }
+  return [];
+}
+
+/** Form fields for a list of assignees, keeping the single-assignee fields in step with the first person. */
+function assigneeFields(assignees) {
+  const first = assignees[0];
+  return {
+    assignees,
+    assigneeUsername: first?.username || '',
+    assigneeDisplayName: first?.displayName || '',
+    assigneeTitle: first?.title || '',
+    assigneeEmail: first?.email || '',
+    manager: first ? (formatAdAssigneeLabel(first.displayName, first.title) || first.username) : ''
+  };
+}
+
+/** Turns the selected usernames into people, using the search results first and earlier picks otherwise. */
+function pickAssignees(usernames, pool, previous) {
+  const known = [...(Array.isArray(pool) ? pool : []), ...previous];
+  return (usernames || []).slice(0, MAX_WORK_UNIT_ASSIGNEES).map((username) => {
+    const person = known.find(p => p.username === username);
+    return {
+      username,
+      displayName: person?.displayName || username,
+      title: person?.title || '',
+      email: person?.email || ''
+    };
+  });
+}
+
 function employeeChoices(hits, formData) {
   const rows = Array.isArray(hits) ? hits : [];
-  if (!formData?.assigneeUsername || rows.some(row => row.username === formData.assigneeUsername)) {
-    return rows;
-  }
-  return [{
-    username: formData.assigneeUsername,
-    displayName: formData.assigneeDisplayName || formData.assigneeUsername,
-    title: formData.assigneeTitle || '',
-    email: formData.assigneeEmail || ''
-  }, ...rows];
+  const missing = formAssignees(formData).filter(person => !rows.some(row => row.username === person.username));
+  return [...missing, ...rows];
 }
 
 function inferAssignmentTypeFromTask(task) {
@@ -295,6 +341,11 @@ function applyWorkUnitAssignmentVars(variables, formData) {
   variables.manager = formatAdAssigneeLabel(formData.assigneeDisplayName, formData.assigneeTitle)
     || formData.manager
     || '';
+  const assignees = formAssignees(formData);
+  if (assignees.length > 0) {
+    variables.workUnitAssigneeUsernames = assignees.map(person => person.username);
+    variables.workUnitAssignees = assignees;
+  }
   if (mode === 'ALL_EMPLOYEES') {
     return;
   }
@@ -504,6 +555,7 @@ function initialCmdFormFromTask(task) {
     manager: task.variables?.manager || '',
     adUnitId: '',
     adUnitName: '',
+    assignees: Array.isArray(task.variables?.workUnitAssignees) ? task.variables.workUnitAssignees : [],
     assigneeUsername: task.variables?.assignedOfficerUsername || '',
     assigneeDisplayName: '',
     assigneeTitle: task.variables?.assignedOfficerTitle || '',
@@ -1185,7 +1237,7 @@ async function closeCmdFollowup(ref, id) {
 function openCmdAssignModal(ref, task) {
   const s = sget(ref);
   s.setTaskToAssign(task);
-  s.setSelectedOfficerUsernames([...new Set(assignedUsernamesOf(task))]);
+  s.setSelectedOfficerUsernames(assignedUsernamesOf(task).slice(0, 1));
   s.setIsAssignModalOpen(true);
   loadActiveOfficersCmd(ref);
 }
@@ -1194,13 +1246,13 @@ async function confirmCmdTaskAssignment(ref) {
   const s = sget(ref);
   const selected = Array.isArray(s.selectedOfficerUsernames) ? s.selectedOfficerUsernames.filter(Boolean) : [];
   if (!s.taskToAssign || selected.length === 0) {
-    antMessage.warning('Select at least one Customer Care Officer or Team Leader.');
+    antMessage.warning('Select a Customer Care Officer or Team Leader.');
     return;
   }
   s.setIsAssigning(true);
   try {
-    await ApiService.assignTask(s.taskToAssign.id, selected);
-    const names = selected.map((username) => {
+    await ApiService.assignTask(s.taskToAssign.id, selected.slice(0, 1));
+    const names = selected.slice(0, 1).map((username) => {
       const officer = s.activeOfficers.find(o => o.username === username);
       return officer ? (officer.fullName || officer.username) : username;
     });
@@ -1523,10 +1575,7 @@ function useCmdDashboardState() {
     manager: '',
     adUnitId: '',
     adUnitName: '',
-    assigneeUsername: '',
-    assigneeDisplayName: '',
-    assigneeTitle: '',
-    assigneeEmail: ''
+    ...EMPTY_ASSIGNEES
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
@@ -2097,6 +2146,25 @@ function CmdWorkUnitResolutionBanner({ selectedTask, formData, setFormData, isSu
             <Text style={{ fontSize: '14px', color: '#1e293b', fontWeight: 500, lineHeight: '1.5', display: 'block' }}>
               {selectedTask.variables.actionTaken}
             </Text>
+          </div>
+        )}
+        {collectAttachments(selectedTask.variables?.workUnitFiles).length > 0 && (
+          <div style={{ marginTop: '8px' }}>
+            <Text style={{ fontSize: '12px', display: 'block', fontWeight: 600, color: '#166534', marginBottom: '2px' }}>
+              Attached Documents:
+            </Text>
+            {collectAttachments(selectedTask.variables?.workUnitFiles).map((file) => (
+              <a
+                key={file.url}
+                href={ApiService.getAttachmentUrl(file.url)}
+                download={file.name}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: BRAND_COLORS.primary }}
+              >
+                {file.name}
+              </a>
+            ))}
           </div>
         )}
       </div>
@@ -2989,9 +3057,7 @@ function CmdScreeningFormCard(props) {
                           manager: '',
                           adUnitId: '',
                           adUnitName: '',
-                          assigneeUsername: '',
-                          assigneeDisplayName: '',
-                          assigneeTitle: ''
+                          ...EMPTY_ASSIGNEES
                         } : {})
                       }));
                     }}
@@ -3074,10 +3140,7 @@ function CmdScreeningFormCard(props) {
                             manager: '',
                             adUnitId: '',
                             adUnitName: '',
-                            assigneeUsername: '',
-                            assigneeDisplayName: '',
-                            assigneeTitle: '',
-                            assigneeEmail: ''
+                            ...EMPTY_ASSIGNEES
                           }));
                         }}
                         style={{ width: '100%' }}
@@ -3128,10 +3191,7 @@ function CmdScreeningFormCard(props) {
                             district: districtNameForAdUnit(scope, name, prev.district),
                             branch: scope === 'BRANCH' ? name : '',
                             department: scope === 'HQ_DEPARTMENT' ? name : '',
-                            assigneeUsername: '',
-                            assigneeDisplayName: '',
-                            assigneeTitle: '',
-                            assigneeEmail: '',
+                            ...EMPTY_ASSIGNEES,
                             manager: ''
                           }));
                         }}
@@ -3149,38 +3209,30 @@ function CmdScreeningFormCard(props) {
                     )}
 
                     {allEmployees ? (
-                    <Form.Item label={<CmdFormLabel required>Assignee</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
-                      <Tooltip
-                        title={formData.assigneeUsername ? adPersonHover({
-                          username: formData.assigneeUsername,
-                          displayName: formData.assigneeDisplayName,
-                          title: formData.assigneeTitle,
-                          email: formData.assigneeEmail
-                        }) : null}
-                        placement="topLeft"
-                      >
+                    <Form.Item
+                      label={<CmdFormLabel required>Assignees</CmdFormLabel>}
+                      required
+                      extra={`Select one or more people (up to ${MAX_WORK_UNIT_ASSIGNEES}). Any of them can resolve the complaint.`}
+                      style={CMD_FORM_ITEM_24}
+                    >
                         <div>
                           <Select
+                            mode="multiple"
+                            maxCount={MAX_WORK_UNIT_ASSIGNEES}
                             showSearch
                             filterOption={false}
                             placeholder="Search by name or job title"
                             loading={employeeLoading}
-                            value={formData.assigneeUsername || undefined}
+                            value={formAssignees(formData).map(person => person.username)}
                             onSearch={setEmployeeQuery}
                             optionLabelProp="label"
-                            onChange={(username) => {
-                              const people = employeeChoices(employeeHits, formData);
-                              const officer = people.find(o => o.username === username);
+                            onChange={(usernames) => {
+                              const pool = employeeChoices(employeeHits, formData);
                               setFormData(prev => ({
                                 ...prev,
-                                assigneeUsername: username,
-                                assigneeDisplayName: officer?.displayName || username,
-                                assigneeTitle: officer?.title || '',
-                                assigneeEmail: officer?.email || '',
-                                manager: officer
-                                  ? formatAdAssigneeLabel(officer.displayName, officer.title)
-                                  : username
+                                ...assigneeFields(pickAssignees(usernames, pool, formAssignees(prev)))
                               }));
+                              setEmployeeQuery('');
                             }}
                             notFoundContent={employeeLoading
                               ? 'Loading…'
@@ -3202,21 +3254,18 @@ function CmdScreeningFormCard(props) {
                             ))}
                           </Select>
                         </div>
-                      </Tooltip>
                     </Form.Item>
                     ) : (
-                    <Form.Item label={<CmdFormLabel required>Assignee</CmdFormLabel>} required style={CMD_FORM_ITEM_24}>
-                      <Tooltip
-                        title={formData.assigneeUsername ? adPersonHover({
-                          username: formData.assigneeUsername,
-                          displayName: formData.assigneeDisplayName,
-                          title: formData.assigneeTitle,
-                          email: formData.assigneeEmail
-                        }) : null}
-                        placement="topLeft"
-                      >
+                    <Form.Item
+                      label={<CmdFormLabel required>Assignees</CmdFormLabel>}
+                      required
+                      extra={`Select one or more people (up to ${MAX_WORK_UNIT_ASSIGNEES}). Any of them can resolve the complaint.`}
+                      style={CMD_FORM_ITEM_24}
+                    >
                         <div>
                       <Select
+                        mode="multiple"
+                        maxCount={MAX_WORK_UNIT_ASSIGNEES}
                         showSearch
                         optionFilterProp="children"
                         placeholder={formData.adUnitId
@@ -3229,18 +3278,11 @@ function CmdScreeningFormCard(props) {
                         loading={adOfficerLoading}
                         disabled={!formData.adUnitId}
                         optionLabelProp="label"
-                        value={formData.assigneeUsername || undefined}
-                        onChange={(username) => {
-                          const officer = (adOfficers || []).find(o => o.username === username);
+                        value={formAssignees(formData).map(person => person.username)}
+                        onChange={(usernames) => {
                           setFormData(prev => ({
                             ...prev,
-                            assigneeUsername: username,
-                            assigneeDisplayName: officer?.displayName || username,
-                            assigneeTitle: officer?.title || '',
-                            assigneeEmail: officer?.email || '',
-                            manager: officer
-                              ? formatAdAssigneeLabel(officer.displayName, officer.title)
-                              : username
+                            ...assigneeFields(pickAssignees(usernames, adOfficers, formAssignees(prev)))
                           }));
                         }}
                         notFoundContent={adOfficerLoading ? 'Loading…' : 'No employees found for this branch in Active Directory'}
@@ -3258,7 +3300,6 @@ function CmdScreeningFormCard(props) {
                         ))}
                       </Select>
                         </div>
-                      </Tooltip>
                     </Form.Item>
                     )}
                   </>
@@ -3554,16 +3595,15 @@ function CmdDashboardView(props) {
 
             <div>
               <Text strong style={CMD_OFFICER_LABEL_STYLE}>
-                Select Customer Care Officers or Team Leaders{' '}
+                Select Customer Care Officer or Team Leader{' '}
                 <span style={CMD_REQUIRED_MARK_STYLE}>*</span>
               </Text>
               <Select
-                mode="multiple"
                 showSearch
-                placeholder="Search and select one or more officers or team leaders..."
+                placeholder="Search and select an officer or team leader..."
                 optionFilterProp="children"
-                value={selectedOfficerUsernames}
-                onChange={setSelectedOfficerUsernames}
+                value={selectedOfficerUsernames[0]}
+                onChange={(username) => setSelectedOfficerUsernames(username ? [username] : [])}
                 style={{ width: '100%', borderRadius: '6px' }}
                 size="large"
               >

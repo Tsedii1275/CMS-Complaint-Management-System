@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Typography, Button, Tag, Empty, Alert, Form, Input, Space, Row, Col, message as antdMessage } from 'antd';
-import { ArrowLeftOutlined, SearchOutlined } from '@ant-design/icons';
+import { Card, Typography, Button, Tag, Empty, Alert, Form, Input, Space, Row, Col, Upload, message as antdMessage } from 'antd';
+import { ArrowLeftOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons';
 import DashboardLayout from '../components/DashboardLayout';
 import ApiService from '../services/api';
 import { BRAND_COLORS } from '../constants/theme';
@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { collectAttachments } from '../utils/attachments';
 import { complaintBranch } from '../utils/locationKeys';
 import { isVisibleOnWorkUnitInbox } from '../utils/workUnitInbox';
+import { WORK_UNIT_MAX_TEXT_LENGTH, isSecondaryReviewTask, validateResolutionForm } from '../utils/workUnitResolution';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -47,6 +48,9 @@ function workUnitDocuments(task) {
   ).filter((file) => !voices.has(file.url));
 }
 
+const EMPTY_FORM = { resolutionDetails: '', actionTaken: '', isSensitive: false };
+const MAX_TEXT_LENGTH = WORK_UNIT_MAX_TEXT_LENGTH;
+
 function WorkUnitDashboard() {
   const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
@@ -54,11 +58,9 @@ function WorkUnitDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [formData, setFormData] = useState({
-    resolutionDetails: '',
-    actionTaken: '',
-    isSensitive: false
-  });
+  const [formData, setFormData] = useState(EMPTY_FORM);
+  const [fileList, setFileList] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -86,7 +88,14 @@ function WorkUnitDashboard() {
     }
   };
 
+  const resetForm = () => {
+    setFormData(EMPTY_FORM);
+    setFileList([]);
+    setFieldErrors({});
+  };
+
   const handleTaskSelect = async (task) => {
+    resetForm();
     setSelectedTask(task);
     setMessage('');
     try {
@@ -103,18 +112,29 @@ function WorkUnitDashboard() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+    setFieldErrors(prev => (prev[name] ? { ...prev, [name]: undefined } : prev));
   };
 
   const handleSubmit = async () => {
     if (!selectedTask) return;
 
+    const errors = validateResolutionForm(formData, isSecondaryReviewTask(selectedTask));
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      antdMessage.warning('Please fill in the required fields before submitting.');
+      return;
+    }
+    setFieldErrors({});
+
     setIsSubmitting(true);
     setMessage('');
 
     try {
+      const uploadedFiles = await ApiService.uploadAttachmentList(fileList, ApiService.ticketFromTask(selectedTask));
       const variables = {
-        resolutionDetails: formData.resolutionDetails,
-        actionTaken: formData.actionTaken,
+        resolutionDetails: formData.resolutionDetails.trim(),
+        actionTaken: formData.actionTaken.trim(),
+        workUnitFiles: uploadedFiles,
         workUnitResolutionGiven: true,
         currentStage: 'CCO_RESOLUTION_REVIEW',
         stage: 'CCO_RESOLUTION_REVIEW',
@@ -127,12 +147,13 @@ function WorkUnitDashboard() {
       setMessage('Resolution submitted successfully! Complaint returned to Customer Care Officer for review.');
       setTimeout(() => setMessage(''), 4000);
 
-      setFormData({ resolutionDetails: '', actionTaken: '' });
+      resetForm();
       setSelectedTask(null);
       await loadTasks();
     } catch (err) {
-      antdMessage.error('Failed to complete task');
-      setMessage('Failed to complete task');
+      const reason = err?.message ? `: ${err.message}` : '';
+      antdMessage.error(`Failed to complete task${reason}`);
+      setMessage(`Failed to complete task${reason}`);
       console.error('Error completing task:', err);
     } finally {
       setIsSubmitting(false);
@@ -247,7 +268,7 @@ function WorkUnitDashboard() {
             })()}
           </div>
         ) : (() => {
-          const isSecondaryReview = Boolean(selectedTask.name?.includes('Secondary Resolution Review'));
+          const isSecondaryReview = isSecondaryReviewTask(selectedTask);
 
           let submitButtonText = 'Resolve Complaint';
           if (isSubmitting) {
@@ -265,7 +286,7 @@ function WorkUnitDashboard() {
 
           return (
             <div>
-              <Button icon={<ArrowLeftOutlined />} onClick={() => setSelectedTask(null)} style={{ marginBottom: '20px', borderRadius: '6px' }} />
+              <Button icon={<ArrowLeftOutlined />} onClick={() => { resetForm(); setSelectedTask(null); }} style={{ marginBottom: '20px', borderRadius: '6px' }} />
 
               {isSecondaryReview && (
                 <Alert
@@ -325,6 +346,20 @@ function WorkUnitDashboard() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <Text style={{ color: '#64748b', fontSize: '14px' }}>Complaint Branch</Text>
                           <Text style={{ color: '#0f172a', fontSize: '14px', fontWeight: 600 }}>{complaintBranch(selectedTask.variables)}</Text>
+                        </div>
+                      )}
+
+                      {Array.isArray(selectedTask.variables?.workUnitAssignees)
+                        && selectedTask.variables.workUnitAssignees.length > 1 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                          <Text style={{ color: '#64748b', fontSize: '14px' }}>Assigned to</Text>
+                          <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: '4px', justifyContent: 'flex-end' }}>
+                            {selectedTask.variables.workUnitAssignees.map((person) => (
+                              <Tag key={person.username} color="green" style={{ margin: 0 }}>
+                                {person.displayName || person.username}
+                              </Tag>
+                            ))}
+                          </span>
                         </div>
                       )}
 
@@ -464,11 +499,14 @@ function WorkUnitDashboard() {
                         <Form.Item
                           label={<span style={{ color: '#475569', fontSize: '14px', fontWeight: 500 }}>{isSecondaryReview ? "Secondary Investigation / Corrective Action Findings" : "Resolution Details"}</span>}
                           required
+                          validateStatus={fieldErrors.resolutionDetails ? 'error' : undefined}
+                          help={fieldErrors.resolutionDetails}
                         >
                           <Input.TextArea
                             name="resolutionDetails"
                             value={formData.resolutionDetails}
                             onChange={(e) => handleFormChange(e)}
+                            maxLength={MAX_TEXT_LENGTH}
                             rows={5}
                             placeholder={isSecondaryReview ? "Enter details of manager secondary resolution findings..." : "Enter detailed resolution details..."}
                             style={{ borderRadius: '8px', border: '1px solid #cbd5e1' }}
@@ -478,15 +516,32 @@ function WorkUnitDashboard() {
                         <Form.Item
                           label={<span style={{ color: '#475569', fontSize: '14px', fontWeight: 500 }}>{isSecondaryReview ? "Action Taken (Optional)" : "Action Taken"}</span>}
                           required={!isSecondaryReview}
+                          validateStatus={fieldErrors.actionTaken ? 'error' : undefined}
+                          help={fieldErrors.actionTaken}
                         >
                           <Input.TextArea
                             name="actionTaken"
                             value={formData.actionTaken}
                             onChange={(e) => handleFormChange(e)}
+                            maxLength={MAX_TEXT_LENGTH}
                             rows={3}
                             placeholder="Describe actions taken to resolve the complaint..."
                             style={{ borderRadius: '8px', border: '1px solid #cbd5e1' }}
                           />
+                        </Form.Item>
+
+                        <Form.Item
+                          label={<span style={{ color: '#475569', fontSize: '14px', fontWeight: 500 }}>Attach Documents (Optional)</span>}
+                        >
+                          <Upload
+                            multiple
+                            fileList={fileList}
+                            beforeUpload={() => false}
+                            accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.mp3,.wav,.m4a"
+                            onChange={({ fileList: next }) => setFileList(next)}
+                          >
+                            <Button icon={<UploadOutlined />}>Select files</Button>
+                          </Upload>
                         </Form.Item>
 
 
