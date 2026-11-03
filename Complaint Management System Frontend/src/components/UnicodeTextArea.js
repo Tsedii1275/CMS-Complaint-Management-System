@@ -2,7 +2,7 @@ import React, { forwardRef, useEffect, useRef } from 'react';
 import { Input } from 'antd';
 
 const FIELD_FONT = "'Noto Sans Ethiopic', Geezigna, 'Segoe UI', sans-serif";
-const ANT_ONLY_PROPS = ['size', 'showCount', 'allowClear', 'bordered', 'status', 'variant'];
+const ANT_ONLY_PROPS = ['size', 'showCount', 'allowClear', 'bordered', 'status', 'variant', 'maxLength'];
 
 function domNode(instance) {
   if (!instance) return null;
@@ -18,11 +18,21 @@ function domNode(instance) {
  * While the field is focused, the browser keeps what was typed.
  */
 export const StableField = forwardRef(function StableField(
-  { value, onChange, onFocus, onBlur, multiline = false, antd = false, style, ...rest },
+  { value, onChange, onFocus, onBlur, multiline = false, antd = false, style, maxLength, ...rest },
   ref
 ) {
   const focused = useRef(false);
+  const composing = useRef(false);
+  const leftWhileComposing = useRef(false);
   const innerRef = useRef(null);
+  const onChangeRef = useRef(onChange);
+  const onBlurRef = useRef(onBlur);
+  const onFocusRef = useRef(onFocus);
+  const initialValue = useRef(undefined);
+  if (initialValue.current === undefined) initialValue.current = value ?? '';
+  onChangeRef.current = onChange;
+  onBlurRef.current = onBlur;
+  onFocusRef.current = onFocus;
 
   const setRef = (node) => {
     innerRef.current = node;
@@ -32,7 +42,25 @@ export const StableField = forwardRef(function StableField(
 
   useEffect(() => {
     const node = domNode(innerRef.current);
-    if (!node || focused.current || document.activeElement === node) return;
+    if (!node) return undefined;
+    const start = () => {
+      composing.current = true;
+      focused.current = true;
+    };
+    const end = () => {
+      composing.current = false;
+    };
+    node.addEventListener('compositionstart', start);
+    node.addEventListener('compositionend', end);
+    return () => {
+      node.removeEventListener('compositionstart', start);
+      node.removeEventListener('compositionend', end);
+    };
+  }, []);
+
+  useEffect(() => {
+    const node = domNode(innerRef.current);
+    if (!node || focused.current || composing.current || document.activeElement === node) return;
     const next = value ?? '';
     if (node.value !== next) node.value = next;
   }, [value]);
@@ -42,25 +70,53 @@ export const StableField = forwardRef(function StableField(
   Object.keys(rest).forEach((key) => {
     if (!ANT_ONLY_PROPS.includes(key)) domRest[key] = rest[key];
   });
-  const { className } = rest;
+
+  const emitChange = (event) => {
+    const node = event.target;
+    if (
+      maxLength != null &&
+      !composing.current &&
+      !event.nativeEvent?.isComposing &&
+      node.value.length > maxLength
+    ) {
+      node.value = node.value.slice(0, Number(maxLength));
+    }
+    if (onChangeRef.current) onChangeRef.current(event);
+  };
+
   const props = {
     ...domRest,
-    className: antd ? ['ant-input', className].filter(Boolean).join(' ') : className,
+    className: antd ? ['ant-input', rest.className].filter(Boolean).join(' ') : rest.className,
     style: fieldStyle,
-    defaultValue: value ?? '',
+    defaultValue: initialValue.current,
     onCompositionStart: (event) => {
+      composing.current = true;
       focused.current = true;
       if (domRest.onCompositionStart) domRest.onCompositionStart(event);
     },
-    onChange,
+    onCompositionEnd: (event) => {
+      composing.current = false;
+      emitChange(event);
+      if (domRest.onCompositionEnd) domRest.onCompositionEnd(event);
+      if (leftWhileComposing.current) {
+        leftWhileComposing.current = false;
+        focused.current = false;
+        if (onBlurRef.current) onBlurRef.current(event);
+      }
+    },
+    onChange: emitChange,
     onFocus: (event) => {
       focused.current = true;
-      if (onFocus) onFocus(event);
+      if (onFocusRef.current) onFocusRef.current(event);
     },
     onBlur: (event) => {
+      if (composing.current) {
+        leftWhileComposing.current = true;
+        return;
+      }
       focused.current = false;
-      if (onChange) onChange(event);
-      if (onBlur) onBlur(event);
+      emitChange(event);
+      if (onBlurRef.current) onBlurRef.current(event);
     }
   };
 
