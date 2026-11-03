@@ -5,6 +5,7 @@ public enum SecurityAuditEvent {
     FAILED_LOGIN,
     LOGOUT,
     ACCOUNT_LOCKED,
+    ACCOUNT_DISABLED,
     ACCOUNT_UNLOCKED,
     PASSWORD_CHANGED,
     PASSWORD_EXPIRED,

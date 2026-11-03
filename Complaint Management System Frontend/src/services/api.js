@@ -76,7 +76,8 @@ function redirectIfSessionExpired(response, bodyData, options) {
   if (response.status !== 401) return;
   const path = window.location.pathname || '';
   if (path.includes('staff-login')) return;
-  sessionStorage.setItem(SESSION_MESSAGE_KEY, SESSION_TIMEOUT_MESSAGE);
+  const deactivated = bodyData?.code === 'ACCOUNT_DISABLED' && bodyData.message;
+  sessionStorage.setItem(SESSION_MESSAGE_KEY, deactivated ? bodyData.message : SESSION_TIMEOUT_MESSAGE);
   localStorage.removeItem('user');
   window.location.replace('/staff-login');
 }

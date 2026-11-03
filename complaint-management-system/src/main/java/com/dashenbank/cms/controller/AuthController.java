@@ -13,6 +13,7 @@ import com.dashenbank.cms.security.JwtUtils;
 import com.dashenbank.cms.security.SecurityPolicy;
 import com.dashenbank.cms.security.ldap.ActiveDirectoryAuthService;
 import com.dashenbank.cms.security.ldap.DirectoryAccountDisabledException;
+import com.dashenbank.cms.security.ldap.DirectoryAccountLockedException;
 import com.dashenbank.cms.security.ldap.DirectoryAuthenticationException;
 import com.dashenbank.cms.security.ldap.DirectoryUnavailableException;
 import com.dashenbank.cms.security.ldap.LdapProperties;
@@ -29,6 +30,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.CredentialsExpiredException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -96,7 +98,12 @@ public class AuthController {
         String ip = ClientIp.from(httpRequest);
 
         var userOpt = userRepository.findByUsernameIgnoreCase(username);
-        if (userOpt.isPresent() && userOpt.get().getAuthSource() != AuthSource.AD) {
+        // Applies to local and Active Directory accounts alike, and it runs before the password is checked.
+        if (userOpt.isPresent() && !userOpt.get().isEnabled()) {
+            securityAuditService.log(userOpt.get().getUsername(), SecurityAuditEvent.ACCOUNT_DISABLED, ip);
+            return disabledResponse();
+        }
+        if (userOpt.isPresent()) {
             accountLockoutService.unlockIfElapsed(userOpt.get(), ip);
             if (accountLockoutService.isLocked(userOpt.get())) {
                 return lockedResponse();
@@ -104,7 +111,7 @@ public class AuthController {
         }
 
         if (useDirectory(userOpt.orElse(null))) {
-            return authenticateWithDirectory(username, password, httpRequest);
+            return authenticateWithDirectory(username, password, httpRequest, userOpt.orElse(null));
         }
 
         String targetUsername = userOpt.map(User::getUsername).orElse(username);
@@ -142,6 +149,10 @@ public class AuthController {
             return ResponseEntity.ok(response);
         } catch (LockedException e) {
             return lockedResponse();
+        } catch (DisabledException e) {
+            userOpt.ifPresent(user -> securityAuditService.log(user.getUsername(),
+                    SecurityAuditEvent.ACCOUNT_DISABLED, ip));
+            return disabledResponse();
         } catch (CredentialsExpiredException e) {
             userOpt.ifPresent(accountLockoutService::recordSuccessfulLogin);
             String expiredUser = userOpt.map(User::getUsername).orElse(targetUsername);
@@ -171,15 +182,13 @@ public class AuthController {
     }
 
     private ResponseEntity<?> authenticateWithDirectory(String username, String password,
-            HttpServletRequest httpRequest) {
+            HttpServletRequest httpRequest, User existing) {
         String ip = ClientIp.from(httpRequest);
         try {
             User user = activeDirectoryAuthService.login(username, password);
             if (!user.isEnabled()) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
-                        KEY_ERROR, "This account is disabled.",
-                        KEY_MESSAGE, "This account is disabled.",
-                        KEY_CODE, CODE_ACCOUNT_DISABLED));
+                securityAuditService.log(user.getUsername(), SecurityAuditEvent.ACCOUNT_DISABLED, ip);
+                return disabledResponse();
             }
             accountLockoutService.recordSuccessfulLogin(user);
             Authentication authentication = new UsernamePasswordAuthenticationToken(
@@ -232,8 +241,18 @@ public class AuthController {
                     KEY_ERROR, "Active Directory is unavailable. Local accounts can still sign in.",
                     KEY_MESSAGE, "Active Directory is unavailable. Local accounts can still sign in.",
                     KEY_CODE, CODE_LDAP_UNAVAILABLE));
+        } catch (DirectoryAccountLockedException e) {
+            securityAuditService.log(username, SecurityAuditEvent.ACCOUNT_LOCKED, ip);
+            return lockedResponse();
         } catch (DirectoryAuthenticationException e) {
-            securityAuditService.log(username, SecurityAuditEvent.FAILED_LOGIN, ip);
+            if (existing != null) {
+                accountLockoutService.recordFailedAttempt(existing, ip);
+                if (accountLockoutService.isLocked(existing)) {
+                    return lockedResponse();
+                }
+            } else {
+                securityAuditService.log(username, SecurityAuditEvent.FAILED_LOGIN, ip);
+            }
             log.warn(LOG_AUTH_FAILED, username);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of(KEY_ERROR, MSG_INVALID_CREDENTIALS, KEY_CODE, CODE_INVALID_CREDENTIALS));
@@ -303,6 +322,13 @@ public class AuthController {
             return "";
         }
         return authentication.getAuthorities().iterator().next().getAuthority();
+    }
+
+    private static ResponseEntity<Map<String, String>> disabledResponse() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                KEY_ERROR, SecurityPolicy.ACCOUNT_DISABLED_MESSAGE,
+                KEY_MESSAGE, SecurityPolicy.ACCOUNT_DISABLED_MESSAGE,
+                KEY_CODE, CODE_ACCOUNT_DISABLED));
     }
 
     private static ResponseEntity<Map<String, String>> lockedResponse() {

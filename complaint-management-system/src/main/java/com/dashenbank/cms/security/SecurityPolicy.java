@@ -18,9 +18,11 @@ public final class SecurityPolicy {
             "Password must be at least 12 characters and contain uppercase, lowercase, and numeric characters.";
     public static final String PASSWORD_HISTORY_MESSAGE =
             "You cannot reuse any of your last 4 passwords.";
+    public static final String ACCOUNT_DISABLED_MESSAGE =
+            "Your account has been deactivated. Please contact your system administrator.";
     public static final String ACCOUNT_LOCKED_MESSAGE =
-            "Your account has been locked due to multiple failed login attempts. "
-                    + "Please try again after 30 minutes or contact the system administrator.";
+            "Your account has been blocked as you attempted to log in with the wrong password several times. "
+                    + "Please try later or request support from your system administrator.";
     public static final String PASSWORD_EXPIRED_MESSAGE =
             "Your password has expired. Please change your password to continue.";
     public static final String SESSION_TIMEOUT_MESSAGE =

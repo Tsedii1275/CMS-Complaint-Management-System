@@ -30,15 +30,18 @@ public class AuthEntryPointJwt implements AuthenticationEntryPoint {
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response,
             AuthenticationException authException) throws IOException {
+        boolean deactivated = Boolean.TRUE.equals(request.getAttribute(AuthTokenFilter.ATTR_ACCOUNT_DISABLED));
         boolean expired = Boolean.TRUE.equals(request.getAttribute(AuthTokenFilter.ATTR_JWT_EXPIRED));
         logger.error("Unauthorized error on path {}: {}", request.getRequestURI(), authException.getMessage());
 
-        String code = expired ? "SESSION_TIMEOUT" : "UNAUTHORIZED";
-        String message = expired ? SecurityPolicy.SESSION_TIMEOUT_MESSAGE : "Error: Unauthorized";
-        if (expired) {
+        String code = deactivated ? "ACCOUNT_DISABLED" : (expired ? "SESSION_TIMEOUT" : "UNAUTHORIZED");
+        String message = deactivated ? SecurityPolicy.ACCOUNT_DISABLED_MESSAGE
+                : (expired ? SecurityPolicy.SESSION_TIMEOUT_MESSAGE : "Error: Unauthorized");
+        if (deactivated || expired) {
             Object username = request.getAttribute(AuthTokenFilter.ATTR_JWT_USERNAME);
             securityAuditService.log(username != null ? username.toString() : "unknown",
-                    SecurityAuditEvent.SESSION_TIMEOUT, ClientIp.from(request));
+                    deactivated ? SecurityAuditEvent.ACCOUNT_DISABLED : SecurityAuditEvent.SESSION_TIMEOUT,
+                    ClientIp.from(request));
         }
 
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

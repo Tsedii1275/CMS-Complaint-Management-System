@@ -76,6 +76,27 @@ class AdUserSyncServiceTest {
     }
 
     @Test
+    void loginSyncKeepsAnAdministratorDeactivation() {
+        User existing = User.builder()
+                .id(9L)
+                .username("abebe")
+                .email("abebe@dashenbank.com")
+                .password("hash")
+                .role(Role.ROLE_CUSTOMER_CARE_OFFICER)
+                .authSource(AuthSource.AD)
+                .approved(true)
+                .approvalStatus("APPROVED")
+                .objectGuid("guid-1")
+                .enabled(false)
+                .build();
+        when(userRepository.findByObjectGuid("guid-1")).thenReturn(Optional.of(existing));
+
+        User updated = syncService.upsertForLogin(officer("abebe", "guid-1"));
+
+        assertFalse(updated.isEnabled());
+    }
+
+    @Test
     void randomPasswordIsNotTheAdPassword() {
         when(userRepository.findByObjectGuid(any())).thenReturn(Optional.empty());
         when(userRepository.findByUsernameIgnoreCase(any())).thenReturn(Optional.empty());

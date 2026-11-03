@@ -21,6 +21,7 @@ public class AuthTokenFilter extends OncePerRequestFilter {
 
     public static final String ATTR_JWT_EXPIRED = "cms.jwt.expired";
     public static final String ATTR_JWT_USERNAME = "cms.jwt.username";
+    public static final String ATTR_ACCOUNT_DISABLED = "cms.account.disabled";
 
     @Autowired
     private JwtUtils jwtUtils;
@@ -51,6 +52,12 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                 if (usableAccessToken) {
                     String username = jwtUtils.getUserNameFromJwtToken(jwt);
                     UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                    if (!userDetails.isEnabled()) {
+                        request.setAttribute(ATTR_ACCOUNT_DISABLED, Boolean.TRUE);
+                        request.setAttribute(ATTR_JWT_USERNAME, username);
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
                     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                             userDetails, null, userDetails.getAuthorities());
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

@@ -12,7 +12,7 @@ export const PASSWORD_REQUIREMENTS_MESSAGE =
 export const PASSWORD_HISTORY_MESSAGE = 'You cannot reuse any of your last 4 passwords.';
 
 export const ACCOUNT_LOCKED_MESSAGE =
-  'Your account has been locked due to multiple failed login attempts. Please try again after 30 minutes or contact the system administrator.';
+  'Your account has been blocked as you attempted to log in with the wrong password several times. Please try later or request support from your system administrator.';
 
 export const PASSWORD_EXPIRED_MESSAGE =
   'Your password has expired. Please change your password to continue.';

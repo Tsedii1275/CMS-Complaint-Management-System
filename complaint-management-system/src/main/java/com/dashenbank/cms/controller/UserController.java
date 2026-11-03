@@ -6,6 +6,7 @@ import com.dashenbank.cms.model.Role;
 import com.dashenbank.cms.model.SecurityAuditEvent;
 import com.dashenbank.cms.model.User;
 import com.dashenbank.cms.repository.UserRepository;
+import com.dashenbank.cms.security.ApiSessionRegistry;
 import com.dashenbank.cms.security.ClientIp;
 import com.dashenbank.cms.security.SecurityPolicy;
 import com.dashenbank.cms.service.PasswordPolicyService;
@@ -41,14 +42,17 @@ public class UserController {
     private final PasswordEncoder passwordEncoder;
     private final PasswordPolicyService passwordPolicyService;
     private final SecurityAuditService securityAuditService;
+    private final ApiSessionRegistry apiSessionRegistry;
 
     @Autowired
     public UserController(UserRepository userRepository, PasswordEncoder passwordEncoder,
-            PasswordPolicyService passwordPolicyService, SecurityAuditService securityAuditService) {
+            PasswordPolicyService passwordPolicyService, SecurityAuditService securityAuditService,
+            ApiSessionRegistry apiSessionRegistry) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.passwordPolicyService = passwordPolicyService;
         this.securityAuditService = securityAuditService;
+        this.apiSessionRegistry = apiSessionRegistry;
     }
 
     @GetMapping("/password-status")
@@ -170,6 +174,9 @@ public class UserController {
 
         if (payload.containsKey(KEY_ENABLED)) {
             user.setEnabled(Boolean.parseBoolean(payload.get(KEY_ENABLED)));
+            if (!user.isEnabled()) {
+                apiSessionRegistry.closed(user.getUsername());
+            }
         }
 
         User updated = userRepository.save(user);
@@ -186,6 +193,9 @@ public class UserController {
 
         User user = userOpt.get();
         user.setEnabled(!user.isEnabled());
+        if (!user.isEnabled()) {
+            apiSessionRegistry.closed(user.getUsername());
+        }
         User updated = userRepository.save(user);
         return ResponseEntity.ok(Map.of(
                 "id", updated.getId(),
@@ -245,6 +255,7 @@ public class UserController {
         user.setApproved(false);
         user.setApprovalStatus("REJECTED");
         user.setEnabled(false);
+        apiSessionRegistry.closed(user.getUsername());
         if (user.getPassword() == null || user.getPassword().isBlank()) {
             user.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
         }

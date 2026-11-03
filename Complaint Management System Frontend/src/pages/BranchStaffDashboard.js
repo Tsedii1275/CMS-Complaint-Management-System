@@ -866,6 +866,7 @@ function BranchStaffDashboard() {
         </Card>
 
         <Modal
+          lang={registrationLanguage === 'amharic' ? 'am' : 'en'}
           title={(
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: 28 }}>
               <span style={modalTitleStyle}>{copy.title}</span>

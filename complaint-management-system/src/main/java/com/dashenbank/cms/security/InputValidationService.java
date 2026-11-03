@@ -17,7 +17,7 @@ public class InputValidationService {
     // 1. Customer Name: Letters (Latin + Ethiopic/Ge'ez), spaces, apostrophes,
     // hyphens (2 to 100 chars)
     private static final Pattern NAME_PATTERN = Pattern
-            .compile("^[a-zA-Z\\u00C0-\\u024F\\u1200-\\u137F\\s'\\-]{2,100}$");
+            .compile("^[\\p{L}][\\p{L}\\s.'-]{1,99}$");
 
     // National lengths after the country code, plus the Ethiopian local form used by staff.
     // Ethiopia 9, USA 10, UK 10, Kenya 9, Djibouti 8, UAE 8-9, Saudi Arabia 9.

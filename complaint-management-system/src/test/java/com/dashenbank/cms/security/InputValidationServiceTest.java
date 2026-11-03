@@ -42,6 +42,12 @@ class InputValidationServiceTest {
     }
 
     @Test
+    void amharicNameAndDescriptionAreAccepted() {
+        service.validateComplaintInput("አበበ ተስፋዬ", "0911223344", "1234567890123", "ቦሌ",
+                "ቦሌ ቅርንጫፍ", "የኤቲኤም ገንዘብ አላወጣልኝም። እባክዎ ይመልከቱ።", null);
+    }
+
+    @Test
     void districtAndBranchAcceptLettersOnly() {
         service.validateComplaintInput("Abebe Kebede", "0911223344", "1234567890123", "East Addis",
                 "Bole Branch", "The ATM did not dispense cash.", null);

@@ -99,7 +99,7 @@ public class LdapDirectoryClient implements DirectoryOperations {
         } catch (CommunicationException e) {
             userCtx = openFallbackContext(userDn, password, e);
         } catch (AuthenticationException e) {
-            throw new DirectoryAuthenticationException("Invalid username or password");
+            throw bindRejection(e);
         } catch (NamingException e) {
             throw new DirectoryUnavailableException("Directory is unavailable", e);
         } finally {
@@ -115,10 +115,19 @@ public class LdapDirectoryClient implements DirectoryOperations {
         try {
             return openContext(userDn, password, properties.getFallbackUrl().trim());
         } catch (AuthenticationException ex) {
-            throw new DirectoryAuthenticationException("Invalid username or password");
+            throw bindRejection(ex);
         } catch (NamingException ex) {
             throw new DirectoryUnavailableException("Directory is unavailable", ex);
         }
+    }
+
+    /** AD answers a refused bind with a sub-code in the message; 775 means the account is locked out. */
+    static RuntimeException bindRejection(AuthenticationException e) {
+        String detail = e.getMessage();
+        if (detail != null && detail.contains("data 775")) {
+            return new DirectoryAccountLockedException("Active Directory account is locked");
+        }
+        return new DirectoryAuthenticationException("Invalid username or password");
     }
 
     private DirContext openContext(String principal, String credentials, String url) throws NamingException {

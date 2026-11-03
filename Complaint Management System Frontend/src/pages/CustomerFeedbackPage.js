@@ -474,7 +474,7 @@ function CustomerFeedbackPage() {
 
   if (validating) {
     return (
-      <div style={styles.page}>
+      <div lang={language === 'amharic' ? 'am' : 'en'} style={styles.page}>
         <div style={styles.container}>
           <div style={{ ...styles.card, textAlign: 'center', padding: '60px 40px' }}>
             <div style={{ border: '4px solid #f3f3f3', borderTop: `4px solid ${BRAND_COLORS.primary}`, borderRadius: '50%', width: '40px', height: '40px', margin: '0 auto 20px', animation: 'spin 1s linear infinite' }} />
@@ -488,7 +488,7 @@ function CustomerFeedbackPage() {
 
   if (validationError) {
     return (
-      <div style={styles.page}>
+      <div lang={language === 'amharic' ? 'am' : 'en'} style={styles.page}>
         <div style={styles.container}>
           <div style={{ ...styles.card, textAlign: 'center', padding: '50px 40px' }}>
             <span style={{ fontSize: '48px', display: 'block', marginBottom: '16px' }}>⚠️</span>
@@ -508,7 +508,7 @@ function CustomerFeedbackPage() {
   }
 
   return (
-    <div style={styles.page}>
+    <div lang={language === 'amharic' ? 'am' : 'en'} style={styles.page}>
       <div style={styles.container}>
         <div style={styles.card}>
           <img src="/download.png" alt="Dashen Bank" style={styles.logo} />

@@ -19,7 +19,7 @@ export function getCustomerNameError(name, language) {
   if (trimmed.length < 2 || trimmed.length > 100) {
     return language === 'english' ? 'Customer name must be between 2 and 100 characters' : 'ስም ከ2 እስከ 100 ፊደላት መሆን አለበት';
   }
-  if (!/^[a-zA-Z\u00C0-\u024F\u1200-\u137F\s'-]+$/.test(trimmed)) {
+  if (!/^\p{L}[\p{L}\s.'-]{1,99}$/u.test(trimmed)) {
     return language === 'english' ? 'Customer name contains invalid characters' : 'ስም የተከለከሉ ፊደላትን ይዟል';
   }
   return '';

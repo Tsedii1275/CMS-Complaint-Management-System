@@ -679,6 +679,7 @@ function CustomerForm() {
 
   return (
     <div
+      lang={language === 'amharic' ? 'am' : 'en'}
       className={publicPageClassName(language)}
       style={{ minHeight: '100vh', backgroundColor: '#fcfcfc', display: 'flex', flexDirection: 'column' }}
     >
