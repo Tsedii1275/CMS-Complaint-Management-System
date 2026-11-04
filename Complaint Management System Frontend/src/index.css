@@ -25,7 +25,8 @@ html, body, #root {
   padding: 0;
   height: 100%;
   width: 100%;
-  font-family: 'Noto Sans Ethiopic', Geezigna, 'Segoe UI', 'Inter', sans-serif;
+  font-family: 'Segoe UI', 'Inter', 'Cms Amharic', 'Noto Sans Ethiopic', sans-serif;
+  font-weight: 400;
   background-color: #f4f6f8;
   color: #111827;
   -webkit-font-smoothing: antialiased;
@@ -33,7 +34,7 @@ html, body, #root {
 }
 
 #root h1, #root h2, #root h3, #root h4, #root h5, #root h6{
-  font-family: 'Noto Sans Ethiopic', Geezigna, 'Segoe UI', 'Inter', sans-serif;
+  font-family: 'Segoe UI', 'Inter', 'Cms Amharic', 'Noto Sans Ethiopic', sans-serif;
   font-weight: 600;
 }
 
@@ -902,7 +903,25 @@ html {
   }
 }
 
-/* The Ethiopic font is loaded with the app. A face with no Amharic glyphs leaves the field blank. */
+@font-face {
+  font-family: 'Cms Amharic';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Nyala'), local('Ebrima'), local('Abyssinica SIL'), local('Noto Sans Ethiopic');
+  unicode-range: U+1200-137F, U+1380-139F, U+2D80-2DDF, U+AB00-AB2F, U+1E7E0-1E7FF;
+}
+
+@font-face {
+  font-family: 'Cms Amharic';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Power Geez'), local('Power Ge\'ez'), local('Geezigna'), local('Visual Geez Unicode'), local('Ethiopia Jiret');
+  unicode-range: U+E000-F8FF, U+F0000-FFFFD, U+100000-10FFFD;
+}
+
+/* Latin stays on Segoe UI. Ethiopic uses Noto, and a legacy Amharic font is used only for its own letters. */
 #root input,
 #root textarea,
 #root .ant-input,
@@ -912,6 +931,7 @@ html {
 #root .amharic-lightweight,
 #root .amharic-lightweight input,
 #root .amharic-lightweight textarea{
-  font-family: 'Noto Sans Ethiopic', Geezigna, 'Segoe UI', 'Inter', sans-serif !important;
+  font-family: 'Segoe UI', 'Inter', 'Cms Amharic', 'Noto Sans Ethiopic', sans-serif !important;
+  font-weight: 400 !important;
 }
 

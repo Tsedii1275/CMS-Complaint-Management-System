@@ -52,7 +52,6 @@ function CxoDecisionBody({
           rows={3}
           value={cxRemarks}
           onChange={(e) => setCxRemarks(e.target.value)}
-          placeholder="Instructions for the Audit Investigation Team"
           style={{ borderRadius: '8px' }}
         />
       </div>
@@ -81,7 +80,6 @@ function CxoDecisionBody({
           value={returnReason}
           status={returnError ? 'error' : undefined}
           onChange={(e) => setReturnReason(e.target.value)}
-          placeholder="Why this case is being returned to Service Quality"
           style={{ borderRadius: '8px' }}
         />
         {returnError ? (

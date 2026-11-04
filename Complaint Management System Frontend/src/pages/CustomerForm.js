@@ -18,7 +18,8 @@ import {
   getEmailError,
   PUBLIC_COUNTRY_PHONES,
   publicPhoneRule,
-  getPhoneError
+  getPhoneError,
+  liveFormText
 } from '../utils/complaintFieldValidation';
 
 function formatSubmissionDate(dateStr) {
@@ -215,8 +216,9 @@ async function submitPublicComplaint(e, ctx) {
   setIsSubmitting(true);
   setMessageText('');
 
-  const phone = sanitizePublicPhone(formData.phone, countryCode);
-  const fieldErrors = collectPublicSubmitErrors(formData, countryCode, language);
+  const typed = liveFormText(e?.target, formData);
+  const phone = sanitizePublicPhone(typed.phone, countryCode);
+  const fieldErrors = collectPublicSubmitErrors(typed, countryCode, language);
 
   if (Object.keys(fieldErrors).length > 0) {
     setErrors(prev => ({ ...prev, ...fieldErrors }));
@@ -240,20 +242,20 @@ async function submitPublicComplaint(e, ctx) {
   try {
     const payload = {
       customer: {
-        name: formData.customerName,
-        email: formData.email,
+        name: typed.customerName,
+        email: typed.email,
         phone: phone,
         currentContactPhone: phone,
-        accountNumber: formData.accountNumber,
+        accountNumber: typed.accountNumber,
         preferredLanguage: language,
         consent: true
       },
       complaint: {
         channel: 'web',
-        category: formData.complaintCategory,
-        description: formData.complaintDescription,
-        complaintBranch: formData.branch,
-        complaintDistrict: formData.district,
+        category: typed.complaintCategory,
+        description: typed.complaintDescription,
+        complaintBranch: typed.branch,
+        complaintDistrict: typed.district,
         date: formData.date,
         preferredContactMethod: formData.preferredContactMethod,
         evidenceUrl: evidenceFiles[0]?.url || undefined,
@@ -781,9 +783,10 @@ function CustomerForm() {
                 <label style={{ display: 'block', marginBottom: '10px', fontWeight: '600', color: '#444', fontSize: '14px' }}>
                   {t.email}
                 </label>
-                <input
-                  type="email"
+                <StableField
+                  type="text"
                   name="email"
+                  autoComplete="email"
                   value={formData.email}
                   onChange={handleInputChange}
                   style={{

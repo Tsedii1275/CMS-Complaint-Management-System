@@ -1866,9 +1866,6 @@ function CmdResolutionNotesField({ selectedTask, formData, setFormData }) {
   const hasWorkUnitRes = hasWorkUnitResolution(selectedTask);
   const isClosingAfterRes = hasWorkUnitRes && (formData.ccoActionChoice === 'close_complaint' || !formData.ccoActionChoice);
   const labelText = isClosingAfterRes ? 'Resolution Summary' : 'Notes / Comments';
-  const placeholderText = isClosingAfterRes
-    ? 'Provide a concise summary of the final outcome communicated to the customer.'
-    : 'Enter screening notes or comments...';
   return (
     <Form.Item
       label={(
@@ -1887,7 +1884,6 @@ function CmdResolutionNotesField({ selectedTask, formData, setFormData }) {
           setFormData(prev => ({ ...prev, resolutionSummary: val, notes: val, additionalRemarks: val }));
         }}
         rows={3}
-        placeholder={placeholderText}
         style={{ borderRadius: '8px' }}
       />
     </Form.Item>
@@ -2001,7 +1997,6 @@ function CmdCommitteeDecisionCard({ selectedTask, formData, setFormData, isSubmi
       >
         <Input.TextArea
           rows={3}
-          placeholder="Provide a concise summary of the final outcome communicated to the customer."
           value={formData.resolutionSummary || formData.notes || ''}
           onChange={(e) => {
             const val = e.target.value;
@@ -2183,7 +2178,6 @@ function CmdWorkUnitResolutionBanner({ selectedTask, formData, setFormData, isSu
       >
         <Input.TextArea
           rows={3}
-          placeholder="Provide a concise summary of the final outcome communicated to the customer."
           value={formData.resolutionSummary || formData.notes || ''}
           onChange={(e) => {
             const val = e.target.value;
@@ -2765,7 +2759,6 @@ function CmdDeclineReasonSection({ formData, setFormData }) {
       <Form.Item label={<CmdFormLabel required style={CMD_LABEL_SMALL_STRONG_STYLE}>Decline Reason</CmdFormLabel>} required style={CMD_FORM_ITEM_12}>
         <Input.TextArea
           rows={3}
-          placeholder="Enter mandatory reason for declining this complaint..."
           value={formData.declineReason}
           onChange={(e) => setFormData(prev => ({ ...prev, declineReason: e.target.value }))}
           style={{ borderRadius: '6px' }}
@@ -2775,7 +2768,6 @@ function CmdDeclineReasonSection({ formData, setFormData }) {
       <Form.Item label={<CmdFormLabel style={CMD_LABEL_SMALL_STYLE}>Additional Remarks (Optional)</CmdFormLabel>} style={{ marginBottom: 0 }}>
         <Input.TextArea
           rows={2}
-          placeholder="Enter any additional remarks..."
           value={formData.additionalRemarks}
           onChange={(e) => setFormData(prev => ({ ...prev, additionalRemarks: e.target.value }))}
           style={{ borderRadius: '6px' }}

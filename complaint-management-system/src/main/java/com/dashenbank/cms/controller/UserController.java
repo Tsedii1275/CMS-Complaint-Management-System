@@ -44,6 +44,15 @@ public class UserController {
     private final SecurityAuditService securityAuditService;
     private final ApiSessionRegistry apiSessionRegistry;
 
+    private static boolean isProtectedAdmin(User user) {
+        return user.getRole() == Role.ROLE_SYSTEM_ADMIN || user.getRole() == Role.ROLE_ADMIN;
+    }
+
+    private static ResponseEntity<Object> administratorCannotBeDeactivated() {
+        return ResponseEntity.badRequest().body(Map.of(
+                KEY_ERROR, "An administrator account cannot be deactivated."));
+    }
+
     @Autowired
     public UserController(UserRepository userRepository, PasswordEncoder passwordEncoder,
             PasswordPolicyService passwordPolicyService, SecurityAuditService securityAuditService,
@@ -173,7 +182,11 @@ public class UserController {
         }
 
         if (payload.containsKey(KEY_ENABLED)) {
-            user.setEnabled(Boolean.parseBoolean(payload.get(KEY_ENABLED)));
+            boolean nextEnabled = Boolean.parseBoolean(payload.get(KEY_ENABLED));
+            if (!nextEnabled && isProtectedAdmin(user)) {
+                return administratorCannotBeDeactivated();
+            }
+            user.setEnabled(nextEnabled);
             if (!user.isEnabled()) {
                 apiSessionRegistry.closed(user.getUsername());
             }
@@ -192,6 +205,9 @@ public class UserController {
         }
 
         User user = userOpt.get();
+        if (user.isEnabled() && isProtectedAdmin(user)) {
+            return administratorCannotBeDeactivated();
+        }
         user.setEnabled(!user.isEnabled());
         if (!user.isEnabled()) {
             apiSessionRegistry.closed(user.getUsername());
@@ -252,6 +268,9 @@ public class UserController {
         }
 
         User user = userOpt.get();
+        if (isProtectedAdmin(user)) {
+            return administratorCannotBeDeactivated();
+        }
         user.setApproved(false);
         user.setApprovalStatus("REJECTED");
         user.setEnabled(false);

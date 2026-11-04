@@ -243,12 +243,14 @@ function UserManagementPage() {
       dataIndex: 'enabled',
       key: 'enabled',
       render: (enabled, record) => (
-        <Switch
-          checked={enabled}
-          checkedChildren="Active"
-          unCheckedChildren="Inactive"
-          onChange={() => handleToggleStatus(record)}
-        />
+        record.role === 'ROLE_SYSTEM_ADMIN' || record.role === 'ROLE_ADMIN'
+          ? <Tag color="green">Active</Tag>
+          : <Switch
+              checked={enabled}
+              checkedChildren="Active"
+              unCheckedChildren="Inactive"
+              onChange={() => handleToggleStatus(record)}
+            />
       )
     },
     {

@@ -4,6 +4,7 @@ import { EyeOutlined } from '@ant-design/icons';
 import ApiService from '../services/api';
 import { formatUniqueId } from './TaskTable';
 import ScreenedCaseDetailModal from './ScreenedCaseDetailModal';
+import ExportDropdown from './ExportDropdown';
 
 function formatDate(value) {
   if (!value) return '-';
@@ -64,6 +65,28 @@ function FeedbackPanel({
     [items, searchQuery]
   );
 
+  const exportDataset = () => {
+    const title = detailsTitle || descriptionTitle || 'Cases';
+    const today = new Date().toISOString().slice(0, 10);
+    return {
+      filename: `${title.replace(/\s+/g, '_')}_${today}`,
+      documentTitle: title,
+      subtitle: searchQuery.trim() ? `Search: ${searchQuery.trim()}` : title,
+      tables: [{
+        title,
+        sheetName: title,
+        columns: [
+          { header: 'Unique ID No', accessor: (record) => formatUniqueId(record) },
+          { header: 'Customer', accessor: (record) => record.customerName || '-' },
+          { header: 'Phone', accessor: (record) => record.currentContactPhone || '-' },
+          { header: descriptionTitle, accessor: (record) => record.complaintDescription || '-' },
+          { header: 'Received', accessor: (record) => record.createdAt, type: 'date' }
+        ],
+        rows
+      }]
+    };
+  };
+
   const columns = [
     {
       title: 'Unique ID No',
@@ -102,6 +125,9 @@ function FeedbackPanel({
   return (
     <Card style={{ borderRadius: '8px' }}>
       {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 12 }} />}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+        <ExportDropdown size="small" getDataset={exportDataset} />
+      </div>
       <Table
         rowKey={(r) => r.id || r.processInstanceId || formatUniqueId(r)}
         loading={loading}

@@ -1,7 +1,7 @@
 import React, { forwardRef, useEffect, useRef } from 'react';
 import { Input } from 'antd';
 
-const FIELD_FONT = "'Noto Sans Ethiopic', Geezigna, 'Segoe UI', sans-serif";
+const FIELD_FONT = "'Segoe UI', 'Inter', 'Cms Amharic', 'Noto Sans Ethiopic', sans-serif";
 const ANT_ONLY_PROPS = ['size', 'showCount', 'allowClear', 'bordered', 'status', 'variant', 'maxLength'];
 
 function domNode(instance) {
@@ -24,10 +24,13 @@ export const StableField = forwardRef(function StableField(
   const focused = useRef(false);
   const composing = useRef(false);
   const leftWhileComposing = useRef(false);
+  const typedRef = useRef('');
   const innerRef = useRef(null);
   const onChangeRef = useRef(onChange);
   const onBlurRef = useRef(onBlur);
   const onFocusRef = useRef(onFocus);
+  const valueRef = useRef(value ?? '');
+  valueRef.current = value ?? '';
   const initialValue = useRef(undefined);
   if (initialValue.current === undefined) initialValue.current = value ?? '';
   onChangeRef.current = onChange;
@@ -43,36 +46,66 @@ export const StableField = forwardRef(function StableField(
   useEffect(() => {
     const node = domNode(innerRef.current);
     if (!node) return undefined;
-    const start = () => {
+    const remember = (target) => {
+      if (target && target.value) typedRef.current = target.value;
+    };
+    const restore = (target) => {
+      if (!composing.current || !target || target.value || !typedRef.current) return;
+      target.value = typedRef.current;
+    };
+    const start = (event) => {
       composing.current = true;
       focused.current = true;
+      remember(event.target);
     };
     const keepSyllable = (event) => {
-      if (composing.current || event.isComposing) event.stopPropagation();
+      if (!(composing.current || event.isComposing)) {
+        typedRef.current = event.target?.value ?? '';
+        return;
+      }
+      event.stopPropagation();
+      remember(event.target);
+      restore(event.target);
     };
     node.addEventListener('compositionstart', start);
+    node.addEventListener('compositionupdate', start);
     node.addEventListener('input', keepSyllable);
     return () => {
       node.removeEventListener('compositionstart', start);
+      node.removeEventListener('compositionupdate', start);
       node.removeEventListener('input', keepSyllable);
     };
   }, []);
 
   useEffect(() => {
     const node = domNode(innerRef.current);
-    if (!node || focused.current || composing.current || document.activeElement === node) return;
+    if (!node || focused.current || composing.current || document.activeElement === node) {
+      if (node && composing.current && !node.value && typedRef.current) node.value = typedRef.current;
+      return;
+    }
     const next = value ?? '';
     if (node.value !== next) node.value = next;
   }, [value]);
 
-  const fieldStyle = style ? { ...style, fontFamily: FIELD_FONT } : { fontFamily: FIELD_FONT };
+  const requestedRows = Number(rest.rows) > 0 ? Number(rest.rows) : 4;
+  const rowCount = multiline ? Math.max(requestedRows, 4) : requestedRows;
+  const fieldStyle = {
+    ...(style || {}),
+    fontFamily: FIELD_FONT,
+    fontWeight: 400,
+    ...(multiline ? { minHeight: `${Math.max(rowCount * 32, 120)}px`, lineHeight: 1.6 } : {})
+  };
   const domRest = {};
   Object.keys(rest).forEach((key) => {
+    if (key === 'rows') return;
+    if (multiline && key === 'placeholder') return;
     if (!ANT_ONLY_PROPS.includes(key)) domRest[key] = rest[key];
   });
 
   const emitChange = (event) => {
     const node = event.target;
+    if (node && composing.current && !node.value && typedRef.current) node.value = typedRef.current;
+    if (node) typedRef.current = node.value ?? '';
     if (
       maxLength != null &&
       !composing.current &&
@@ -95,6 +128,8 @@ export const StableField = forwardRef(function StableField(
       if (domRest.onCompositionStart) domRest.onCompositionStart(event);
     },
     onCompositionEnd: (event) => {
+      if (event.target?.value) typedRef.current = event.target.value;
+      else if (typedRef.current && event.target) event.target.value = typedRef.current;
       composing.current = false;
       emitChange(event);
       if (domRest.onCompositionEnd) domRest.onCompositionEnd(event);
@@ -113,18 +148,18 @@ export const StableField = forwardRef(function StableField(
       if (onFocusRef.current) onFocusRef.current(event);
     },
     onBlur: (event) => {
-      if (composing.current) {
-        leftWhileComposing.current = true;
-        return;
-      }
-      focused.current = false;
-      emitChange(event);
-      if (onBlurRef.current) onBlurRef.current(event);
+      const typing = composing.current;
+      if (typing) leftWhileComposing.current = true;
+      else focused.current = false;
+      if (typing && event.target && !event.target.value && typedRef.current) event.target.value = typedRef.current;
+      if ((event.target.value ?? '') !== valueRef.current) emitChange(event);
+      if (!typing && onBlurRef.current) onBlurRef.current(event);
     }
   };
 
-  if (multiline) return <textarea ref={setRef} {...props} />;
-  return <input ref={setRef} {...props} />;
+  const typingProps = { ...props, spellCheck: false, autoCorrect: 'off', autoCapitalize: 'off' };
+  if (multiline) return <textarea ref={setRef} {...typingProps} rows={rowCount} />;
+  return <input ref={setRef} {...typingProps} />;
 });
 
 const UnicodeTextArea = forwardRef(function UnicodeTextArea(props, ref) {

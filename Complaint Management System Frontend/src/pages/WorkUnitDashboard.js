@@ -508,7 +508,6 @@ function WorkUnitDashboard() {
                             onChange={(e) => handleFormChange(e)}
                             maxLength={MAX_TEXT_LENGTH}
                             rows={5}
-                            placeholder={isSecondaryReview ? "Enter details of manager secondary resolution findings..." : "Enter detailed resolution details..."}
                             style={{ borderRadius: '8px', border: '1px solid #cbd5e1' }}
                           />
                         </Form.Item>
@@ -525,7 +524,6 @@ function WorkUnitDashboard() {
                             onChange={(e) => handleFormChange(e)}
                             maxLength={MAX_TEXT_LENGTH}
                             rows={3}
-                            placeholder="Describe actions taken to resolve the complaint..."
                             style={{ borderRadius: '8px', border: '1px solid #cbd5e1' }}
                           />
                         </Form.Item>

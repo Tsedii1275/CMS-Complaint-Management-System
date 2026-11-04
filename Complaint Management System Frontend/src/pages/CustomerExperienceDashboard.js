@@ -748,7 +748,6 @@ function CustomerExperienceDashboard() {
                       </Text>
                       <Input.TextArea
                         rows={4}
-                        placeholder="Provide detailed remarks and instructions for the Chief Operation Audit team..."
                         value={cxRemarks}
                         onChange={(e) => setCxRemarks(e.target.value)}
                         style={TEXTAREA_STYLE}

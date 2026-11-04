@@ -50,6 +50,11 @@ class InputValidationServiceTest {
         service.validateComplaintInput("\uF041\uF042", "0911223344", "1234567890123", "\uF041 \uF062",
                 "\uF041\uF062", "The ATM did not dispense cash.", null);
 
+        service.validateComplaintInput("Mary-Jane O'Brien", "0911223344", "1234567890123", "ቦሌ፣",
+                "Bole Branch", "ATM ገንዘብ አላወጣም። እባክዎ ይመልከቱ።", "abebe@example.com");
+        service.validateComplaintInput("Hello አበበ", "0911223344", "1234567890123", "\u2D80 \uAB01",
+                "\uF041 ቦሌ", "Line one\nየኤቲኤም ችግር አጋጥሞኛል።", null);
+
         InputValidationException digitInName = assertThrows(InputValidationException.class,
                 () -> service.validateComplaintInput("Abebe1", "0911223344", "1234567890123", "Bole",
                         "Bole", "The ATM did not dispense cash.", null));

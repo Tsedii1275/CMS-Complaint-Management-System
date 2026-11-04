@@ -775,13 +775,13 @@ function NBEReports() {
               label="Reason for Non-Resolution"
               rules={[{ required: true, message: 'Please provide the reason for non-resolution.' }]}
             >
-              <Input.TextArea rows={4} placeholder="Describe the reason why this complaint could not be resolved within 10 business days..." />
+              <Input.TextArea rows={4} />
             </Form.Item>
             <Form.Item
               name="additionalComments"
               label="Additional Comments / Action Plan"
             >
-              <Input.TextArea rows={3} placeholder="Provide any additional comments, mitigations, or next steps..." />
+              <Input.TextArea rows={3} />
             </Form.Item>
           </Form>
         </Modal>

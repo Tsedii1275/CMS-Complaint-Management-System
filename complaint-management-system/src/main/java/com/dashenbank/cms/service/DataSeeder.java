@@ -44,12 +44,21 @@ public class DataSeeder implements CommandLineRunner {
         var adminOpt = userRepository.findByUsernameIgnoreCase("admin");
         if (adminOpt.isPresent()) {
             User admin = adminOpt.get();
+            boolean changed = false;
             if (admin.getRole() == Role.ROLE_ADMIN) {
                 admin.setRole(Role.ROLE_SYSTEM_ADMIN);
                 admin.setFullName("System Administrator");
                 admin.setDepartment("Application Development");
-                userRepository.save(admin);
+                changed = true;
                 log.info(">>> Existing account 'admin' is now System Administrator. Password unchanged.");
+            }
+            if (!admin.isEnabled()) {
+                admin.setEnabled(true);
+                changed = true;
+                log.info(">>> System administrator account 'admin' was deactivated and is active again.");
+            }
+            if (changed) {
+                userRepository.save(admin);
             } else {
                 log.info(">>> System administrator account 'admin' already exists.");
             }
@@ -66,8 +75,16 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void bootstrapOperationalAdministrator() {
-        if (userRepository.findByUsernameIgnoreCase("opadmin").isPresent()) {
-            log.info(">>> Operational administrator account 'opadmin' already exists.");
+        var operational = userRepository.findByUsernameIgnoreCase("opadmin");
+        if (operational.isPresent()) {
+            User opadmin = operational.get();
+            if (!opadmin.isEnabled()) {
+                opadmin.setEnabled(true);
+                userRepository.save(opadmin);
+                log.info(">>> Operational administrator account 'opadmin' was deactivated and is active again.");
+            } else {
+                log.info(">>> Operational administrator account 'opadmin' already exists.");
+            }
             return;
         }
 

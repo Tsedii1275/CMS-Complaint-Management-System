@@ -215,7 +215,6 @@ function InvestigationReviewPanel({ tasks = [], searchQuery = '', onCompleted })
                       setRemarks(e.target.value);
                       if (remarksError) setRemarksError('');
                     }}
-                    placeholder={step.remarksPlaceholder}
                     style={{ borderRadius: '8px' }}
                   />
                   {remarksError ? (
@@ -235,7 +234,6 @@ function InvestigationReviewPanel({ tasks = [], searchQuery = '', onCompleted })
                         setReason(e.target.value);
                         if (reasonError) setReasonError('');
                       }}
-                      placeholder={step.returnReasonPlaceholder}
                       style={{ borderRadius: '8px' }}
                     />
                     {reasonError ? (

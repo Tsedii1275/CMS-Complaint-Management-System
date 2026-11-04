@@ -270,7 +270,7 @@ function CustomerFeedbackPage() {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '24px 12px',
-      fontFamily: "'Noto Sans Ethiopic', Geezigna, 'Segoe UI', sans-serif",
+      fontFamily: "'Segoe UI', 'Inter', 'Cms Amharic', 'Noto Sans Ethiopic', sans-serif",
     },
     container: {
       width: '100%',
@@ -676,7 +676,6 @@ function CustomerFeedbackPage() {
                       style={styles.textarea}
                       value={additionalComments}
                       onChange={(e) => setAdditionalComments(e.target.value)}
-                      placeholder={translations[language].q6Placeholder}
                     />
                   </div>
                 </>

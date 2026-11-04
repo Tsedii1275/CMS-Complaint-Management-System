@@ -11,6 +11,14 @@ export function sanitizePublicPhone(formPhone, countryCode) {
   return countryCode + rawPhone;
 }
 
+const MARKUP = /<\s*script[\s/>]|on\w+\s*=|javascript:|<\s*\/?[a-z][^>]*>/i;
+const PERSON_NAME = /^[\p{L}\p{Co}][\p{L}\p{Co}\p{M}\p{P}\p{S}\p{Cf}\p{Z}]{1,99}$/u;
+const PLACE_NAME = /^[\p{L}\p{M}\p{Co}\p{P}\p{S}\p{Cf}\p{Z}]{1,100}$/u;
+
+function containsMarkup(value) {
+  return MARKUP.test(String(value || ''));
+}
+
 export function getCustomerNameError(name, language) {
   if (!name?.trim()) {
     return language === 'english' ? 'Customer name is required' : 'የደንበኛው ሙሉ ስም ግዴታ ነው';
@@ -19,7 +27,7 @@ export function getCustomerNameError(name, language) {
   if (trimmed.length < 2 || trimmed.length > 100) {
     return language === 'english' ? 'Customer name must be between 2 and 100 characters' : 'ስም ከ2 እስከ 100 ፊደላት መሆን አለበት';
   }
-  if (!/^[\p{L}\p{Co}][\p{L}\p{Co}\p{M}\s.'\u1361-\u1368-]{1,99}$/u.test(trimmed)) {
+  if (containsMarkup(trimmed) || !PERSON_NAME.test(trimmed)) {
     return language === 'english' ? 'Customer name contains invalid characters' : 'ስም የተከለከሉ ፊደላትን ይዟል';
   }
   return '';
@@ -36,7 +44,7 @@ export function getDescriptionError(desc, language) {
   if (trimmed.length > 5000) {
     return language === 'english' ? 'Complaint description cannot exceed 5000 characters' : 'የቅሬታ መግለጫ ከ5000 ፊደላት መብለጥ የለበትም';
   }
-  if (/<\s*script[\s/>]|on\w+\s*=|javascript:/i.test(trimmed)) {
+  if (containsMarkup(trimmed)) {
     return language === 'english' ? 'Description contains invalid script or HTML tags' : 'መግለጫው የተከለከሉ ኮዶችን ይዟል';
   }
   return '';
@@ -53,7 +61,7 @@ export function getAccountNumberError(accountNumber, language) {
 }
 
 export function lettersOnlyPlaceName(value) {
-  return String(value || '').replace(/[^\p{L}\p{M}\p{Co} ]/gu, '').slice(0, 100);
+  return String(value || '').replace(/[\p{N}\u0000-\u001F\u007F]/gu, '').slice(0, 100);
 }
 
 /** Keep an in-progress Amharic syllable. Filtering it mid-composition clears the field. */
@@ -66,7 +74,7 @@ export function textWhileComposing(event, filter) {
 export function getPlaceNameError(value, language, label) {
   const trimmed = String(value || '').trim();
   if (!trimmed) return '';
-  if (!/^[\p{L}\p{M}\p{Co} ]{1,100}$/u.test(trimmed)) {
+  if (containsMarkup(trimmed) || !PLACE_NAME.test(trimmed)) {
     return language === 'english'
       ? `${label} may contain letters and spaces only`
       : `${label} ፊደላት እና ክፍተት ብቻ መያዝ አለበት`;
@@ -137,6 +145,22 @@ export function getStaffPhoneError(phone, language = 'english') {
     digits = digits.slice(3);
   }
   return getPhoneError(digits, '+251', language);
+}
+
+const LIVE_TEXT_FIELDS = ['customerName', 'email', 'district', 'branch', 'complaintDescription', 'resolutionNotes'];
+
+/** The box can hold text the form state has not stored yet, including an Amharic syllable. */
+export function liveFormText(form, state) {
+  const next = { ...(state || {}) };
+  const elements = form?.elements;
+  if (!elements) return next;
+  LIVE_TEXT_FIELDS.forEach((name) => {
+    const field = elements.namedItem(name);
+    if (field && typeof field.value === 'string' && field.value) next[name] = field.value;
+  });
+  if (typeof next.district === 'string') next.district = lettersOnlyPlaceName(next.district);
+  if (typeof next.branch === 'string') next.branch = lettersOnlyPlaceName(next.branch);
+  return next;
 }
 
 export function fieldRule(check) {

@@ -294,11 +294,11 @@ function CapaAnalysisModal({ open, nature, onClose }) {
           </Form.Item>
           {WHY_FIELDS.map(item => (
             <Form.Item key={item.name} label={`${item.label}: ${item.prompt}`} name={item.name}>
-              <TextArea rows={2} placeholder={item.prompt} />
+              <TextArea rows={2} />
             </Form.Item>
           ))}
           <Form.Item label="Root Cause Identified" name="rootCause">
-            <TextArea rows={3} placeholder="Root Cause Identified" />
+            <TextArea rows={3} />
           </Form.Item>
         </div>
 

@@ -382,7 +382,6 @@ function AuditDashboard() {
                         value={formData.auditJustification}
                         onChange={handleFormChange}
                         rows={3}
-                        placeholder="Enter compliance justification / recommendation details..."
                         style={textareaStyle}
                       />
                     </Form.Item>

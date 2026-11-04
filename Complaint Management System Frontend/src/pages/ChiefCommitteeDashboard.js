@@ -208,7 +208,6 @@ function CommitteeDecisionWorkspace({
                   value={formData.decisionSummary}
                   onChange={handleFormChange}
                   rows={4}
-                  placeholder="Provide details on committee decision and directions passed..."
                   style={{ borderRadius: '6px' }}
                 />
               </Form.Item>

@@ -25,7 +25,8 @@ import {
   textWhileComposing,
   getEmailError,
   getStaffPhoneError,
-  fieldRule
+  fieldRule,
+  liveFormText
 } from '../utils/complaintFieldValidation';
 
 function optionNodes(pairs, language) {
@@ -427,7 +428,7 @@ function BranchStaffDashboard() {
     const tabs = {
       all: { title: 'All Registered', rows: filteredAll, detailed: true },
       tracking: { title: 'Total Complaints', rows: filteredTracking, detailed: true },
-      other: { title: 'Other', rows: filteredOther, detailed: false }
+      other: { title: 'Dispute', rows: filteredOther, detailed: false }
     };
     const current = tabs[activeTab] || tabs.all;
     const columns = current.detailed
@@ -438,7 +439,11 @@ function BranchStaffDashboard() {
         { header: 'Current Status', type: 'status', accessor: (record) => record }
       ]
       : [
-        { header: 'Unique ID No', accessor: (record) => formatUniqueId(record) }
+        { header: 'Unique ID No', accessor: (record) => formatUniqueId(record) },
+        { header: 'Customer', accessor: (record) => record.customerName || '-' },
+        { header: 'Phone', accessor: (record) => record.currentContactPhone || record.phone || '-' },
+        { header: 'Details', accessor: (record) => record.complaintDescription || '-' },
+        { header: 'Received', accessor: (record) => record.createdAt, type: 'date' }
       ];
     return {
       filename: `${current.title.replace(/\s+/g, '_')}_${today}`,
@@ -538,12 +543,13 @@ function BranchStaffDashboard() {
     }
 
     try {
+      const typed = liveFormText(document.getElementById('staff-register-form'), values);
       const phone = normalizePhone(values.phone);
 
       const payload = {
         customer: {
-          name: values.customerName,
-          email: values.email || '',
+          name: typed.customerName,
+          email: typed.email || '',
           phone: phone,
           currentContactPhone: phone,
           accountNumber: values.accountNumber,
@@ -561,13 +567,13 @@ function BranchStaffDashboard() {
           complaintMadeOn: values.complaintMadeOn || 'Branch',
           serviceType: values.serviceType || 'Deposit Account',
           category: values.complaintCategory || 'Customer Service Issues',
-          description: values.complaintDescription,
-          complaintBranch: values.branch || user?.branch || '',
-          complaintDistrict: values.district || '',
+          description: typed.complaintDescription,
+          complaintBranch: typed.branch || user?.branch || '',
+          complaintDistrict: typed.district || '',
           date: values.date ? values.date.format('YYYY-MM-DD') : '',
           isFcr: fcrChecked,
-          fcrNotes: fcrChecked ? values.resolutionNotes : '',
-          resolutionNotes: values.resolutionNotes || '',
+          fcrNotes: fcrChecked ? typed.resolutionNotes : '',
+          resolutionNotes: typed.resolutionNotes || '',
           evidenceUrl: evidenceFiles[0]?.url || voiceFiles[0]?.url || undefined,
           evidenceName: evidenceFiles[0]?.name || voiceFiles[0]?.name || undefined,
           evidenceFiles: evidenceFiles.length > 0 ? evidenceFiles : undefined,
@@ -908,6 +914,7 @@ function BranchStaffDashboard() {
           )}
 
           <Form
+            id="staff-register-form"
             form={form}
             layout="vertical"
             validateTrigger={['onChange', 'onBlur']}
@@ -931,7 +938,7 @@ function BranchStaffDashboard() {
                   label={<StaffFormLabel>{copy.customerName}</StaffFormLabel>}
                   rules={[fieldRule((value) => getCustomerNameError(value, registrationLanguage))]}
                 >
-                  <StableField antd maxLength={100} style={controlStyle} />
+                  <StableField antd name="customerName" maxLength={100} style={controlStyle} />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
@@ -940,7 +947,7 @@ function BranchStaffDashboard() {
                   label={<StaffFormLabel>{copy.email}</StaffFormLabel>}
                   rules={[fieldRule((value) => getEmailError(value, registrationLanguage))]}
                 >
-                  <Input style={controlStyle} />
+                  <StableField antd name="email" autoComplete="email" style={controlStyle} />
                 </Form.Item>
               </Col>
             </Row>
@@ -1009,6 +1016,7 @@ function BranchStaffDashboard() {
                 >
                   <StableField
                     antd
+                    name="district"
                     maxLength={100}
                     placeholder={copy.districtPlaceholder}
                     style={controlStyle}
@@ -1025,6 +1033,7 @@ function BranchStaffDashboard() {
                 >
                   <StableField
                     antd
+                    name="branch"
                     maxLength={100}
                     placeholder={copy.branchPlaceholder}
                     style={controlStyle}
@@ -1085,7 +1094,7 @@ function BranchStaffDashboard() {
               label={<StaffFormLabel>{copy.description}</StaffFormLabel>}
               rules={[fieldRule((value) => getDescriptionError(value, registrationLanguage))]}
             >
-              <StableField antd multiline rows={4} maxLength={5000} showCount style={textareaStyle} />
+              <StableField antd multiline name="complaintDescription" rows={4} maxLength={5000} showCount style={textareaStyle} />
             </Form.Item>
 
             <div style={uploadBoxStyle}>
@@ -1160,7 +1169,7 @@ function BranchStaffDashboard() {
 
               {fcrChecked && (
                 <Form.Item name="resolutionNotes" label={<StaffFormLabel>{copy.fcrNotes}</StaffFormLabel>} rules={[{ required: true, message: copy.fcrRequired }]} style={fcrNotesItemStyle}>
-                  <Input.TextArea rows={3} style={fcrTextareaStyle} />
+                  <Input.TextArea name="resolutionNotes" rows={3} style={fcrTextareaStyle} />
                 </Form.Item>
               )}
             </div>
