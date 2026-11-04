@@ -19,16 +19,19 @@ describe('downloadBlob', () => {
     jest.useRealTimers();
   });
 
-  test('a csv is saved once and the temporary address stays until Firefox can read it', () => {
+  test('a csv is saved once and Firefox is not told to open it', () => {
     downloadBlob('Unique ID,Customer\nDBC-1,Abebe', 'Ethics_and_Conduct_2026-11-04.csv', 'text/csv;charset=utf-8;');
 
+    jest.advanceTimersByTime(0);
     expect(click).toHaveBeenCalledTimes(1);
     expect(revokeObjectURL).not.toHaveBeenCalled();
     const blob = createObjectURL.mock.calls[0][0];
-    expect(blob.type).toBe('application/octet-stream');
-    expect(document.querySelector('a').download).toBe('Ethics_and_Conduct_2026-11-04.csv');
+    expect(blob.type).toBe('application/csv');
+    const link = document.querySelector('a');
+    expect(link.download).toBe('Ethics_and_Conduct_2026-11-04.csv');
+    expect(link.type).toBe('');
 
-    jest.advanceTimersByTime(15000);
+    jest.advanceTimersByTime(40000);
     expect(revokeObjectURL).toHaveBeenCalledTimes(1);
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:cms-export');
   });
@@ -40,6 +43,7 @@ describe('downloadBlob', () => {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     );
 
+    jest.advanceTimersByTime(0);
     const blob = createObjectURL.mock.calls[0][0];
     expect(blob.type).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     expect(document.querySelector('a').download).toBe('Ethics_and_Conduct_2026-11-04.xlsx');
