@@ -2,12 +2,13 @@
 
 Dashen Bank complaint workflow: Spring Boot + Flowable backend and React frontend.
 
-Frontend and backend Docker stacks are independent. There is no root Compose file.
+Production uses two servers. A developer machine can still run every service from the root Compose file.
 
 ## Layout
 
-- `complaint-management-system` — backend (Spring Boot, MySQL, optional phpMyAdmin)
-- `Complaint Management System Frontend` — frontend (Nginx serving the production React build)
+- `complaint-management-system` — Spring Boot Dockerfile, and the MySQL Compose file for the database server
+- `Complaint Management System Frontend` — React Dockerfile, Nginx config, and the Compose file that runs Nginx and Spring Boot together
+- `docker-compose.yml` — local all-in-one stack (MySQL, API, Nginx, phpMyAdmin)
 
 ## Configuration
 
@@ -22,23 +23,39 @@ Edit `.env` on the target machine, then:
 docker compose up -d --build
 ```
 
-## Docker (decoupled)
+## Docker (production)
 
-Start backend first, then frontend.
+Database server `dbhqcvmsprodbesrv` (`172.24.17.113`) runs MySQL only. Start it first. `APP_ENV=prod` in `.env`, passwords in `.env.prod.local`.
 
 ```powershell
 cd complaint-management-system
-docker compose up -d --build
+docker compose up -d
 ```
+
+App server `dbhqcvmsproffesrv` runs the React Nginx container and the Spring Boot container. Nginx forwards `/api/` to `complaint-management-system:8080` on the `cms` network. Spring Boot connects to `172.24.17.113:3306`.
 
 ```powershell
 cd "Complaint Management System Frontend"
 docker compose up -d --build
 ```
 
+- UI: port 8084 (HTTP) and 443 (HTTPS)
+- API on the app server, direct: port 8082
+- phpMyAdmin, database server only: `docker compose --profile tools up -d`, then port 8081
+
+Do not run `docker compose down -v`. That deletes the MySQL data volume and uploaded files.
+
+## Docker (developer machine)
+
+From this directory the root Compose file starts MySQL, the API, and Nginx together:
+
+```powershell
+docker compose up -d --build
+```
+
 - UI: http://localhost
 - API: http://localhost:8080
-- phpMyAdmin: `docker compose --profile tools up -d` from the backend folder, then http://localhost:8081
+- phpMyAdmin: http://localhost:8081
 
 ## Run on the host (developer mode)
 

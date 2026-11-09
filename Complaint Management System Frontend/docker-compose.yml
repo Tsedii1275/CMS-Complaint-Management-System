@@ -1,14 +1,53 @@
-# Frontend stack (Nginx serving the React build).
-# From this directory:
-#   docker compose up -d --build
-# .env sets APP_ENV=dev|prod; CMS_BACKEND comes from .env.dev or .env.prod.
-# UI: http://localhost
+# App server (dbhqcvmsproffesrv): React (Nginx) and Spring Boot.
+# MySQL is not on this server. It runs from complaint-management-system/docker-compose.yml
+# on dbhqcvmsprodbesrv (172.24.17.113).
 #
-# Start the backend stack first (port 8080) so /api proxying works.
+# From this directory, with APP_ENV=prod in .env:
+#   docker compose up -d --build
+#
+# UI:  http://localhost:8084  and https://localhost
+# API: Nginx forwards /api/ to complaint-management-system:8080 on the cms network.
 
 name: cms-frontend
 
 services:
+  complaint-management-system:
+    build:
+      context: ../complaint-management-system
+      dockerfile: Dockerfile
+    container_name: cms-complaint-management-system
+    restart: unless-stopped
+    # DNS for this name returns 10.0.20.68, which this server cannot reach. DataPower rejects
+    # requests whose hostname is the mapped IP, so the container resolves the name to the NAT.
+    extra_hosts:
+      - "datapower-cp4iuat.dashenbanksc.com:10.40.30.114"
+    env_file:
+      - path: ../complaint-management-system/.env.${APP_ENV:-dev}
+        required: true
+      - path: ../complaint-management-system/.env.${APP_ENV:-dev}.local
+        required: false
+    environment:
+      APP_ENV: ${APP_ENV:-dev}
+      # Remote database server. Do not point this at a MySQL container on the app server.
+      # hardening.cnf sets require_secure_transport=ON, so the JDBC connection uses TLS.
+      MYSQL_HOST: 172.24.17.113
+      MYSQL_PORT: "3306"
+      MYSQL_SSL_MODE: REQUIRED
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "false"
+      SPRING_FLYWAY_OUT_OF_ORDER: "true"
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      FILE_UPLOAD_DIR: /app/uploads
+    volumes:
+      # Fixed name so a redeploy does not create an empty uploads volume.
+      - cms_uploads:/app/uploads
+      # Optional DataPower truststore (public Sectigo intermediate only). Create the certs
+      # directory beside the backend Dockerfile and set the truststore env vars in .env.prod.local.
+      - ../complaint-management-system/certs:/app/certs:ro,z
+    ports:
+      - "8082:8080"
+    networks:
+      - cms
+
   nginx:
     build:
       context: .
@@ -19,10 +58,22 @@ services:
       - .env.${APP_ENV:-dev}
     environment:
       APP_ENV: ${APP_ENV:-dev}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      # Docker DNS name of the backend service. Not the database server, and not a host IP.
+      CMS_BACKEND: complaint-management-system:8080
+    depends_on:
+      - complaint-management-system
     volumes:
       - /etc/ssl/dashen:/etc/nginx/ssl:ro,z
     ports:
       - "8084:8080"
       - "443:8443"
+    networks:
+      - cms
+
+networks:
+  cms:
+    name: cms
+
+volumes:
+  cms_uploads:
+    name: cms-backend_cms_uploads

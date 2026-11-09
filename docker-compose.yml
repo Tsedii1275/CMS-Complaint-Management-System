@@ -1,7 +1,13 @@
-# Full CMS stack. From this directory:
+# Local all-in-one stack (developer machine). From this directory:
 #   docker compose up -d --build
 # App: http://localhost
 # phpMyAdmin: http://localhost:8081
+#
+# Production is split. Do not use this file on the servers.
+#   App server (dbhqcvmsproffesrv): "Complaint Management System Frontend"/docker-compose.yml
+#     Nginx + Spring Boot. Nginx calls complaint-management-system:8080.
+#   Database server (dbhqcvmsprodbesrv, 172.24.17.113): complaint-management-system/docker-compose.yml
+#     MySQL only.
 #
 # Host mvnw + npm start (MySQL only):
 #   docker compose up -d mysql
