@@ -328,6 +328,7 @@ function BranchStaffDashboard() {
   const [isUploadingVoice, setIsUploadingVoice] = useState(false);
   const [cbsProfile, setCbsProfile] = useState(null);
   const [lookingUpAccount, setLookingUpAccount] = useState(false);
+  const registerModalOpenRef = React.useRef(false);
 
   const userRole = (user?.role || '').toUpperCase();
   const isManager = userRole.includes('MANAGER') || userRole.includes('DIRECTOR') || userRole.includes('LEADER') ||
@@ -351,16 +352,21 @@ function BranchStaffDashboard() {
     userRole === 'ROLE_CONTACT_CENTER_SENIOR_MANAGER');
 
   useEffect(() => {
-    void loadComplaintsData();
+    void loadComplaintsData(true);
     const interval = setInterval(() => {
-      void loadComplaintsData();
-    }, 6000);
+      if (registerModalOpenRef.current || document.hidden) {
+        return;
+      }
+      void loadComplaintsData(false);
+    }, 20000);
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user?.username]);
 
-  const loadComplaintsData = async () => {
+  const loadComplaintsData = async (showLoading = false) => {
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       const [slaData, otherData, registeredData, taskData] = await Promise.all([
         ApiService.getAllSlaMetrics().catch(() => []),
         ApiService.getOtherSlaMetrics().catch(() => []),
@@ -597,8 +603,9 @@ function BranchStaffDashboard() {
       setEvidenceFiles([]);
       setVoiceFiles([]);
       setCbsProfile(null);
+      registerModalOpenRef.current = false;
       setIsRegisterModalOpen(false);
-      await loadComplaintsData();
+      await loadComplaintsData(true);
     } catch (error) {
       console.error('Error submitting complaint:', error);
       const serverMsg = error.response?.data?.error || error.message || 'Failed to submit complaint. Please check fields and try again.';
@@ -730,7 +737,10 @@ function BranchStaffDashboard() {
             <Button
               type="primary"
               icon={<PlusCircleOutlined />}
-              onClick={() => setIsRegisterModalOpen(true)}
+              onClick={() => {
+                registerModalOpenRef.current = true;
+                setIsRegisterModalOpen(true);
+              }}
               style={primaryButtonStyle}
               size="large"
             >
@@ -895,7 +905,10 @@ function BranchStaffDashboard() {
             </div>
           )}
           open={isRegisterModalOpen}
+          destroyOnClose={false}
+          maskClosable={false}
           onCancel={() => {
+            registerModalOpenRef.current = false;
             setIsRegisterModalOpen(false);
             setCbsProfile(null);
           }}

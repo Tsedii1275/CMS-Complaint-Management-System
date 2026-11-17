@@ -46,14 +46,17 @@ The app will open at `http://localhost:3000`
 
 ## Docker Deployment
 
-App server stack. This Compose file builds the React image and the Spring Boot image, and runs them as separate containers on the `cms` network. MySQL stays on `172.24.17.113` and must already be running.
+App server Nginx stack. Spring Boot is started from `complaint-management-system/docker-compose.yml` on the same `cms` network. MySQL stays on `172.24.17.113` and must already be running.
 
 ```powershell
-cd "Complaint Management System Frontend"
+docker network create cms
+cd "../complaint-management-system"
+docker compose up -d --build
+cd "../Complaint Management System Frontend"
 docker compose up -d --build
 ```
 
-Set `APP_ENV=prod` in `.env` on the server. Nginx proxies `/api` to `complaint-management-system:8080`. UI ports are 8084 (HTTP) and 443 (HTTPS).
+Set `APP_ENV=prod` in `.env` on the server. Nginx proxies `/api` to `complaint-management-system:8080`. UI ports are 8084 (HTTP) and 443 (HTTPS). Restart Nginx without touching the API: `docker compose up -d --no-deps --build --force-recreate nginx`.
 
 ### Building for Production
 

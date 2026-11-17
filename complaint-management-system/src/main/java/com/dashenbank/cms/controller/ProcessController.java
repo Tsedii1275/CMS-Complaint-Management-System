@@ -833,7 +833,9 @@ public class ProcessController {
         String role = getCurrentUserRole();
         User currentUser = userRepository.findByUsernameIgnoreCase(getCurrentUsername()).orElse(null);
 
-        var query = taskService.createTaskQuery();
+        var query = taskService.createTaskQuery()
+                .includeProcessVariables()
+                .includeTaskLocalVariables();
         if (assignee != null && !assignee.isBlank()) {
             query = query.taskAssignee(assignee);
         } else if (candidateGroup != null && !candidateGroup.isBlank()) {
@@ -844,11 +846,7 @@ public class ProcessController {
 
         Map<String, Map<String, Object>> taskVarsCache = new HashMap<>();
         for (Task t : tasks) {
-            try {
-                taskVarsCache.put(t.getId(), taskService.getVariables(t.getId()));
-            } catch (Exception e) {
-                taskVarsCache.put(t.getId(), Map.of());
-            }
+            taskVarsCache.put(t.getId(), mergedTaskVariables(t));
         }
 
         tasks = slaAlertAuthorizationService.retainAuthorizedTasks(tasks, role, currentUser, taskVarsCache);
@@ -869,6 +867,17 @@ public class ProcessController {
     }
 
     @SuppressWarnings("java:S3776")
+    private Map<String, Object> mergedTaskVariables(Task task) {
+        Map<String, Object> vars = new HashMap<>();
+        if (task.getProcessVariables() != null) {
+            vars.putAll(task.getProcessVariables());
+        }
+        if (task.getTaskLocalVariables() != null) {
+            vars.putAll(task.getTaskLocalVariables());
+        }
+        return vars;
+    }
+
     private Map<String, Object> enrichTask(Task task, Map<String, Object> vars) {
         Map<String, Object> customer = castToMap(vars.getOrDefault(KEY_CUSTOMER, Map.of()));
         Map<String, Object> complaint = castToMap(vars.getOrDefault(KEY_COMPLAINT, Map.of()));

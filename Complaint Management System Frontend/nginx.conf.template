@@ -44,6 +44,18 @@ server {
 
     client_max_body_size 50M;
 
+    # Hashed CRA assets. HTML and /api stay no-store from the server block.
+    location /static/ {
+        expires 1y;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' ws: wss:; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'" always;
+        add_header Permissions-Policy "geolocation=(), camera=(), microphone=(), payment=(), usb=(), display-capture=()" always;
+    }
+
     location /api/ {
         # CMS_BACKEND is the Spring Boot service on the cms network, for example
         # complaint-management-system:8080. The variable plus the Docker DNS resolver

@@ -1,0 +1,62 @@
+# Database server (dbhqcvmsprodbesrv, 172.24.17.113): MySQL only.
+# The React app and Spring Boot run on the app server. Do not start the API here.
+#
+# From this directory, with APP_ENV=prod in .env and passwords in .env.prod.local:
+#   docker compose -f docker-compose.mysql.yml up -d
+# phpMyAdmin (optional, this server only):
+#   docker compose -f docker-compose.mysql.yml --profile tools up -d
+#
+# Allow TCP 3306 from the app server only. The app connects with TLS
+# (require_secure_transport is on in hardening.cnf).
+# Do not run "docker compose down -v": that deletes mysql_data.
+
+name: cms-backend
+
+services:
+  mysql:
+    # Stay on 8.0 until a staged 8.4 LTS cutover. Do not change this tag without backup.
+    image: mysql:8.0
+    container_name: cms-mysql
+    restart: unless-stopped
+    env_file:
+      - path: .env.${APP_ENV:-dev}
+        required: true
+      - path: .env.${APP_ENV:-dev}.local
+        required: false
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./hardening.cnf:/opt/hardening.cnf:ro
+    entrypoint:
+      - bash
+      - -ec
+      - install -m 644 /opt/hardening.cnf /etc/mysql/conf.d/hardening.cnf && exec docker-entrypoint.sh mysqld
+    ports:
+      - "3306:3306"
+    healthcheck:
+      # Socket ping as root@localhost. TCP+TLS to 127.0.0.1 fails during first init
+      # (certs not ready, require_secure_transport) and marks the container unhealthy.
+      test: ["CMD-SHELL", "mysqladmin ping -uroot -p\"$$MYSQL_ROOT_PASSWORD\" || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  phpmyadmin:
+    profiles: [tools]
+    image: phpmyadmin/phpmyadmin
+    container_name: cms-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_SSL: "1"
+      PMA_SSL_VERIFY: "0"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  mysql_data:
+    name: cms-backend_mysql_data

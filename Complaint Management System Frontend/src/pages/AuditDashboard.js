@@ -113,8 +113,10 @@ function AuditDashboard() {
     loadTasks();
 
     const interval = setInterval(() => {
-      loadTasks();
-    }, 5000);
+      if (!document.hidden) {
+        loadTasks();
+      }
+    }, 15000);
 
     return () => clearInterval(interval);
   }, []);

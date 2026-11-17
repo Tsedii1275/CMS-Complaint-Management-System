@@ -6,8 +6,8 @@ Production uses two servers. A developer machine can still run every service fro
 
 ## Layout
 
-- `complaint-management-system` — Spring Boot Dockerfile, and the MySQL Compose file for the database server
-- `Complaint Management System Frontend` — React Dockerfile, Nginx config, and the Compose file that runs Nginx and Spring Boot together
+- `complaint-management-system` — Spring Boot Dockerfile and `docker-compose.yml` (API). MySQL for the database server is `docker-compose.mysql.yml`
+- `Complaint Management System Frontend` — React Dockerfile, Nginx config, and `docker-compose.yml` (Nginx only)
 - `docker-compose.yml` — local all-in-one stack (MySQL, API, Nginx, phpMyAdmin)
 
 ## Configuration
@@ -29,13 +29,18 @@ Database server `dbhqcvmsprodbesrv` (`172.24.17.113`) runs MySQL only. Start it 
 
 ```powershell
 cd complaint-management-system
-docker compose up -d
+docker compose -f docker-compose.mysql.yml up -d
 ```
 
-App server `dbhqcvmsproffesrv` runs the React Nginx container and the Spring Boot container. Nginx forwards `/api/` to `complaint-management-system:8080` on the `cms` network. Spring Boot connects to `172.24.17.113:3306`.
+App server `dbhqcvmsproffesrv` runs Spring Boot and Nginx as separate Compose projects on the shared `cms` network. Create the network once, then start the API, then Nginx. Nginx forwards `/api/` to `complaint-management-system:8080`. Spring Boot connects to `172.24.17.113:3306`.
 
 ```powershell
-cd "Complaint Management System Frontend"
+docker network create cms
+
+cd complaint-management-system
+docker compose up -d --build
+
+cd "../Complaint Management System Frontend"
 docker compose up -d --build
 ```
 
@@ -63,7 +68,7 @@ MySQL from the backend Compose file:
 
 ```powershell
 cd complaint-management-system
-docker compose up -d mysql
+docker compose -f docker-compose.mysql.yml up -d
 ```
 
 Backend:

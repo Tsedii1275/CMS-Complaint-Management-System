@@ -1,61 +1,61 @@
-# Database server (dbhqcvmsprodbesrv, 172.24.17.113): MySQL only.
-# The React app and Spring Boot run on the app server. Do not start the API here.
+# App server (dbhqcvmsproffesrv): Spring Boot only.
+# MySQL stays on dbhqcvmsprodbesrv (172.24.17.113). Nginx is started from the frontend Compose file.
 #
-# From this directory, with APP_ENV=prod in .env and passwords in .env.prod.local:
-#   docker compose up -d
-# phpMyAdmin (optional, this server only): docker compose --profile tools up -d
+# One-time on the app server:
+#   docker network create cms
 #
-# Allow TCP 3306 from the app server only. The app connects with TLS
-# (require_secure_transport is on in hardening.cnf).
-# Do not run "docker compose down -v": that deletes mysql_data.
+# From this directory, with APP_ENV=prod in .env and secrets in .env.prod.local:
+#   docker compose up -d --build
+# Restart only the API:
+#   docker compose up -d --no-deps --force-recreate complaint-management-system
+#
+# Do not run "docker compose down -v": that deletes the uploads volume.
 
-name: cms-backend
+name: cms-api
 
 services:
-  mysql:
-    # Stay on 8.0 until a staged 8.4 LTS cutover. Do not change this tag without backup.
-    image: mysql:8.0
-    container_name: cms-mysql
+  complaint-management-system:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cms-complaint-management-system
     restart: unless-stopped
+    # DNS for this name returns 10.0.20.68, which this server cannot reach. DataPower rejects
+    # requests whose hostname is the mapped IP, so the container resolves the name to the NAT.
+    extra_hosts:
+      - "datapower-cp4iuat.dashenbanksc.com:10.40.30.114"
     env_file:
       - path: .env.${APP_ENV:-dev}
         required: true
       - path: .env.${APP_ENV:-dev}.local
         required: false
-    volumes:
-      - mysql_data:/var/lib/mysql
-      - ./hardening.cnf:/opt/hardening.cnf:ro
-    entrypoint:
-      - bash
-      - -ec
-      - install -m 644 /opt/hardening.cnf /etc/mysql/conf.d/hardening.cnf && exec docker-entrypoint.sh mysqld
-    ports:
-      - "3306:3306"
-    healthcheck:
-      # Socket ping as root@localhost. TCP+TLS to 127.0.0.1 fails during first init
-      # (certs not ready, require_secure_transport) and marks the container unhealthy.
-      test: ["CMD-SHELL", "mysqladmin ping -uroot -p\"$$MYSQL_ROOT_PASSWORD\" || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 30
-      start_period: 60s
-
-  phpmyadmin:
-    profiles: [tools]
-    image: phpmyadmin/phpmyadmin
-    container_name: cms-phpmyadmin
-    restart: unless-stopped
-    ports:
-      - "8081:80"
     environment:
-      PMA_HOST: mysql
-      PMA_PORT: 3306
-      PMA_SSL: "1"
-      PMA_SSL_VERIFY: "0"
-    depends_on:
-      mysql:
-        condition: service_healthy
+      APP_ENV: ${APP_ENV:-dev}
+      # Remote database server. Do not point this at a MySQL container on the app server.
+      # hardening.cnf sets require_secure_transport=ON, so the JDBC connection uses TLS.
+      MYSQL_HOST: 172.24.17.113
+      MYSQL_PORT: "3306"
+      MYSQL_SSL_MODE: REQUIRED
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "false"
+      SPRING_FLYWAY_OUT_OF_ORDER: "true"
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      FILE_UPLOAD_DIR: /app/uploads
+    volumes:
+      # Fixed name so a redeploy does not create an empty uploads volume.
+      - cms_uploads:/app/uploads
+      # Optional DataPower truststore (public Sectigo intermediate only). Create ./certs
+      # and set the truststore env vars in .env.prod.local.
+      - ./certs:/app/certs:ro,z
+    ports:
+      - "8082:8080"
+    networks:
+      - cms
+
+networks:
+  cms:
+    name: cms
+    external: true
 
 volumes:
-  mysql_data:
-    name: cms-backend_mysql_data
+  cms_uploads:
+    name: cms-backend_cms_uploads

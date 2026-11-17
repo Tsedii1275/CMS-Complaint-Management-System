@@ -298,8 +298,10 @@ function ChiefCommitteeDashboard() {
     loadTasks(true);
 
     const interval = setInterval(() => {
-      loadTasks(false);
-    }, 5000);
+      if (!document.hidden) {
+        loadTasks(false);
+      }
+    }, 15000);
 
     return () => clearInterval(interval);
   }, []);

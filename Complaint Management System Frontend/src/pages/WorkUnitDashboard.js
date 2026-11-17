@@ -68,8 +68,10 @@ function WorkUnitDashboard() {
     loadTasks();
 
     const interval = setInterval(() => {
-      loadTasks();
-    }, 5000);
+      if (!document.hidden) {
+        loadTasks();
+      }
+    }, 15000);
 
     return () => clearInterval(interval);
   }, [user?.username, user?.role, user?.branch]);

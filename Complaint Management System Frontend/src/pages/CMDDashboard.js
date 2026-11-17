@@ -1660,10 +1660,13 @@ function useCmdDashboardState() {
     loadActiveOfficersCmd(stateRef);
     loadUnresolvedFollowupsCmd(stateRef);
     const interval = setInterval(() => {
+      if (document.hidden) {
+        return;
+      }
       loadCmdTasks(stateRef, false);
       fetchSlaMetricsCmd(stateRef);
       loadUnresolvedFollowupsCmd(stateRef);
-    }, 5000);
+    }, 15000);
     return () => clearInterval(interval);
   }, []);
 

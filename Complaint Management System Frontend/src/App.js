@@ -1,34 +1,35 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
 import CustomerForm from './pages/CustomerForm';
 import Login from './pages/Login';
-import BranchStaffDashboard from './pages/BranchStaffDashboard';
-import CMDDashboard from './pages/CMDDashboard';
-import AuditDashboard from './pages/AuditDashboard';
-import WorkUnitDashboard from './pages/WorkUnitDashboard';
-import ChiefCommitteeDashboard from './pages/ChiefCommitteeDashboard';
-import AdminDashboard from './pages/AdminDashboard';
-import NBEReports from './pages/NBEReports';
-import RcaDashboard from './pages/RcaDashboard';
 import CustomerFeedbackPage from './pages/CustomerFeedbackPage';
-import CustomerExperienceDashboard from './pages/CustomerExperienceDashboard';
-import SlaConfigPage from './pages/SlaConfigPage';
-import ComplaintCategoriesPage from './pages/ComplaintCategoriesPage';
-import SlaMonitoringPage from './pages/SlaMonitoringPage';
-import ExecutiveDashboard from './pages/ExecutiveDashboard';
-import EthicsDashboard from './pages/EthicsDashboard';
-import UserManagementPage from './pages/UserManagementPage';
-import LdapMaintenancePage from './pages/LdapMaintenancePage';
-import SystemAdminDashboard from './pages/SystemAdminDashboard';
-import SystemSecurityLogsPage from './pages/SystemSecurityLogsPage';
-import SystemIntegrationsPage from './pages/SystemIntegrationsPage';
-import Unauthorized from './pages/Unauthorized';
-import PendingAccessPage from './pages/PendingAccessPage';
 import { RequireAuth, RequireRole } from './components/RoleGuard';
 import { AuthProvider } from './contexts/AuthContext';
 import SessionIdleWatch from './components/SessionIdleWatch';
 import './index.css';
+
+const BranchStaffDashboard = lazy(() => import('./pages/BranchStaffDashboard'));
+const CMDDashboard = lazy(() => import('./pages/CMDDashboard'));
+const AuditDashboard = lazy(() => import('./pages/AuditDashboard'));
+const WorkUnitDashboard = lazy(() => import('./pages/WorkUnitDashboard'));
+const ChiefCommitteeDashboard = lazy(() => import('./pages/ChiefCommitteeDashboard'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const NBEReports = lazy(() => import('./pages/NBEReports'));
+const RcaDashboard = lazy(() => import('./pages/RcaDashboard'));
+const CustomerExperienceDashboard = lazy(() => import('./pages/CustomerExperienceDashboard'));
+const SlaConfigPage = lazy(() => import('./pages/SlaConfigPage'));
+const ComplaintCategoriesPage = lazy(() => import('./pages/ComplaintCategoriesPage'));
+const SlaMonitoringPage = lazy(() => import('./pages/SlaMonitoringPage'));
+const ExecutiveDashboard = lazy(() => import('./pages/ExecutiveDashboard'));
+const EthicsDashboard = lazy(() => import('./pages/EthicsDashboard'));
+const UserManagementPage = lazy(() => import('./pages/UserManagementPage'));
+const LdapMaintenancePage = lazy(() => import('./pages/LdapMaintenancePage'));
+const SystemAdminDashboard = lazy(() => import('./pages/SystemAdminDashboard'));
+const SystemSecurityLogsPage = lazy(() => import('./pages/SystemSecurityLogsPage'));
+const SystemIntegrationsPage = lazy(() => import('./pages/SystemIntegrationsPage'));
+const Unauthorized = lazy(() => import('./pages/Unauthorized'));
+const PendingAccessPage = lazy(() => import('./pages/PendingAccessPage'));
 
 function guarded(element) {
   return <RequireRole>{element}</RequireRole>;
@@ -36,6 +37,7 @@ function guarded(element) {
 
 function AppRoutes() {
   return (
+    <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Loading…</div>}>
     <Routes>
       <Route path="/" element={<CustomerForm />} />
       <Route path="/staff-login" element={<Login />} />
@@ -62,6 +64,7 @@ function AppRoutes() {
       <Route path="/admin/rca" element={guarded(<RcaDashboard />)} />
       <Route path="/admin/customer-experience" element={guarded(<CustomerExperienceDashboard />)} />
     </Routes>
+    </Suspense>
   );
 }
 
